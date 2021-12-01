@@ -1,0 +1,60 @@
+        // NB: the encoded byte stream created by CompressCLASS can be decoded ONLY by DecompressCLASS
+        struct CompressCLASS
+        {
+            CompressCLASS();
+            CompressCLASS(const CompressCLASS&);
+            CompressCLASS(CompressCLASS&&) = default;
+            auto operator=(const CompressCLASS&) -> CompressCLASS&;
+            auto operator=(CompressCLASS&&) -> CompressCLASS& = default;
+            ~CompressCLASS();
+
+            auto sensors(int64_t height) -> bool;
+            auto sensors(int64_t height, std::nothrow_t) -> bool;
+            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
+            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+
+            auto reserve(int64_t length) -> void;
+            auto reserve(int64_t length, std::nothrow_t) -> bool;
+            auto column_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+            friend auto swap(CompressCLASS&, CompressCLASS&) -> void;
+        };
+        // CompressCLASS::CompressCLASS() might throw. if this is not desired this function returns NULL instead.
+        auto MakeCompressCLASS() -> std::unique_ptr<CompressCLASS>;
+
+        struct DecompressCLASS
+        {
+            DecompressCLASS();
+            DecompressCLASS(const DecompressCLASS&);
+            DecompressCLASS(DecompressCLASS&&) = default;
+            auto operator=(const DecompressCLASS&) -> DecompressCLASS&;
+            auto operator=(DecompressCLASS&&) -> DecompressCLASS& = default;
+            ~DecompressCLASS();
+
+            auto sensors(int64_t height) -> bool;
+            auto sensors(int64_t height, std::nothrow_t) -> bool;
+            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
+            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+
+            auto reserve(int64_t length) -> void;
+            auto reserve(int64_t length, std::nothrow_t) -> bool;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<DATATYPE>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<DATATYPE>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<DATATYPE>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<DATATYPE>;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+            friend auto swap(DecompressCLASS&, DecompressCLASS&) -> void;
+        };
+        // DecompressCLASS::DecompressCLASS() might throw. if this is not desired this function returns NULL instead.
+        auto MakeDecompressCLASS() -> std::unique_ptr<DecompressCLASS>;
+
+

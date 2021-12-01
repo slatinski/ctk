@@ -1,0 +1,14 @@
+// ctk_version.h: generated from ctk_version.h.in by cmake
+#pragma once
+
+// 4.0 - introduction of file versioning. We start at 4.0 to avoid confusion with existing (implicit) version numbers.
+// 4.1 - 64-bit chunk sizes for large files
+// 4.2 - parseable without compatibility workarounds (strict writer output)
+#define CTK_FILE_VERSION_MAJOR 4
+#define CTK_FILE_VERSION_MINOR 2
+
+#define CTK_VERSION "@PROJECT_VERSION@"
+#define CTK_MAJOR @PROJECT_VERSION_MAJOR@
+#define CTK_MINOR @PROJECT_VERSION_MINOR@
+#define CTK_PATCH @PROJECT_VERSION_PATCH@
+#define CTK_BUILD @PROJECT_VERSION_TWEAK@

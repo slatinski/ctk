@@ -1,0 +1,197 @@
+
+        struct CompressCLASS::impl
+        {
+            compress_wrapper<ctk::matrix_encoderINST> encode;
+
+            impl() = default;
+            impl(const impl&) = default;
+            impl(impl&&) = default;
+            auto operator=(const impl&) -> impl& = default;
+            auto operator=(impl&&) -> impl& = default;
+            ~impl() = default;
+        };
+
+        CompressCLASS::CompressCLASS()
+            : p{ new impl{} } {
+            assert(p);
+        }
+
+        CompressCLASS::~CompressCLASS() {
+        }
+
+        CompressCLASS::CompressCLASS(const CompressCLASS& x)
+            : p{ new impl{ *x.p } } {
+            assert(x.p);
+            assert(p);
+        }
+
+        auto swap(CompressCLASS& x, CompressCLASS& y) -> void {
+            using namespace std;
+            swap(x.p, y.p);
+        }
+
+        auto CompressCLASS::operator=(const CompressCLASS& x) -> CompressCLASS& {
+            CompressCLASS y{ x };
+            swap(*this, y);
+            return *this;
+        }
+
+        auto CompressCLASS::sensors(int64_t height) -> bool {
+            assert(p);
+            return p->encode.sensors(height);
+        }
+
+        auto CompressCLASS::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+            assert(p);
+            return p->encode.sensors(height, nothrow);
+        }
+
+        auto CompressCLASS::sensors(const std::vector<int16_t>& order) -> bool {
+            assert(p);
+            return p->encode.sensors(order);
+        }
+
+        auto CompressCLASS::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+            assert(p);
+            return p->encode.sensors(order, nothrow);
+        }
+
+        auto CompressCLASS::reserve(int64_t length) -> void {
+            assert(p);
+            p->encode.reserve(length);
+        }
+
+        auto CompressCLASS::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
+            assert(p);
+            return p->encode.reserve(length, nothrow);
+        }
+
+        auto CompressCLASS::column_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t> {
+            assert(p);
+            return p->encode.column_major(matrix, length);
+        }
+
+        auto CompressCLASS::column_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
+            assert(p);
+            return p->encode.column_major(matrix, length, nothrow);
+        }
+
+        auto CompressCLASS::row_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t> {
+            assert(p);
+            return p->encode.row_major(matrix, length);
+        }
+
+        auto CompressCLASS::row_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
+            assert(p);
+            return p->encode.row_major(matrix, length, nothrow);
+        }
+
+        auto MakeCompressCLASS() -> std::unique_ptr<CompressCLASS> {
+            try {
+                return std::make_unique<CompressCLASS>();
+            }
+            catch(const std::exception&) {
+                return nullptr;
+            }
+        }
+
+
+        struct DecompressCLASS::impl
+        {
+            decompress_wrapper<ctk::matrix_decoderINST> decode;
+
+            impl() = default;
+            impl(const impl&) = default;
+            impl(impl&&) = default;
+            auto operator=(const impl&) -> impl& = default;
+            auto operator=(impl&&) -> impl& = default;
+            ~impl() = default;
+        };
+
+        DecompressCLASS::DecompressCLASS()
+            : p{ new impl{} } {
+            assert(p);
+        }
+
+        DecompressCLASS::~DecompressCLASS() {
+        }
+
+        DecompressCLASS::DecompressCLASS(const DecompressCLASS& x)
+            : p{ new impl{ *x.p } } {
+            assert(x.p);
+            assert(p);
+        }
+
+        auto swap(DecompressCLASS& x, DecompressCLASS& y) -> void {
+            using namespace std;
+            swap(x.p, y.p);
+        }
+
+        auto DecompressCLASS::operator=(const DecompressCLASS& x) -> DecompressCLASS& {
+            DecompressCLASS y{ x };
+            swap(*this, y);
+            return *this;
+        }
+
+        auto DecompressCLASS::sensors(int64_t height) -> bool {
+            assert(p);
+            return p->decode.sensors(height);
+        }
+
+        auto DecompressCLASS::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+            assert(p);
+            return p->decode.sensors(height, nothrow);
+        }
+
+        auto DecompressCLASS::sensors(const std::vector<int16_t>& order) -> bool {
+            assert(p);
+            return p->decode.sensors(order);
+        }
+
+        auto DecompressCLASS::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+            assert(p);
+            return p->decode.sensors(order, nothrow);
+        }
+
+        auto DecompressCLASS::reserve(int64_t length) -> void {
+            assert(p);
+            p->decode.reserve(length);
+        }
+
+        auto DecompressCLASS::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
+            assert(p);
+            return p->decode.reserve(length, nothrow);
+        }
+
+        auto DecompressCLASS::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<DATATYPE> {
+            assert(p);
+            return p->decode.column_major(compressed, length);
+        }
+
+        auto DecompressCLASS::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<DATATYPE> {
+            assert(p);
+            return p->decode.column_major(compressed, length, nothrow);
+        }
+
+        auto DecompressCLASS::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<DATATYPE> {
+            assert(p);
+            return p->decode.row_major(compressed, length);
+        }
+
+        auto DecompressCLASS::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<DATATYPE> {
+            assert(p);
+            return p->decode.row_major(compressed, length, nothrow);
+        }
+
+        auto MakeDecompressCLASS() -> std::unique_ptr<DecompressCLASS> {
+            try {
+                return std::make_unique<DecompressCLASS>();
+            }
+            catch(const std::exception&) {
+                return nullptr;
+            }
+        }
+
+        // ---
+
+

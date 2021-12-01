@@ -1,0 +1,78 @@
+if(MSVC)
+set(TODO_I_NEED_TO_LEARN_MORE "")
+else()
+set(TODO_I_NEED_TO_LEARN_MORE ${CTK_CXX_FLAGS} -Wno-conversion)
+endif(MSVC)
+
+
+# consistency
+
+add_executable(test_throw_cast test_throw_cast.cc)
+target_link_libraries(test_throw_cast PRIVATE ctk_static)
+target_include_directories(test_throw_cast PRIVATE ctk_static)
+target_compile_options(test_throw_cast PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(compress_bitstream compress_bitstream.cc)
+target_link_libraries(compress_bitstream PRIVATE ctk_static)
+target_include_directories(compress_bitstream PRIVATE ctk_static)
+target_compile_options(compress_bitstream PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(leb128 leb128.cc)
+target_link_libraries(leb128 PRIVATE ctk_static)
+target_include_directories(leb128 PRIVATE ctk_static)
+target_compile_options(leb128 PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(compress_multiplex compress_multiplex.cc)
+target_link_libraries(compress_multiplex PRIVATE ctk_static)
+target_include_directories(compress_multiplex PRIVATE ctk_static)
+target_compile_options(compress_multiplex PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(compress_histogram compress_histogram.cc ../util.cc)
+target_link_libraries(compress_histogram ctk_static)
+target_include_directories(compress_histogram PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(compress_histogram PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(compress_matrix compress_matrix.cc ../util.cc)
+target_link_libraries(compress_matrix PRIVATE ctk_static)
+target_include_directories(compress_matrix PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(compress_matrix PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(container_objects container_objects.cc ../util.cc)
+target_link_libraries(container_objects PRIVATE ctk_static)
+target_include_directories(container_objects PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(container_objects PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(container_submatrix container_submatrix.cc ../util.cc)
+target_link_libraries(container_submatrix PRIVATE ctk_static)
+target_include_directories(container_submatrix PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(container_submatrix PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(api_data api_data.cc)
+target_link_libraries(api_data PRIVATE ctk_static)
+target_include_directories(api_data PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(api_data PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(api_io api_io.cc)
+target_link_libraries(api_io PRIVATE ctk_static)
+target_include_directories(api_io PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(api_io PRIVATE ${CTK_CXX_FLAGS})
+
+
+
+# requires the presence of input.txt in the current working directory.
+# input.txt: /path/to/file.cnt per line. everything after the first empty line is ignored.
+
+add_executable(compress_magnitude compress_magnitude.cc ../util.cc)
+target_link_libraries(compress_magnitude PRIVATE ctk_static)
+target_include_directories(compress_magnitude PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(compress_magnitude PRIVATE ${TODO_I_NEED_TO_LEARN_MORE})
+
+add_executable(container_flat container_flat.cc ../util.cc)
+target_link_libraries(container_flat PRIVATE ctk_static)
+target_include_directories(container_flat PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
+target_compile_options(container_flat PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(container_abstraction container_abstraction.cc ../util.cc)
+target_link_libraries(container_abstraction PRIVATE ctk_static)
+target_include_directories(container_abstraction PRIVATE ${CMAKE_SOURCE_DIR})
+target_compile_options(container_abstraction PRIVATE  ${TODO_I_NEED_TO_LEARN_MORE})

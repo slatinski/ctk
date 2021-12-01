@@ -1,0 +1,328 @@
+/*
+Copyright 2015-2021 Velko Hristov
+This file is part of CntToolKit.
+SPDX-License-Identifier: LGPL-3.0+
+
+CntToolKit is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+CntToolKit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// api_compression.cc: generated from misc/compression.cc.preface and misc/compression.cc.content by cogapp (requires python)
+
+#include "api_compression.h"
+#include "compress/matrix.h"
+
+#include <exception>
+#include <algorithm>
+#include <iostream>
+
+
+namespace ctk { namespace api {
+
+    namespace v1 {
+
+        using namespace ctk::impl;
+
+        auto acceptable_allocation_exception() -> void {
+            try {
+                throw;
+            }
+            // thrown by stl
+            catch (const std::bad_alloc& e) {
+                std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
+                return;
+            }
+            catch (const std::length_error& e) {
+                std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
+                return;
+            }
+            // thrown by ctk
+            catch (const ctk_limit& e) {
+                std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
+                return;
+            }
+            // not expected
+            catch (const ctk_bug& e) {
+                std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
+            }
+            catch (std::exception& e) {
+                std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
+            }
+
+            abort();
+        }
+
+        auto acceptable_compression_exception() -> void {
+            try {
+                throw;
+            }
+            // thrown by stl
+            catch (const std::bad_alloc& e) {
+                std::cerr << "exception: "<< e.what() << "\n";
+                return;
+            }
+            catch (const std::length_error& e) {
+                std::cerr << "exception: "<< e.what() << "\n";
+                return;
+            }
+            catch (const std::ios_base::failure& e) {
+                std::cerr << "exception: "<< e.what() << "\n";
+                return;
+            }
+            // thrown by ctk
+            catch (const ctk_data& e) {
+                std::cerr << "excepion " << e.what() << "\n"; // garbage data block
+                return;
+            }
+            catch (const ctk_limit& e) {
+                std::cerr << "exception: "<< e.what() << "\n"; // preventable user error
+                return;
+            }
+            // not expected
+            catch (const ctk_bug& e) {
+                std::cerr << "unexpected exception: "<< e.what() << ". aborting.\n"; // bug in this library
+            }
+            catch (std::exception& e) {
+                std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
+            }
+
+            abort();
+        }
+
+        template<typename MatrixEncoder>
+        // MatrixEncoder has an interface compatible with matrix_encoder_reflib or matrix_encoder<T> from compress/matrix.h
+        struct compress_wrapper
+        {
+            using T = typename MatrixEncoder::value_type;
+
+            MatrixEncoder encoder;
+            std::vector<uint8_t> empty_bytes;
+
+            compress_wrapper() = default;
+            compress_wrapper(const compress_wrapper&) = default;
+            compress_wrapper(compress_wrapper&&) = default;
+            auto operator=(const compress_wrapper&) -> compress_wrapper& = default;
+            auto operator=(compress_wrapper&&) -> compress_wrapper& = default;
+            ~compress_wrapper() = default;
+
+            auto sensors(int64_t height) -> bool {
+                return encoder.row_count(sensor_count{ height });
+            }
+
+            auto sensors(int64_t height, std::nothrow_t) -> bool {
+                try {
+                    return sensors(height);
+                }
+                catch(const std::exception&) {
+                    acceptable_allocation_exception(); 
+                }
+
+                return false;
+            }
+
+            auto sensors(const std::vector<int16_t>& order) -> bool {
+                return encoder.row_order(order);
+            }
+
+            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool {
+                try {
+                    return sensors(order);
+                }
+                catch(const std::exception&) {
+                    acceptable_allocation_exception(); 
+                }
+
+                return false;
+            }
+
+            auto reserve(int64_t length) -> void {
+                return encoder.reserve(measurement_count{ length });
+            }
+
+            auto reserve(int64_t length, std::nothrow_t) -> bool {
+                try {
+                    reserve(length);
+                }
+                catch(const std::exception&) {
+                    acceptable_allocation_exception(); 
+                    return false;
+                }
+
+                return true;
+            }
+
+            auto column_major(const std::vector<T>& input, int64_t length) -> std::vector<uint8_t> {
+                constexpr const column_major2row_major transpose{};
+                return encoder(input, measurement_count{ length }, transpose);
+            }
+
+            auto column_major(const std::vector<T>& input, int64_t length, std::nothrow_t) -> std::vector<uint8_t> {
+                try {
+                    return column_major(input, length);
+                }
+                catch (const std::exception&) {
+                    acceptable_compression_exception();
+                }
+
+                return empty_bytes;
+            }
+
+            auto row_major(const std::vector<T>& input, int64_t length) -> std::vector<uint8_t> {
+                constexpr const row_major2row_major copy{};
+                return encoder(input, measurement_count{ length }, copy);
+            }
+
+            auto row_major(const std::vector<T>& input, int64_t length, std::nothrow_t) -> std::vector<uint8_t> {
+                try {
+                    return row_major(input, length);
+                }
+                catch (const std::exception&) {
+                    acceptable_compression_exception();
+                }
+
+                return empty_bytes;
+            }
+        };
+
+
+        template<typename MatrixDecoder>
+        // MatrixDecoder has an interface compatible with matrix_decoder_reflib or matrix_decoder<T> from compress/matrix.h
+        struct decompress_wrapper
+        {
+            using T = typename MatrixDecoder::value_type;
+
+            MatrixDecoder decoder;
+            std::vector<T> empty_words;
+
+            decompress_wrapper() = default;
+            decompress_wrapper(const decompress_wrapper&) = default;
+            decompress_wrapper(decompress_wrapper&&) = default;
+            auto operator=(const decompress_wrapper&) -> decompress_wrapper& = default;
+            auto operator=(decompress_wrapper&&) -> decompress_wrapper& = default;
+            ~decompress_wrapper() = default;
+
+            auto sensors(int64_t height) -> bool {
+                return decoder.row_count(sensor_count{ height });
+            }
+
+            auto sensors(int64_t height, std::nothrow_t) -> bool {
+                try {
+                    return sensors(height);
+                }
+                catch(const std::exception&) {
+                    acceptable_allocation_exception(); 
+                }
+
+                return false;
+            }
+
+            auto sensors(const std::vector<int16_t>& order) -> bool {
+                return decoder.row_order(order);
+            }
+
+            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool {
+                try {
+                    return sensors(order);
+                }
+                catch(const std::exception&) {
+                    acceptable_allocation_exception(); 
+                }
+
+                return false;
+            }
+
+            auto reserve(int64_t length) -> void {
+                return decoder.reserve(measurement_count{ length });
+            }
+
+            auto reserve(int64_t length, std::nothrow_t) -> bool {
+                try {
+                    reserve(length);
+                }
+                catch(const std::exception&) {
+                    acceptable_allocation_exception(); 
+                    return false;
+                }
+
+                return true;
+            }
+
+            auto column_major(const std::vector<uint8_t>& input, int64_t length) -> std::vector<T> {
+                constexpr const column_major2row_major transpose{};
+                return decoder(input, measurement_count{ length }, transpose);
+            }
+
+            auto column_major(const std::vector<uint8_t>& input, int64_t length, std::nothrow_t) -> std::vector<T> {
+                try {
+                    return column_major(input, length);
+                }
+                catch (const std::exception&) {
+                    acceptable_compression_exception();
+                }
+
+                return empty_words;
+            }
+
+            auto row_major(const std::vector<uint8_t>& input, int64_t length) -> std::vector<T> {
+                constexpr const row_major2row_major copy{};
+                return decoder(input, measurement_count{ length }, copy);
+            }
+
+            auto row_major(const std::vector<uint8_t>& input, int64_t length, std::nothrow_t) -> std::vector<T> {
+                try {
+                    return row_major(input, length);
+                }
+                catch (const std::exception&) {
+                    acceptable_compression_exception();
+                }
+
+                return empty_words;
+            }
+        };
+
+
+[[[cog
+# cogapp requires python:
+# apt install python3-pip
+# pip3 install cogapp
+# ./generate.sh
+
+template = ''
+with  open('compression.cc.content', 'r') as reader:
+    template = reader.read()
+
+replacements = [
+    ['Reflib', 'int32_t', '_reflib'],
+    ['Int16', 'int16_t', '<int16_t>'],
+    ['Int32', 'int32_t', '<int32_t>'],
+    ['Int64', 'int64_t', '<int64_t>'],
+    ['UInt16', 'uint16_t', '<uint16_t>'],
+    ['UInt32', 'uint32_t', '<uint32_t>'],
+    ['UInt64', 'uint64_t', '<uint64_t>']
+    ]
+
+for i in replacements:
+    result = ''
+    result = template.replace('CLASS', i[0])
+    result = result.replace('CONSTRUCTOR', i[0].lower())
+    result = result.replace('DATATYPE', i[1])
+    result = result.replace('INST', i[2])
+    print(result)
+]]]
+
+//[[[end]]]
+
+    } /* namespace v1 */
+} /* namespace api */ } /* namespace ctk */
+
+

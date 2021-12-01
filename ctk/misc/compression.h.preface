@@ -1,0 +1,63 @@
+/*
+Copyright 2015-2021 Velko Hristov
+This file is part of CntToolKit.
+SPDX-License-Identifier: LGPL-3.0+
+
+CntToolKit is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+CntToolKit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+// api_compression.h: generated from misc/compression.h.preface and misc/compression.h.content by cogapp (requires python)
+
+#pragma once
+
+#include <cstdint>
+#include <cstddef>
+#include <memory>
+#include <vector>
+
+namespace ctk { namespace api {
+    namespace v1 {
+
+[[[cog
+# cogapp requires python:
+# apt install python3-pip
+# pip3 install cogapp
+# ./generate.sh
+
+template = ''
+with  open('compression.h.content', 'r') as reader:
+    template = reader.read()
+
+replacements = [
+    ['Reflib', 'reflib', 'int32_t'],
+    ['Int16', 'int16', 'int16_t'],
+    ['Int32', 'int32', 'int32_t'],
+    ['Int64', 'int64', 'int64_t'],
+    ['UInt16', 'uint16', 'uint16_t'],
+    ['UInt32', 'uint32', 'uint32_t'],
+    ['UInt64', 'uint64', 'uint64_t']
+    ]
+
+for i in replacements:
+    result = ''
+    result = template.replace('CLASS', i[0])
+    result = result.replace('CONSTRUCTOR', i[1])
+    result = result.replace('DATATYPE', i[2])
+    print(result)
+]]]
+
+//[[[end]]]
+
+    } /* namespace v1 */
+} /* namespace api */ } /* namespace ctk */
