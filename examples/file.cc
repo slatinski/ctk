@@ -70,7 +70,7 @@ auto write(const std::string& fname) -> void {
 }
 
 auto read(const std::string& fname) -> void {
-    ctk::CntReaderReflib reader{ fname, true };
+    ctk::CntReaderReflib reader{ fname };
 
     const auto total{ reader.sampleCount() };
     const auto description{ reader.description() };
