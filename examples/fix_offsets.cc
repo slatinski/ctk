@@ -171,7 +171,7 @@ auto main(int argc, char* argv[]) -> int {
         std::cerr << "\n" << argc - 1 << " parameters received:\n";
         for (int i{ 1 }; i < argc; ++i) {
             std::cerr << "\t" << argv[i] << "\n";
-        }        
+        }
         return 0;
     }
     const std::string idir{ argv[1] };
