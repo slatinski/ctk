@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 #include "api_data.h"
 #include "exception.h"
+#include "arithmetic.h"
 #include "ctk_version.h"
 #include "container/file_epoch.h"
 #include "date/date.h"
@@ -309,51 +310,140 @@ namespace ctk { namespace api {
     } /* namespace v2 */
 
 
-    constexpr const std::chrono::system_clock::time_point excel_epoch{ date::sys_days{ date::December/30/1899 } };
+    constexpr const std::chrono::system_clock::time_point excel_epoch{ date::sys_days{ date::year{ 1899 }/12/30 } };
     constexpr const double seconds_per_day{ 60 * 60 * 24 };
 
 
-    auto dcdate2timepoint(const v1::DcDate& x) -> std::chrono::system_clock::time_point {
-        using namespace std::chrono;
-
-        if (x.date < 0 || x.fraction < 0) {
-            return dcdate2timepoint({ 0, 0 });
-            //throw v1::ctk_limit{ "dcdate2timepoint: invalid input" };
+    static
+    auto regular(const v1::DcDate& x) -> v1::DcDate {
+        const double whole{ x.date * seconds_per_day };
+        const double additional{ 0 <= x.fraction ? std::floor(x.fraction) : std::ceil(x.fraction) };
+        const double seconds{ whole + additional };
+        const double subseconds{ x.fraction - additional };
+        const double scaled{ seconds / seconds_per_day };
+        if (!std::isfinite(scaled) || !std::isfinite(subseconds)) {
+            throw ctk::api::v1::ctk_limit{ "regular: infinite dcdate" };
         }
+        assert(std::fabs(subseconds) < 1);
 
-        seconds whole{ static_cast<seconds::rep>(std::round(x.date * seconds_per_day)) };
-        double subsecond{ x.fraction };
-        const auto additional{ static_cast<seconds::rep>(subsecond) };
-        whole += seconds{ additional };
-        subsecond -= static_cast<double>(additional);
-        assert(0 <= subsecond && subsecond < 1);
-
-#ifdef _WIN32
-        const microseconds fraction{ static_cast<microseconds::rep>(std::round(subsecond * std::micro::den)) };
-        return time_point_cast<microseconds>(excel_epoch + whole + fraction);
-#else
-        const nanoseconds fraction{ static_cast<nanoseconds::rep>(std::round(subsecond * std::nano::den)) };
-        return time_point_cast<nanoseconds>(excel_epoch + whole + fraction);
-#endif // _WIN32
+        return { scaled, subseconds };
     }
 
 
-    auto timepoint2dcdate(std::chrono::system_clock::time_point x) -> v1::DcDate {
-        using namespace std::chrono;
+    template<typename N, typename Precision>
+    auto to_timespan(v1::DcDate x, N factor, Precision) -> Precision {
+        using T = typename Precision::rep;
 
-        const nanoseconds ns{ duration_cast<nanoseconds>(x - excel_epoch) };
-        if (ns < nanoseconds{ 0 }) {
-            return { 0, 0 };
-            //throw v1::ctk_limit{ "timepoint2dcdate: invalid input" };
+        x = regular(x);
+        const double scaled_base{ std::round(x.date * seconds_per_day) };
+        if (!std::isfinite(scaled_base)) {
+            throw ctk::api::v1::ctk_limit{ "to_timespan: infinite seconds" };
         }
 
-        const seconds s{ duration_cast<seconds>(ns) };
-        const nanoseconds subsecond{ ns - s };
+        const double scaled_fraction{ std::round(x.fraction * static_cast<double>(factor)) };
+        if (!std::isfinite(scaled_fraction)) {
+            throw ctk::api::v1::ctk_limit{ "to_timespan: infinite fraction" };
+        }
+
+        const T base_sec{ static_cast<T>(scaled_base) };
+        const T base_subsec{ ctk::impl::multiply(base_sec, factor, ctk::impl::ok{}) };
+        const T fraction_subsec{ static_cast<T>(scaled_fraction) };
+        const T result{ ctk::impl::plus(base_subsec, fraction_subsec, ctk::impl::ok{}) };
+        return Precision{ result };
+    }
+
+
+    auto dcdate2timespan(const v1::DcDate& x) -> std::chrono::nanoseconds {
+        return to_timespan(x, std::nano::den, std::chrono::nanoseconds{});
+    }
+
+
+    auto timespan2dcdate(std::chrono::nanoseconds x) -> v1::DcDate {
+        using namespace std::chrono;
+
+        const seconds s{ floor<seconds>(x) };
+        const nanoseconds subsecond{ x - s };
+        assert(subsecond < 1s);
         const double days_since_epoch{ static_cast<double>(s.count()) / seconds_per_day };
         const double fraction{ static_cast<double>(subsecond.count()) / std::nano::den };
 
         return { days_since_epoch, fraction };
     }
+
+
+    auto dcdate2timepoint(const v1::DcDate& x) -> std::chrono::system_clock::time_point {
+        using namespace std::chrono;
+#ifdef _WIN32
+        using Precision = microseconds;
+        constexpr const auto factor{ std::micro::den };
+#else
+        using Precision = nanoseconds;
+        constexpr const auto factor{ std::nano::den };
+#endif
+        using T = Precision::rep;
+
+        constexpr const T epoch_subsec{ duration_cast<seconds>(excel_epoch.time_since_epoch()).count() * factor };
+        const T span_subsec{ to_timespan(x, factor, Precision{}).count() };
+        const Precision result{ ctk::impl::plus(epoch_subsec, span_subsec, ctk::impl::ok{}) };
+
+        return system_clock::time_point{ result };
+    }
+
+
+    auto timepoint2dcdate(std::chrono::system_clock::time_point x) -> v1::DcDate {
+        using namespace std::chrono;
+        using T = nanoseconds::rep;
+
+        constexpr const T epoch_ns{ duration_cast<nanoseconds>(excel_epoch.time_since_epoch()).count() };
+        const T x_ns{ duration_cast<nanoseconds>(x.time_since_epoch()).count() };
+        const nanoseconds span{ ctk::impl::minus(x_ns, epoch_ns, ctk::impl::ok{}) };
+
+        return timespan2dcdate(span);
+    }
+
+
+    auto print_duration(std::ostream& oss, std::chrono::nanoseconds x, std::chrono::nanoseconds /* type tag */) -> std::ostream& {
+        oss << std::setfill('0') << std::setw(12) << x.count();
+        return oss;
+    }
+
+
+    auto print_duration(std::ostream& oss, std::chrono::nanoseconds x, std::chrono::microseconds /* type tag */) -> std::ostream& {
+        oss << std::setfill('0') << std::setw(9) << std::chrono::duration_cast<std::chrono::microseconds>(x).count();
+        return oss;
+    }
+
+
+    auto print(std::ostream& oss, std::chrono::system_clock::time_point x) -> std::ostream& {
+        using namespace std::chrono;
+
+        const nanoseconds x_us{ duration_cast<nanoseconds>(x.time_since_epoch()) };
+        const days x_days{ floor<days>(x_us) };
+        const date::year_month_day ymd{ date::sys_days{ x_days } };
+        oss << ymd << " ";
+
+        nanoseconds reminder{ x_us - x_days };
+        const hours h{ floor<hours>(reminder) };
+        reminder -= h;
+        oss << std::setfill('0') << std::setw(2) << h.count() << ":";
+
+        const minutes m{ floor<minutes>(reminder) };
+        reminder -= m;
+        oss << std::setfill('0') << std::setw(2) << m.count() << ":";
+
+        const seconds s{ floor<seconds>(reminder) };
+        reminder -= s;
+        oss << std::setfill('0') << std::setw(2) << s.count() << ":";
+
+        assert(reminder < 1s);
+        return print_duration(oss, reminder, system_clock::time_point::duration{});
+    }
+
+
+    auto print(std::ostream& oss, const v1::DcDate& x) -> std::ostream& {
+        return print(oss, dcdate2timepoint(x));
+    }
+
 
 } /* namespace api */ } /* namespace ctk */
 

@@ -214,11 +214,11 @@ namespace ctk { namespace impl {
 
     static
     auto make_even(int64_t x) -> int64_t {
-        if (!is_even(x)) {
-            ++x;
+        if (is_even(x)) {
+            return x;
         }
 
-        return x;
+        return plus(x, int64_t{ 1 }, ok{});
     }
 
     static
@@ -1250,8 +1250,13 @@ namespace ctk { namespace impl {
         }
 
         const int64_t hs{ header_size(parent) };
-        const int64_t last{ parent.storage.fpos + hs + make_even(parent.storage.size) };
-        int64_t first{ parent.storage.fpos + hs + label_size() };
+        //const int64_t last{ parent.storage.fpos + hs + make_even(parent.storage.size) };
+        int64_t last{ plus(parent.storage.fpos, hs, ok{}) };
+        last = plus(last, make_even(parent.storage.size), ok{});
+        //int64_t first{ parent.storage.fpos + hs + label_size() };
+        int64_t first{ plus(parent.storage.fpos, hs, ok{}) };
+        first = plus(first, label_size(), ok{});
+
         if (!seek(f, first, SEEK_SET)) {
             throw api::v1::ctk_data{ "sub_chunks: can not seek to payload" };
         }
@@ -1263,7 +1268,9 @@ namespace ctk { namespace impl {
             }
             result.push_back(next);
 
-            first = next.storage.fpos + hs + make_even(next.storage.size);
+            //first = next.storage.fpos + hs + make_even(next.storage.size);
+            first = plus(next.storage.fpos, hs, ok{});
+            first = plus(first, make_even(next.storage.size), ok{});
             if (!seek(f, first, SEEK_SET)) {
                 break;
             }
@@ -1335,20 +1342,17 @@ namespace ctk { namespace impl {
             std::cerr << "is_valid(amorph): no epochs\n";
             return false;
         }
-        auto previous{ x.epoch_ranges[0].fpos };
-        if (previous < 0) {
+
+        if (x.epoch_ranges[0].fpos < 0) {
             std::cerr << "is_valid(amorph): negative file offset\n";
             return false;
         }
 
-        const size_t count{ x.epoch_ranges.size() };
-        for (size_t i{ 1 }; i < count; ++i) {
-            const auto current{ x.epoch_ranges[i].fpos };
-            if (current <= previous) {
-                std::cerr << "is_valid(amorph): non increasing file position\n";
-                return false;
-            }
-            previous = current;
+        const auto non_increasing = [](const file_range& x, const file_range& y) -> bool { return y.fpos <= x.fpos; };
+        const auto sour{ std::adjacent_find(begin(x.epoch_ranges), end(x.epoch_ranges), non_increasing) };
+        if (sour != end(x.epoch_ranges)) {
+            std::cerr << "is_valid(amorph): non increasing file position\n";
+            return false;
         }
 
         const auto has_content = [](bool acc, const file_range& r) -> bool { return acc && 0 < r.size; };

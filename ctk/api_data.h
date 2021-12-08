@@ -264,4 +264,10 @@ namespace v2 {
     auto dcdate2timepoint(const v1::DcDate&) -> std::chrono::system_clock::time_point;
     auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
 
+    auto dcdate2timespan(const v1::DcDate&) -> std::chrono::nanoseconds;
+    auto timespan2dcdate(std::chrono::nanoseconds) -> v1::DcDate;
+
+    auto print(std::ostream&, std::chrono::system_clock::time_point) -> std::ostream&;
+    auto print(std::ostream&, const v1::DcDate&) -> std::ostream&;
+
 } /* namespace api*/ } /* namespace ctk */

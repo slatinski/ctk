@@ -28,30 +28,81 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl { namespace test {
 
-auto operator<<(std::ostream& oss, std::chrono::system_clock::time_point x) -> std::ostream& {
+
+TEST_CASE("well known values", "[compatibility]") {
     using namespace std::chrono;
 
-    nanoseconds x_us{ duration_cast<nanoseconds>(x.time_since_epoch()) };
-    days x_days{ duration_cast<days>(x_us) };
-    date::year_month_day ymd{ date::sys_days{ x_days } };
-    oss << ymd << " ";
+    constexpr const double seconds_per_day{ 60 * 60 * 24 };
 
-    nanoseconds reminder{ x_us - x_days };
-    hours h{ duration_cast<hours>(reminder) };
-    reminder -= h;
-    oss << std::setfill('0') << std::setw(2) << h.count() << ":";
+    const system_clock::time_point tp0{ date::sys_days{ date::December/30/1899 } };
+    const api::v1::DcDate dc0{ api::timepoint2dcdate(tp0) };
+    REQUIRE(api::dcdate2timepoint(dc0) == tp0);
+    REQUIRE(dc0.date == 0);
+    REQUIRE(dc0.fraction == 0);
+    api::print(std::cerr, dc0); std::cerr << "\n";
 
-    minutes m{ duration_cast<minutes>(reminder) };
-    reminder -= m;
-    oss << std::setfill('0') << std::setw(2) << m.count() << ":";
+    const system_clock::time_point tp1{ date::sys_days{ date::December/29/1899 } };
+    const api::v1::DcDate dc1{ api::timepoint2dcdate(tp1) };
+    REQUIRE(api::dcdate2timepoint(dc1) == tp1);
+    REQUIRE(dc1.date == -1);
+    REQUIRE(dc1.fraction == 0);
+    api::print(std::cerr, dc1); std::cerr << "\n";
 
-    seconds s{ duration_cast<seconds>(reminder) };
-    reminder -= s;
-    oss << std::setfill('0') << std::setw(2) << s.count() << ":";
+    const system_clock::time_point tp2{ date::sys_days{ date::December/31/1899 } };
+    const api::v1::DcDate dc2{ api::timepoint2dcdate(tp2) };
+    REQUIRE(api::dcdate2timepoint(dc2) == tp2);
+    REQUIRE(dc2.date == 1);
+    REQUIRE(dc2.fraction == 0);
+    api::print(std::cerr, dc2); std::cerr << "\n";
 
-    oss << reminder.count();
+    const system_clock::time_point tp3{ date::sys_days{ date::December/29/1899 } + 6h };
+    const api::v1::DcDate dc3{ api::timepoint2dcdate(tp3) };
+    REQUIRE(api::dcdate2timepoint(dc3) == tp3);
+    REQUIRE(dc3.date == -0.75);
+    REQUIRE(dc3.fraction == 0);
+    api::print(std::cerr, dc3); std::cerr << "\n";
 
-    return oss;
+    const system_clock::time_point tp4{ date::sys_days{ date::December/28/1899 } + 12h };
+    const api::v1::DcDate dc4{ api::timepoint2dcdate(tp4) };
+    REQUIRE(api::dcdate2timepoint(dc4) == tp4);
+    REQUIRE(dc4.date == -1.5);
+    REQUIRE(dc4.fraction == 0);
+    api::print(std::cerr, dc4); std::cerr << "\n";
+
+    const system_clock::time_point tp5{ date::sys_days{ date::January/1/1900 } + 6h };
+    const api::v1::DcDate dc5{ api::timepoint2dcdate(tp5) };
+    REQUIRE(api::dcdate2timepoint(dc5) == tp5);
+    REQUIRE(dc5.date == 2.25);
+    REQUIRE(dc5.fraction == 0);
+    api::print(std::cerr, dc5); std::cerr << "\n";
+
+    const system_clock::time_point tp6{ date::sys_days{ date::December/29/1899 } + 1s };
+    const api::v1::DcDate dc6{ api::timepoint2dcdate(tp6) };
+    REQUIRE(api::dcdate2timepoint(dc6) == tp6);
+    REQUIRE(dc6.date == -1.0 + (1.0 / seconds_per_day));
+    REQUIRE(dc6.fraction == 0);
+    api::print(std::cerr, dc6); std::cerr << "\n";
+
+    const system_clock::time_point tp7{ date::sys_days{ date::January/1/1900 } + 6h + 1s };
+    const api::v1::DcDate dc7{ api::timepoint2dcdate(tp7) };
+    REQUIRE(api::dcdate2timepoint(dc7) == tp7);
+    REQUIRE(dc7.date == 2.25 + (1.0 / seconds_per_day));
+    REQUIRE(dc7.fraction == 0);
+    api::print(std::cerr, dc7); std::cerr << "\n";
+
+    const system_clock::time_point tp8{ date::sys_days{ date::December/29/2020 } };
+    const api::v1::DcDate dc8{ api::timepoint2dcdate(tp8) };
+    REQUIRE(api::dcdate2timepoint(dc8) == tp8);
+    REQUIRE(dc8.date == 44194.0);
+    REQUIRE(dc8.fraction == 0.0);
+    api::print(std::cerr, dc8); std::cerr << "\n";
+
+    const system_clock::time_point tp9{ date::sys_days{ date::December/29/2020 } + 6h + 1s };
+    const api::v1::DcDate dc9{ api::timepoint2dcdate(tp9) };
+    REQUIRE(api::dcdate2timepoint(dc9) == tp9);
+    REQUIRE(dc9.date == 44194.25 + (1.0 / seconds_per_day));
+    REQUIRE(dc9.fraction == 0);
+    api::print(std::cerr, dc9); std::cerr << "\n";
 }
 
 
@@ -59,38 +110,29 @@ TEST_CASE("time point -> dcdate -> time point conversion", "[consistency]") {
     using namespace std::chrono;
 
     auto input{ system_clock::now() };
-    auto end{ input + milliseconds{ 3 } };
+    auto end{ input + 3ms };
 
     while (input < end) {
         const auto date{ api::timepoint2dcdate(input) };
         const auto output{ api::dcdate2timepoint(date) };
-
-        nanoseconds diff{ duration_cast<nanoseconds>(input - output) };
-        if (diff < nanoseconds{ 0 }) {
-            diff = nanoseconds{ 0 } - diff;
-        }
-        assert(0 <= diff.count());
+        const nanoseconds diff{ duration_cast<nanoseconds>(input - output) };
 
 #ifdef _WIN32
-        REQUIRE(diff <= nanoseconds{ 500 });
-        input += microseconds{ 1 };
+        REQUIRE(-500ns <= diff);
+        REQUIRE(diff <= 500ns);
+        input += 1us;
 #else
-        REQUIRE(diff == nanoseconds{ 0 });
-        input += nanoseconds{ 1 };
+        REQUIRE(diff == 0ns);
+        input += 1ns;
 #endif // _WIN32
     }
 
     auto date{ api::timepoint2dcdate(input) };
     date.fraction += 151.001;
-    const nanoseconds offset{ minutes{ 2 } + seconds{ 31 } + milliseconds{ 1 } }; // 151.001 seconds
+    const nanoseconds offset{ 2min + 31s + 1ms }; // 151.001 seconds
 
 #ifdef _WIN32
-    nanoseconds diff{ duration_cast<nanoseconds>(api::dcdate2timepoint(date) - (input + offset)) };
-    if (diff < nanoseconds{ 0 }) {
-        diff = nanoseconds{ 0 } - diff;
-    }
-    assert(0 <= diff.count());
-    REQUIRE(diff <= nanoseconds{ 500 } );
+    REQUIRE(api::dcdate2timepoint(date) == floor<microseconds>(input + offset));
 #else
     REQUIRE(api::dcdate2timepoint(date) == input + offset);
 #endif // _WIN32
