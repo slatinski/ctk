@@ -53,6 +53,18 @@ namespace ctk { namespace impl {
     }
 
 
+    auto invalid_row_header(encoding_size data_size, encoding_method method, bit_count n, bit_count nexc, size_t word_size) -> std::string {
+        std::ostringstream oss;
+        oss << "invalid epoch header: encoding data size " << data_size
+            << ", method " << method
+            << ", n " << n
+            << ", nexc " << nexc
+            << ", target data size " << word_size << " byte(s)";
+
+        return oss.str();
+    }
+
+
     auto restore_n(bit_count n, bit_count word_size) -> bit_count {
         return n == 0 ? word_size : n;
     }

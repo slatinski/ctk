@@ -480,13 +480,8 @@ namespace ctk { namespace impl {
     auto read_encoding_compressed(I first, I last, bit_reader<IByteConst>& bits, encoding_size data_size, Format) -> std::tuple<I, bit_count, bit_count> {
         using T = typename std::iterator_traits<I>::value_type;
 
-        //assert(Format::field_width_n(data_size) < size_in_bits<unsigned>());
-        //assert(field_width_master(data_size) <= size_in_bits<T>());
         if (size_in_bits<T>() < field_width_master(data_size)) {
             throw api::v1::ctk_data{ "read_encoding_compressed, invalid master field width for this data size" };
-        }
-        if (size_in_bits<unsigned>() <= Format::field_width_n(data_size)) {
-            throw api::v1::ctk_data{ "read_encoding_compressed, invalid field width for this data size" };
         }
 
         if (first == last) {
@@ -522,19 +517,8 @@ namespace ctk { namespace impl {
     }
 
 
-    auto decode_method(unsigned pattern) -> encoding_method;
-
-    template<typename T>
-    auto invalid_row_header(encoding_size data_size, encoding_method method, bit_count n, bit_count nexc, T) -> std::string {
-        std::ostringstream oss;
-        oss << "invalid epoch header: encoding data size " << data_size
-            << ", method " << method
-            << ", n " << n
-            << ", nexc " << nexc
-            << ", target data size " << sizeof(T) << " byte(s)";
-
-        return oss.str();
-    }
+    auto decode_method(unsigned) -> encoding_method;
+    auto invalid_row_header(encoding_size, encoding_method, bit_count, bit_count, size_t) -> std::string;
 
     template<typename I, typename IByteConst, typename Format>
     auto read_header(I first, I last, bit_reader<IByteConst>& bits, Format format) -> std::tuple<I, bit_count, bit_count, encoding_method> {
@@ -558,7 +542,7 @@ namespace ctk { namespace impl {
 
         using T = typename std::iterator_traits<I>::value_type;
         if (!valid_block_encoding(data_size, method, n, nexc, T{}, format)) {
-            throw api::v1::ctk_data{ invalid_row_header(data_size, method, n, nexc, T{}) };
+            throw api::v1::ctk_data{ invalid_row_header(data_size, method, n, nexc, sizeof(T)) };
         }
 
         return { next, n, nexc, method};
