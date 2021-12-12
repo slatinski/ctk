@@ -19,7 +19,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#include <optional>
 #include <vector>
 #include <cassert>
 #include <ostream>
@@ -32,131 +31,55 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl {
 
-    template<typename T>
-    constexpr
-    auto signed_addition(T a, T b) -> std::optional<T> {
-        static_assert(std::numeric_limits<T>::is_signed);
+    template<typename Source, typename Dest>
+    auto invalid_cast(Source a, Dest) -> std::string {
+        constexpr const auto min_b{ std::numeric_limits<Dest>::min() };
+        constexpr const auto max_b{ std::numeric_limits<Dest>::max() };
 
-        constexpr const T int_max = std::numeric_limits<T>::max();
-        constexpr const T int_min = std::numeric_limits<T>::min();
-
-        if (((b > T{0}) && (a > (int_max - b))) ||
-            ((b < T{0}) && (a < (int_min - b)))) {
-            return std::nullopt;
-        }
-
-        return static_cast<T>(a + b);
-    }
-
-
-    template<typename T>
-    auto invalid_addition(T a, T b) -> std::string {
         std::ostringstream oss;
-        oss << "signed integer overflow: " << a << " + " << b << ", ";
-
-        // ((b > 0) && (a > (int_max - b))) || ((b < 0) && (a < (int_min - b)))
-        if (b > 0) {
-            constexpr const T int_max = std::numeric_limits<T>::max();
-            oss << a << " > (" << int_max << " - " << b;
-        }
-        else if (b < 0) {
-            constexpr const T int_min = std::numeric_limits<T>::min();
-            oss << a << " < (" << int_min << " - " << b;
-        }
-
+        oss << "invalid cast: " << a << " to [" << min_b << ", " << max_b << "]";
         return oss.str();
     }
 
 
-    template<typename T>
-    constexpr
-    auto signed_subtraction(T a, T b) -> std::optional<T> {
-        static_assert(std::numeric_limits<T>::is_signed);
-
-        constexpr const T int_max = std::numeric_limits<T>::max();
-        constexpr const T int_min = std::numeric_limits<T>::min();
-
-        if ((b > T{0} && a < int_min + b) ||
-            (b < T{0} && a > int_max + b)) {
-            return std::nullopt;
-        }
-
-        return static_cast<T>(a - b);
-    }
-
-    template<typename T>
-    auto invalid_subtraction(T a, T b) -> std::string {
-        std::ostringstream oss;
-        oss << "signed integer overflow: " << a << " - " << b << ", ";
-
-        // (b > 0 && a < int_min + b) || (b < 0 && a > int_max + b)
-        if (b > 0) {
-            constexpr const T int_min = std::numeric_limits<T>::min();
-            oss << a << " < " << int_min << " + " << b;
-        }
-        else if (b < 0) {
-            constexpr const T int_max = std::numeric_limits<T>::max();
-            oss << a << " > " << int_max << " + " << b;
-        }
-
-        return oss.str();
-    }
+    enum class arithmetic_error{ none, addition_0, addition_1, subtraction_0, subtraction_1, multiplication_0, multiplication_1, multiplication_2, multiplication_3, division_0, division_1 };
 
 
     template<typename T>
     constexpr
-    auto signed_multiplication_impl(T a, T b) -> std::pair<std::optional<T>, int> {
+    auto signed_addition(T a, T b) -> std::pair<T, arithmetic_error> {
         static_assert(std::numeric_limits<T>::is_signed);
 
-        constexpr const T int_max = std::numeric_limits<T>::max();
-        constexpr const T int_min = std::numeric_limits<T>::min();
+        constexpr const T int_max{ std::numeric_limits<T>::max() };
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
 
-        if (a > T{0}) {  // a is positive
-            if (b > T{0}) {  // a and b are positive
-                if (a > (int_max / b)) {
-                    // a > (int_max / b), a > 0, b > 0
-                    return { std::nullopt, 0 };
-                }
-            } else { // a positive, b nonpositive
-                if (b < (int_min / a)) {
-                    // b < (int_min / a), a > 0, b <= 0
-                    return { std::nullopt, 1 };
-                }
-            } // a positive, b nonpositive
-        } else { // a is nonpositive
-            if (b > T{0}) { // a is nonpositive, b is positive
-                if (a < (int_min / b)) {
-                    // (a < (int_min / b)), a <= 0, b > 0
-                    return { std::nullopt, 2 };
-                }
-            } else { // a and b are nonpositive
-                if ((a != T{0}) && (b < (int_max / a))) {
-                    // (a != 0) && (b < (int_max / a)), a <= 0, b <= 0
-                    return { std::nullopt, 3 };
-                }
-            }
+        if ((b > T{ 0 }) && (a > (int_max - b))) {
+            return { 0, arithmetic_error::addition_0 };
         }
 
-        return { static_cast<T>(a * b), 0 };
+        if ((b < T{ 0 }) && (a < (int_min - b))) {
+            return { 0, arithmetic_error::addition_1 };
+        }
+
+        return { static_cast<T>(a + b), arithmetic_error::none };
     }
 
-    template<typename T>
-    auto invalid_multiplication(T a, T b, int cause) -> std::string {
-        constexpr const T int_min = std::numeric_limits<T>::min();
-        constexpr const T int_max = std::numeric_limits<T>::max();
-        std::ostringstream oss;
-        oss << "signed integer overflow: " << a << " * " << b << ", ";
 
-        // (b > 0 && a < int_min + b) || (b < 0 && a > int_max + b)
-        switch(cause) {
-            // a > (int_max / b), a > 0, b > 0
-            case 0: oss << a << " > " << int_max << " / " << b; break;
-            // b < (int_min / a), a > 0, b <= 0
-            case 1: oss << b << " < " << int_min << " / " << a; break;
-            // (a < (int_min / b)), a <= 0, b > 0
-            case 2: oss << a << " < " << int_min << " / " << b; break;
-            // (a != 0) && (b < (int_max / a)), a <= 0, b <= 0
-            case 3: oss << a << " != 0 && " << b << " < (" << int_max << " / " << a << ")"; break;
+    template<typename T>
+    auto invalid_addition(T a, T b, arithmetic_error cause) -> std::string {
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
+        constexpr const T int_max{ std::numeric_limits<T>::max() };
+
+        std::ostringstream oss;
+        oss << "signed integer addition: " << a << " + " << b << ", ";
+
+        switch (cause) {
+            case arithmetic_error::addition_0:
+                oss << a << " > (" << int_max << " - " << b << ")";
+                break;
+            case arithmetic_error::addition_1:
+                oss << a << " < (" << int_min << " - " << b << ")";
+                break;
             default: abort();
         }
 
@@ -166,31 +89,144 @@ namespace ctk { namespace impl {
 
     template<typename T>
     constexpr
-    auto signed_division(T a, T b) -> std::optional<T> {
+    auto signed_subtraction(T a, T b) -> std::pair<T, arithmetic_error> {
         static_assert(std::numeric_limits<T>::is_signed);
 
-        constexpr const T int_min = std::numeric_limits<T>::min();
+        constexpr const T int_max{ std::numeric_limits<T>::max() };
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
 
-        if ((b == T{0}) ||
-            ((a == int_min) && (b == T{ -1 }))) {
-            return std::nullopt;
+        if (b > T{ 0 } && a < int_min + b) {
+            return { 0, arithmetic_error::subtraction_0 };
         }
 
-        return static_cast<T>(a / b);
+        if (b < T{ 0 } && a > int_max + b) {
+            return { 0, arithmetic_error::subtraction_1 };
+        }
+
+        return { static_cast<T>(a - b), arithmetic_error::none };
     }
 
-    template<typename T>
-    auto invalid_division(T a, T b) -> std::string {
-        constexpr const T int_min = std::numeric_limits<T>::min();
-        std::ostringstream oss;
-        oss << "signed integer overflow: " << a << " / " << b << ", ";
 
-        // (b == 0) || ((a == int_min) && (b == -1))
-        if (b == 0) {
-            oss << "division by zero";
+    template<typename T>
+    auto invalid_subtraction(T a, T b, arithmetic_error cause) -> std::string {
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
+        constexpr const T int_max{ std::numeric_limits<T>::max() };
+
+        std::ostringstream oss;
+        oss << "signed integer subtraction: " << a << " - " << b << ", ";
+
+        switch (cause) {
+            case arithmetic_error::subtraction_0:
+                oss << a << " < " << int_min << " + " << b;
+                break;
+            case arithmetic_error::subtraction_1:
+                oss << a << " > " << int_max << " + " << b;
+                break;
+            default: abort();
         }
-        else if (a == int_min && b == -1) {
-            oss << a << " == " << int_min << " && " << b << " == -1";
+
+        return oss.str();
+    }
+
+
+    template<typename T>
+    constexpr
+    auto signed_multiplication_impl(T a, T b) -> std::pair<T, arithmetic_error> {
+        static_assert(std::numeric_limits<T>::is_signed);
+
+        constexpr const T int_max{ std::numeric_limits<T>::max() };
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
+
+        if (a > T{ 0 }) {  // a is positive
+            if (b > T{ 0 }) {  // a and b are positive
+                if (a > (int_max / b)) {
+                    // a > (int_max / b), a > 0, b > 0
+                    return { 0, arithmetic_error::multiplication_0 };
+                }
+            } else { // a positive, b nonpositive
+                if (b < (int_min / a)) {
+                    // b < (int_min / a), a > 0, b <= 0
+                    return { 0, arithmetic_error::multiplication_1 };
+                }
+            } // a positive, b nonpositive
+        } else { // a is nonpositive
+            if (b > T{ 0 }) { // a is nonpositive, b is positive
+                if (a < (int_min / b)) {
+                    // (a < (int_min / b)), a <= 0, b > 0
+                    return { 0, arithmetic_error::multiplication_2 };
+                }
+            } else { // a and b are nonpositive
+                if ((a != T{ 0 }) && (b < (int_max / a))) {
+                    // (a != 0) && (b < (int_max / a)), a <= 0, b <= 0
+                    return { 0, arithmetic_error::multiplication_3 };
+                }
+            }
+        }
+
+        return { static_cast<T>(a * b), arithmetic_error::none };
+    }
+
+
+    template<typename T>
+    auto invalid_multiplication(T a, T b, arithmetic_error cause) -> std::string {
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
+        constexpr const T int_max{ std::numeric_limits<T>::max() };
+        std::ostringstream oss;
+        oss << "signed integer multiplication: " << a << " * " << b << ", ";
+
+        switch(cause) {
+            case arithmetic_error::multiplication_0:
+                oss << a << " > " << int_max << " / " << b;
+                break;
+            case arithmetic_error::multiplication_1:
+                oss << b << " < " << int_min << " / " << a;
+                break;
+            case arithmetic_error::multiplication_2:
+                oss << a << " < " << int_min << " / " << b;
+                break;
+            case arithmetic_error::multiplication_3:
+                oss << a << " != 0 && " << b << " < (" << int_max << " / " << a << ")";
+                break;
+            default: abort();
+        }
+
+        return oss.str();
+    }
+
+
+    template<typename T>
+    constexpr
+    auto signed_division(T a, T b) -> std::pair<T, arithmetic_error> {
+        static_assert(std::numeric_limits<T>::is_signed);
+
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
+
+        if (b == T{ 0 }) {
+            return { 0, arithmetic_error::division_0 };
+        }
+
+        if ((a == int_min) && (b == T{ -1 })) {
+            return { 0, arithmetic_error::division_1 };
+        }
+
+        return { static_cast<T>(a / b), arithmetic_error::none };
+    }
+
+
+    template<typename T>
+    auto invalid_division(T a, T b, arithmetic_error cause) -> std::string {
+        constexpr const T int_min{ std::numeric_limits<T>::min() };
+        std::ostringstream oss;
+        oss << "signed integer division: " << a << " / " << b << ", ";
+
+        switch (cause) {
+            case arithmetic_error::division_0:
+                oss << "division by zero";
+                break;
+            case arithmetic_error::division_1:
+                oss << a << " == " << int_min << " && " << b << " == -1";
+                break;
+            default: abort();
         }
 
         return oss.str();
@@ -254,50 +290,50 @@ namespace ctk { namespace impl {
                 return throw_cast<T, U>(x);
             }
             catch(std::overflow_error&) {
-                throw api::v1::ctk_bug{ "guarded cast: invalid domain" };
+                throw api::v1::ctk_bug{ invalid_cast(x, U{}) };
             }
         }
 
         template<typename T>
         constexpr
         auto plus(T a, T b) const -> T {
-            const auto result{ signed_addition(a, b) };
-            if (!result) {
-                throw api::v1::ctk_bug{ invalid_addition(a, b) };
+            const auto [result, valid]{ signed_addition(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_bug{ invalid_addition(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
 
         template<typename T>
         auto minus(T a, T b) const -> T {
-            const auto result{ signed_subtraction(a, b) };
-            if (!result) {
-                throw api::v1::ctk_bug{ invalid_subtraction(a, b) };
+            const auto [result, valid]{ signed_subtraction(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_bug{ invalid_subtraction(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
 
         template<typename T>
         constexpr
         auto mul(T a, T b) const -> T {
-            const auto[result, error]{ signed_multiplication_impl(a, b) };
-            if (!result) {
-                throw api::v1::ctk_bug{ invalid_multiplication(a, b, error) };
+            const auto [result, valid]{ signed_multiplication_impl(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_bug{ invalid_multiplication(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
 
         template<typename T>
         auto div(T a, T b) const -> T {
-            const auto result{ signed_division(a, b) };
-            if (!result) {
-                throw api::v1::ctk_bug{ invalid_division(a, b) };
+            const auto [result, valid]{ signed_division(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_bug{ invalid_division(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
     };
 
@@ -311,50 +347,50 @@ namespace ctk { namespace impl {
                 return throw_cast<T, U>(x);
             }
             catch(std::overflow_error&) {
-                throw api::v1::ctk_limit{ "guarded cast: invalid domain" };
+                throw api::v1::ctk_limit{ invalid_cast(x, U{}) };
             }
         }
 
         template<typename T>
         constexpr
         auto plus(T a, T b) const -> T {
-            const auto result{ signed_addition(a, b) };
-            if (!result) {
-                throw api::v1::ctk_limit{ invalid_addition(a, b) };
+            const auto [result, valid]{ signed_addition(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_limit{ invalid_addition(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
 
         template<typename T>
         auto minus(T a, T b) const -> T {
-            const auto result{ signed_subtraction(a, b) };
-            if (!result) {
-                throw api::v1::ctk_limit{ invalid_subtraction(a, b) };
+            const auto [result, valid]{ signed_subtraction(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_limit{ invalid_subtraction(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
 
         template<typename T>
         constexpr
         auto mul(T a, T b) const -> T {
-            const auto[result, error]{ signed_multiplication_impl(a, b) };
-            if (!result) {
-                throw api::v1::ctk_limit{ invalid_multiplication(a, b, error) };
+            const auto [result, valid]{ signed_multiplication_impl(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_limit{ invalid_multiplication(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
 
         template<typename T>
         auto div(T a, T b) const -> T {
-            const auto result{ signed_division(a, b) };
-            if (!result) {
-                throw api::v1::ctk_limit{ invalid_division(a, b) };
+            const auto [result, valid]{ signed_division(a, b) };
+            if (valid != arithmetic_error::none) {
+                throw api::v1::ctk_limit{ invalid_division(a, b, valid) };
             }
 
-            return *result;
+            return result;
         }
     };
 
