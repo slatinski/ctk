@@ -1564,7 +1564,7 @@ namespace ctk { namespace impl {
     }
 
     auto fname_electrodes(const std::string& fname) -> std::string {
-        return fname + "_electrodes.ascii";
+        return fname + "_electrodes.bin";
     }
 
     auto fname_sampling_frequency(const std::string& fname) -> std::string {
@@ -1576,15 +1576,15 @@ namespace ctk { namespace impl {
     }
 
     auto fname_info(const std::string& fname) -> std::string {
-        return fname + "_info.ascii";
+        return fname + "_info.bin";
     }
 
     auto fname_cnt_type(const std::string& fname) -> std::string {
-        return fname + "_type.ascii";
+        return fname + "_type.bin";
     }
 
     auto fname_history(const std::string& fname) -> std::string {
-        return fname + "_history.ascii";
+        return fname + "_history.bin";
     }
 
     auto fname_time_series_header(const std::string& fname) -> std::string {
