@@ -75,6 +75,11 @@ namespace ctk { namespace api {
             assert(p);
         }
 
+        CntReaderReflib::CntReaderReflib(CntReaderReflib&& x)
+        : p{ std::move(x.p) } {
+            assert(p);
+        }
+
         auto swap(CntReaderReflib& x, CntReaderReflib& y) -> void {
             using namespace std;
             swap(x.p, y.p);
@@ -188,6 +193,17 @@ namespace ctk { namespace api {
         CntWriterReflib::CntWriterReflib(const std::string& fname, RiffType riff, const std::string& history)
             : p{ new impl{ fname, riff, history } } {
             assert(p);
+        }
+
+        CntWriterReflib::CntWriterReflib(CntWriterReflib&& x)
+        : p{ std::move(x.p) } {
+            assert(p);
+        }
+
+        auto CntWriterReflib::operator=(CntWriterReflib&& x) -> CntWriterReflib& {
+            p = std::move(x.p);
+            assert(p);
+            return *this;
         }
 
         CntWriterReflib::~CntWriterReflib() {

@@ -44,8 +44,19 @@ struct libeep_reader
     }
 
     auto get_channel(size_t i) const -> channel_v4 {
-        const auto& e{ header.electrodes[i] };
-        return { e.label, e.unit, e.reference };
+        if (header.electrodes.size() <= i) {
+            std::ostringstream oss;
+            oss << "get_channel: invalid index " << i << "/" << (header.electrodes.size() - 1);
+            throw std::runtime_error(oss.str());
+        }
+
+        auto e{ header.electrodes[i] };
+
+        // uV is stored sometimes as µV so that the first character is not valid utf8
+        if (e.unit[0] == -75) {
+            e.unit[0] = 'u';
+        }
+        return { e.label, e.reference, e.unit };
     }
 
     auto get_sample_frequency() const -> double {
@@ -62,7 +73,9 @@ struct libeep_reader
 
     auto get_trigger(size_t i) const -> trigger_v4 {
         if (triggers.size() <= i) {
-            throw std::runtime_error("get_trigger: invalid index");
+            std::ostringstream oss;
+            oss << "get_trigger: invalid index " << i << "/" << (triggers.size() - 1);
+            throw std::runtime_error(oss.str());
         }
 
         const auto code{ ctk::trigger_label(triggers[i].code) };
@@ -73,13 +86,17 @@ struct libeep_reader
     }
 };
 
+auto read_cnt(const std::string& fname) -> libeep_reader {
+    return libeep_reader{ fname };
+}
+
 
 constexpr const double scaling_factor{ 128 };
 
 struct channel2electrode
 {
     auto operator()(const channel_v4& x) const -> v1::Electrode {
-        const auto[label, unit, reference]{ x };
+        const auto[label, reference, unit]{ x };
         v1::Electrode e;
         e.label = label;
         e.unit = unit;
@@ -97,17 +114,23 @@ auto channels2electrodes(const std::vector<channel_v4>& channels) -> std::vector
 }
 
 
+auto int2riff(int x) -> v1::RiffType {
+    return x == 0 ? v1::RiffType::riff32 : v1::RiffType::riff64;
+}
+
+
 struct libeep_writer
 {
     v1::CntWriterReflib writer;
 
-    libeep_writer(const std::string& fname, int sample_rate, const std::vector<channel_v4>& channels, int cnt64)
-    : writer{ fname, bool2riff(cnt64), "" } {
+    libeep_writer(const std::string& fname, double sample_rate, const std::vector<channel_v4>& channels, int cnt64)
+    : writer{ fname, int2riff(cnt64), "" } {
         v1::TimeSignal ts;
         ts.sampling_frequency = sample_rate;
         ts.electrodes = channels2electrodes(channels);
         writer.addTimeSignal(ts);
     }
+    libeep_writer(libeep_writer&&) = default;
 
     auto add_samples(const std::vector<float>& v) -> void {
         const auto float2int = [](float x) -> int32_t { return static_cast<int32_t>(std::round(x * scaling_factor)); };
@@ -120,17 +143,15 @@ struct libeep_writer
     auto close() -> void {
         writer.close();
     }
-
-    auto bool2riff(bool x) -> v1::RiffType {
-        return x == 0 ? v1::RiffType::riff32 : v1::RiffType::riff64;
-    }
-
 };
+
+auto write_cnt(const std::string& fname, double sample_rate, const std::vector<channel_v4>& channels, int rf64 = 0) -> libeep_writer {
+    return libeep_writer{ fname, sample_rate, channels, rf64 };
+}
 
 
 
 PYBIND11_MODULE(ctkpy, m) {
-
     //py::bind_vector<std::vector<int32_t>>(m, "VectorInt32", py::buffer_protocol());
     //py::bind_vector<std::vector<uint8_t>>(m, "VectorUInt8", py::buffer_protocol());
 
@@ -237,7 +258,7 @@ PYBIND11_MODULE(ctkpy, m) {
 
 
     // pyeep interface
-    py::class_<libeep_reader> lr(m, "read_cnt", py::module_local()/*, py::dynamic_attr()*/);
+    py::class_<libeep_reader> lr(m, "cnt_in", py::module_local()/*, py::dynamic_attr()*/);
     lr.def(py::init<const std::string&>())
       .def("get_channel_count", &libeep_reader::get_channel_count)
       .def("get_channel", &libeep_reader::get_channel)
@@ -247,9 +268,13 @@ PYBIND11_MODULE(ctkpy, m) {
       .def("get_trigger_count", &libeep_reader::get_trigger_count)
       .def("get_trigger", &libeep_reader::get_trigger);
 
-    py::class_<libeep_writer> lw(m, "write_cnt", py::module_local()/*, py::dynamic_attr()*/);
+    m.def("read_cnt", &read_cnt, "Opens a CNT file for reading");
+
+    py::class_<libeep_writer> lw(m, "cnt_out", py::module_local()/*, py::dynamic_attr()*/);
     lw.def(py::init<const std::string&, int, const std::vector<channel_v4>&, int>())
       .def("add_samples", &libeep_writer::add_samples)
       .def("close", &libeep_writer::close);
+
+    m.def("write_cnt", &write_cnt, "Opens a CNT file for writing");
 }
 

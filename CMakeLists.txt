@@ -24,11 +24,11 @@ if(MSVC)
     add_definitions(-DUNICODE)
 else()
     set(CTK_CXX_FLAGS -ftrapv -pedantic -Wconversion -Wall -Wextra -Wstrict-overflow)
-    if(NOT CTK_AFL_TEST)
+    if(NOT CTK_AFL_TEST AND NOT CTK_PYTHON)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined,address,null")
-    endif(NOT CTK_AFL_TEST)
+    endif()
     add_compile_options("SHELL:-fdiagnostics-color=always") # colored output in ninja
-endif(MSVC)
+endif()
 
 
 # made available if CTK_PYTHON is ON
@@ -125,7 +125,7 @@ if(CTK_PYTHON)
     FetchContent_MakeAvailable(pybind11)
     pybind11_add_module(ctkpy ffi/ctkpy.cc)
     target_link_libraries(ctkpy PRIVATE ctk_static)
-endif(CTK_PYTHON)
+endif()
 
 
 if(CTK_SELF_TEST)
@@ -140,7 +140,7 @@ if(CTK_SELF_TEST)
     add_test(NAME cnt_objects COMMAND container_objects)
     add_test(NAME api_data COMMAND api_data)
     add_test(NAME leb128 COMMAND leb128)
-endif(CTK_SELF_TEST)
+endif()
 
 if(CTK_LIBEEP_TEST)
     FetchContent_MakeAvailable(libeep)
@@ -149,14 +149,14 @@ if(CTK_LIBEEP_TEST)
     add_subdirectory(test/libeep)
     add_test(NAME compress_epochmux COMMAND compress_epochmux)
     add_test(NAME container_compeeg COMMAND container_compeeg)
-endif(CTK_LIBEEP_TEST)
+endif()
 
 if(CTK_AFL_TEST)
     include(CTest)
     add_subdirectory(test/afl)
     add_test(NAME compress_decode COMMAND afl_matrix_api_decode)
     add_test(NAME compress_encode_decode COMMAND afl_matrix_api_encode_decode)
-endif(CTK_AFL_TEST)
+endif()
 
 add_subdirectory(examples)
 

@@ -34,7 +34,7 @@ namespace ctk { namespace api {
         {
             CntReaderReflib(const std::string& fname, bool is_broken = false);
             CntReaderReflib(const CntReaderReflib&);
-            CntReaderReflib(CntReaderReflib&&) = default;
+            CntReaderReflib(CntReaderReflib&&);
             auto operator=(const CntReaderReflib&) -> CntReaderReflib&;
             auto operator=(CntReaderReflib&&) -> CntReaderReflib& = default;
             ~CntReaderReflib();
@@ -101,9 +101,9 @@ namespace ctk { namespace api {
         {
             CntWriterReflib(const std::string& fname, RiffType riff, const std::string& history);
             CntWriterReflib(const CntWriterReflib&) = delete;
-            CntWriterReflib(CntWriterReflib&&) = delete;
+            CntWriterReflib(CntWriterReflib&&);
             auto operator=(const CntWriterReflib&) -> CntWriterReflib& = delete;
-            auto operator=(CntWriterReflib&&) -> CntWriterReflib& = delete;
+            auto operator=(CntWriterReflib&&) -> CntWriterReflib&;
             ~CntWriterReflib();
 
             // assemblies the generated files into a single RIFF file.
