@@ -47,7 +47,7 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
             // scope for the epoch writer
             {
                 // REMEMBER MISSING: reader.data().channel_order()
-                epoch_writer_flat flat_writer{ fname, reader.data().description(), reader.data().cnt_type(), reader.data().history() };
+                epoch_writer_flat flat_writer{ "delme.cnt", reader.data().description(), reader.data().cnt_type(), reader.data().history() };
                 flat_writer.set_info(reader.data().information());
                 flat_writer.append(reader.data().triggers());
 
@@ -60,7 +60,7 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
 
             // scope for the epoch reader (if the file is still open delete_flat_files fails on windows)
             {
-                epoch_reader_flat flat_reader{ fname, loose_files };
+                epoch_reader_flat flat_reader{ "delme.cnt", loose_files };
                 const auto flat_count{ flat_reader.data().count() };
                 REQUIRE(flat_count == reflib_count);
                 REQUIRE(reader.data().description() == flat_reader.data().description());
@@ -153,7 +153,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
             for (auto stride : chunks) {
                 {
                     cnt_reader_reflib_riff reader_reflib{ fname, is_broken };
-                    loose_files = write_in_chunks(reader_reflib, fname, stride);
+                    loose_files = write_in_chunks(reader_reflib, "delme.cnt", stride);
 
                     epoch_reader_riff reflib_reader{ fname, is_broken };
                     const auto reflib_count{ reflib_reader.data().count() };
