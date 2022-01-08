@@ -92,13 +92,13 @@ TEST_CASE("histogram", "[correct]") {
 	random_values random;
     const Format format;
 
-    for (S length{ 2 }; length < 1024; length += 1) {
+    for (S length{ 2 }; length < 512; length += 1) {
         reduction<T, Format> dut;
         estimation<T> e;
         dut.resize(measurement_count{ length });
         e.resize(measurement_count{ length }, format);
 
-        for(T i{ 0 }; i < 20; ++i) {
+        for(T i{ 0 }; i < 10; ++i) {
             std::vector<T> residuals(static_cast<size_t>(length));
             random.fill(T{ 0 }, T{ static_cast<T>(i + 10) }, residuals);
 

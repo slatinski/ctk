@@ -82,7 +82,7 @@ TEST_CASE("oo interface encode/decode", "[consistency]") {
 
 	random_values random;
 
-	for (ptrdiff_t input_size : { 1, 128, 256, 1024, 2048, 4096, 8192, 16384, 200, 256, 500, 1000, 2000, 4000, 8000, 16000 }) {
+	for (ptrdiff_t input_size : { 1, 128, 256, 1024, 2048, 4096 }) {
         std::cout << "input size " << input_size << "\n";
 
         // reference library format: 4 byte wide signed words
