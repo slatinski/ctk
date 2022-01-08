@@ -286,7 +286,7 @@ namespace ctk { namespace api {
 
         auto operator==(const TimeSeries& x, const TimeSeries& y) -> bool {
             return x.start_time == y.start_time
-                && x.sampling_frequency == y.sampling_frequency
+                && std::fabs(x.sampling_frequency - y.sampling_frequency) < 1e-6
                 && x.electrodes == y.electrodes
                 && x.epoch_length == y.epoch_length;
         }
