@@ -320,13 +320,13 @@ namespace ctk { namespace api {
         const double additional{ 0 <= x.fraction ? std::floor(x.fraction) : std::ceil(x.fraction) };
         const double seconds{ whole + additional };
         const double subseconds{ x.fraction - additional };
-        const double scaled{ seconds / seconds_per_day };
-        if (!std::isfinite(scaled) || !std::isfinite(subseconds)) {
+        const double days_since_epoch{ seconds / seconds_per_day };
+        if (!std::isfinite(days_since_epoch) || !std::isfinite(subseconds)) {
             throw ctk::api::v1::ctk_limit{ "regular: infinite dcdate" };
         }
         assert(std::fabs(subseconds) < 1);
 
-        return { scaled, subseconds };
+        return { days_since_epoch, subseconds };
     }
 
 
