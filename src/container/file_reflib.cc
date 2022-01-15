@@ -22,21 +22,19 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl {
 
-auto flat2riff(const std::string& input_name, const std::string& output_name, const std::vector<tagged_file>& tokens, const std::vector<external_file>& user) -> void {
+auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::path& output_name, const std::vector<tagged_file>& tokens, const std::vector<external_file>& user) -> void {
     const epoch_reader_flat reader{ input_name, tokens };
 
     // additional consistency check: accessibility of the last epoch
     const auto epochs{ reader.data().count() };
     if (epochs == 0) {
-        // TODO: is this a problem indeed?
         throw api::v1::ctk_data{ "flat2riff: empty time signal" };
     }
-    const epoch_count one{ 1 };
-    reader.data().epoch(epochs - one);
+    reader.data().epoch(epochs - epoch_count{ 1 });
 
     riff_list root{ reader.writer_map() };
     const auto t{ reader.data().cnt_type() };
-    const int64_t no_offset{ 0 }; // verbatim copy of the file; no ctk_part header at the beginning of the input file needs to be skipped
+    const int64_t no_offset{ 0 }; // verbatim copy of the whole file
     for (const auto& x : user) {
         root.push_back(riff_node{ riff_file{ data_chunk(t, x.label), x.file_name, no_offset } });
     }
@@ -50,7 +48,7 @@ auto flat2riff(const std::string& input_name, const std::string& output_name, co
 
 
 
-cnt_writer_reflib_riff::cnt_writer_reflib_riff(const std::string& fname, api::v1::RiffType riff, const std::string& h)
+cnt_writer_reflib_riff::cnt_writer_reflib_riff(const std::filesystem::path& fname, api::v1::RiffType riff, const std::string& h)
     : riff{ riff }
     , file_name{ fname }
     , history{ h } {
@@ -76,7 +74,7 @@ auto cnt_writer_reflib_riff::add_time_signal(const time_signal& description) -> 
     return flat_writer.get();
 }
 
-auto cnt_writer_reflib_riff::embed(std::string label, const std::string& fname) -> void {
+auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::path& fname) -> void {
     label = as_string(as_label(label)); // clamp label
 
     // refh and imp are recognized by libeep but not used.
@@ -139,11 +137,11 @@ auto cnt_writer_reflib_riff::close() -> void {
 
     flat2riff(fname_flat(file_name), file_name, tokens, user);
 
-    const auto get_fname = [](const auto& x) -> std::string { return x.file_name; };
+    const auto get_fname = [](const auto& x) -> std::filesystem::path { return x.file_name; };
 
-    std::vector<std::string> temporary_files(tokens.size());
+    std::vector<std::filesystem::path> temporary_files(tokens.size());
     std::transform(begin(tokens), end(tokens), begin(temporary_files), get_fname);
-    temporary_files.push_back(fname_flat(file_name));
+    //temporary_files.push_back(fname_flat(file_name));
     if (!delete_files(temporary_files)) {
         throw api::v1::ctk_data{ "cnt_writer_reflib_riff::close: cannot delete temporary files" };
     }

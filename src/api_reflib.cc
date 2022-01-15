@@ -56,12 +56,12 @@ namespace ctk { namespace api {
             cnt_reader_reflib_riff reader;
 
             explicit
-            impl(const std::string& fname, bool is_broken)
+            impl(const std::filesystem::path& fname, bool is_broken)
             : reader{ fname, is_broken } {
             }
         };
 
-        CntReaderReflib::CntReaderReflib(const std::string& fname, bool is_broken)
+        CntReaderReflib::CntReaderReflib(const std::filesystem::path& fname, bool is_broken)
             : p{ new impl{ fname, is_broken } } {
             assert(p);
         }
@@ -184,13 +184,13 @@ namespace ctk { namespace api {
             cnt_writer_reflib_riff writer;
             cnt_writer_reflib_flat *raw3;
 
-            impl(const std::string& fname, RiffType riff, const std::string& history)
+            impl(const std::filesystem::path& fname, RiffType riff, const std::string& history)
             : writer{ fname, riff, history }
             , raw3{ nullptr } {
             }
         };
 
-        CntWriterReflib::CntWriterReflib(const std::string& fname, RiffType riff, const std::string& history)
+        CntWriterReflib::CntWriterReflib(const std::filesystem::path& fname, RiffType riff, const std::string& history)
             : p{ new impl{ fname, riff, history } } {
             assert(p);
         }

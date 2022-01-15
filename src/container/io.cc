@@ -47,8 +47,8 @@ namespace ctk { namespace impl {
     }
 
 
-    auto open_r(const std::string& fname) -> file_ptr {
-        file_ptr p{ fopen(fname.c_str(), "rb") };
+    auto open_r(const std::filesystem::path& fname) -> file_ptr {
+        file_ptr p{ fopen(fname.string().c_str(), "rb") };
         if (!p) {
             std::ostringstream oss;
             oss << "open_r: cannot open " << fname << " for reading";
@@ -59,8 +59,8 @@ namespace ctk { namespace impl {
     }
 
 
-    auto open_w(const std::string& fname) -> file_ptr {
-        file_ptr p{ fopen(fname.c_str(), "wb") };
+    auto open_w(const std::filesystem::path& fname) -> file_ptr {
+        file_ptr p{ fopen(fname.string().c_str(), "wb") };
         if (!p) {
             std::ostringstream oss;
             oss << "open_w: can not open " << fname << " for writing";

@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <array>
 #include <string>
+#include <filesystem>
 #include <cassert>
 
 #include "type_wrapper.h"
@@ -237,9 +238,9 @@ namespace ctk { namespace impl {
     struct tagged_file
     {
         file_tag id;
-        std::string file_name;
+        std::filesystem::path file_name;
 
-        tagged_file(file_tag, const std::string&);
+        tagged_file(file_tag, const std::filesystem::path&);
         tagged_file();
         tagged_file(const tagged_file&) = default;
         tagged_file(tagged_file&&) = default;
@@ -278,16 +279,16 @@ namespace ctk { namespace impl {
         FILE* f_triggers;
         FILE* f_info;
         riff_ptr riff;
-        std::string fname;
+        std::filesystem::path fname;
         size_t open_files;
         std::vector<own_file> tokens;
 
-        auto add_file(std::string fname, file_tag id, std::string chunk_id) -> FILE*;
+        auto add_file(std::filesystem::path, file_tag, std::string) -> FILE*;
         auto close_last() -> void;
 
     public:
 
-        epoch_writer_flat(const std::string& fname, const time_signal& x, api::v1::RiffType s, const std::string& history);
+        epoch_writer_flat(const std::filesystem::path& name, const time_signal& x, api::v1::RiffType s, const std::string& history);
         epoch_writer_flat(const epoch_writer_flat&) = delete;
         epoch_writer_flat(epoch_writer_flat&&) = default;
         ~epoch_writer_flat() = default;
@@ -303,7 +304,7 @@ namespace ctk { namespace impl {
         auto close() -> void;
 
         auto file_tokens() const -> std::vector<tagged_file>;
-        auto file_name() const -> std::string;
+        auto file_name() const -> std::filesystem::path;
         auto epoch_length() const -> measurement_count;
         auto sample_count() const -> measurement_count;
     };
@@ -332,10 +333,10 @@ namespace ctk { namespace impl {
     struct riff_file
     {
         chunk c;
-        std::string fname;
+        std::filesystem::path fname;
         int64_t offset;
 
-        riff_file(const chunk& c, const std::string& fname, int64_t offset);
+        riff_file(const chunk& c, const std::filesystem::path& fname, int64_t offset);
         riff_file(const riff_file&) = default;
         riff_file(riff_file&&) = default;
         ~riff_file() = default;
@@ -456,18 +457,18 @@ namespace ctk { namespace impl {
         std::vector<tagged_file> tokens;
         file_ptr f_data;
         file_ptr f_triggers;
-        std::string file_name;
+        std::filesystem::path file_name;
         riff_ptr riff;
         amorph a;
         epoch_reader_common common;
 
-        auto get_name(file_tag id) const -> std::string;
+        auto get_name(file_tag id) const -> std::filesystem::path;
         auto cnt_type() const -> api::v1::RiffType;
         auto init() -> amorph;
 
     public:
 
-        epoch_reader_flat(const std::string& fname, const std::vector<tagged_file>& available);
+        epoch_reader_flat(const std::filesystem::path& fname, const std::vector<tagged_file>& available);
         epoch_reader_flat(const epoch_reader_flat&);
         epoch_reader_flat(epoch_reader_flat&&) = default;
         ~epoch_reader_flat() = default;
@@ -479,17 +480,17 @@ namespace ctk { namespace impl {
         auto writer_map() const -> riff_list; // reflib
         auto writer_map_extended() const -> riff_list; // extended
         
-        auto data_file_name() const -> std::string;
-        auto trigger_file_name() const -> std::string;
-        auto ep_file_name() const -> std::string;
-        auto chan_file_name() const -> std::string;
+        auto data_file_name() const -> std::filesystem::path;
+        auto trigger_file_name() const -> std::filesystem::path;
+        auto ep_file_name() const -> std::filesystem::path;
+        auto chan_file_name() const -> std::filesystem::path;
     };
 
 
     class epoch_reader_riff
     {
         file_ptr f;
-        std::string file_name;
+        std::filesystem::path file_name;
         riff_ptr riff;
         amorph a;
         epoch_reader_common common;
@@ -499,7 +500,7 @@ namespace ctk { namespace impl {
 
     public:
 
-        explicit epoch_reader_riff(const std::string& fname, bool is_broken);
+        explicit epoch_reader_riff(const std::filesystem::path& fname, bool is_broken);
         epoch_reader_riff(const epoch_reader_riff& x);
         epoch_reader_riff(epoch_reader_riff&&) = default;
         ~epoch_reader_riff() = default;
@@ -509,7 +510,7 @@ namespace ctk { namespace impl {
 
         auto data() const -> const epoch_reader_common&;
         auto embedded_files() const -> std::vector<std::string>;
-        auto extract_embedded_file(const std::string& label, const std::string& fname) const -> void;
+        auto extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> bool;
     };
 
 
@@ -542,19 +543,19 @@ namespace ctk { namespace impl {
     auto root_id_riff32() -> std::string;
     auto root_id_riff64() -> std::string;
 
-    auto fname_data(const std::string&) -> std::string;
-    auto fname_ep(const std::string&) -> std::string;
-    auto fname_chan(const std::string&) -> std::string;
-    auto fname_sample_count(const std::string&) -> std::string;
-    auto fname_electrodes(const std::string&) -> std::string;
-    auto fname_sampling_frequency(const std::string&) -> std::string;
-    auto fname_triggers(const std::string&) -> std::string;
-    auto fname_info(const std::string&) -> std::string;
-    auto fname_cnt_type(const std::string&) -> std::string;
-    auto fname_history(const std::string&) -> std::string;
-    auto fname_time_series_header(const std::string&) -> std::string;
-    auto fname_flat(const std::string&) -> std::string;
-    auto delete_files(const std::vector<std::string>&) -> bool;
+    auto fname_data(std::filesystem::path) -> std::filesystem::path;
+    auto fname_ep(std::filesystem::path) -> std::filesystem::path;
+    auto fname_chan(std::filesystem::path) -> std::filesystem::path;
+    auto fname_sample_count(std::filesystem::path) -> std::filesystem::path;
+    auto fname_electrodes(std::filesystem::path) -> std::filesystem::path;
+    auto fname_sampling_frequency(std::filesystem::path) -> std::filesystem::path;
+    auto fname_triggers(std::filesystem::path) -> std::filesystem::path;
+    auto fname_info(std::filesystem::path) -> std::filesystem::path;
+    auto fname_cnt_type(std::filesystem::path) -> std::filesystem::path;
+    auto fname_history(std::filesystem::path) -> std::filesystem::path;
+    auto fname_time_series_header(std::filesystem::path) -> std::filesystem::path;
+    auto fname_flat(std::filesystem::path) -> std::filesystem::path;
+    auto delete_files(const std::vector<std::filesystem::path>&) -> bool;
 
     auto make_eeph_content(const amorph&) -> std::string;
     auto make_info_content(const amorph&) -> std::string;

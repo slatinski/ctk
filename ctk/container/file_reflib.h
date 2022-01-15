@@ -118,21 +118,21 @@ public:
 
     // constructs epoch_reader_riff reader
     explicit
-    reflib_reader_common(const std::string& fname, bool is_broken)
+    reflib_reader_common(const std::filesystem::path& fname, bool is_broken)
     : reader{ fname, is_broken }
-    , cached{ std::numeric_limits<sint>::max() }
+    , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
-    , cache_index{ measurement_count{ std::numeric_limits<sint>::max() } }
+    , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
     , scales{ electrode_scaling(reader.data().description().ts.electrodes)  } {
         decode.row_order(reader.data().order()); // TODO?
     }
 
     // constructs epoch_reader_flat reader
-    reflib_reader_common(const std::string& fname, const std::vector<tagged_file>& available)
+    reflib_reader_common(const std::filesystem::path& fname, const std::vector<tagged_file>& available)
     : reader{ fname, available }
-    , cached{ std::numeric_limits<sint>::max() }
+    , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
-    , cache_index{ measurement_count{ std::numeric_limits<sint>::max() } }
+    , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
     , scales{ electrode_scaling(reader.data().description().ts.electrodes)  } {
         decode.row_order(reader.data().order());
     }
@@ -259,7 +259,7 @@ public:
         return reader.embedded_files();
     }
 
-    auto extract_embedded_file(const std::string& label, const std::string& fname) const -> void {
+    auto extract_embedded_file(const std::string& label, const std::filesystem::path& fname) const -> bool {
         return reader.extract_embedded_file(label, fname);
     }
 
@@ -383,7 +383,7 @@ class cnt_writer_flat
 
 public:
 
-    cnt_writer_flat(const std::string& fname, const time_signal& description, api::v1::RiffType riff, const std::string& history)
+    cnt_writer_flat(const std::filesystem::path& fname, const time_signal& description, api::v1::RiffType riff, const std::string& history)
     : epoch_writer{ fname, description, riff, history }
     , cache_index{ 0 }
     , height{ vsize(description.ts.electrodes) }
@@ -582,9 +582,9 @@ using cnt_writer_reflib_flat = cnt_writer_flat<int32_t, reflib>;
 struct external_file
 {
     std::string label;
-    std::string file_name;
+    std::filesystem::path file_name;
 
-    external_file(const std::string& label, const std::string& file_name)
+    external_file(const std::string& label, const std::filesystem::path& file_name)
     : label{ label }
     , file_name{ file_name } {
     }
@@ -595,7 +595,7 @@ auto operator<<(std::ostream&, const external_file&) -> std::ostream&;
 class cnt_writer_reflib_riff
 {
     api::v1::RiffType riff;
-    std::string file_name;
+    std::filesystem::path file_name;
     std::unique_ptr<cnt_writer_reflib_flat> flat_writer;
     api::v1::Info information;
     std::string history;
@@ -603,7 +603,7 @@ class cnt_writer_reflib_riff
 
 public:
 
-    cnt_writer_reflib_riff(const std::string& name, api::v1::RiffType riff, const std::string& history);
+    cnt_writer_reflib_riff(const std::filesystem::path& name, api::v1::RiffType riff, const std::string& history);
     ~cnt_writer_reflib_riff() = default;
     cnt_writer_reflib_riff(const cnt_writer_reflib_riff&) = delete;
     cnt_writer_reflib_riff& operator=(const cnt_writer_reflib_riff&) = delete;
@@ -626,7 +626,7 @@ public:
     // label is a 4 byte label.
     // label can not be any of: "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh " or "tfd " (maybe not "refh", "imp ", "nsh ", "vish", "egih", "egig", "egiz" and "binh" as well).
     // at most one user supplied chunk can have this label.
-    auto embed(std::string label, const std::string& fname) -> void;
+    auto embed(std::string label, const std::filesystem::path& fname) -> void;
 
     // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
     auto commited() const -> measurement_count;
@@ -638,7 +638,7 @@ public:
 class cnt_writer_riff
 {
     api::v1::RiffType riff;
-    std::string file_name;
+    std::filesystem::path file_name;
     //std::vector< std::unique_ptr<cnt_writer_reflib_flat> > flat_writers;
     //std::unique_ptr<cnt_writer_reflib_flat> flat_writer;
     std::vector<std::unique_ptr<cnt_writer_flat<int32_t, extended>>> ts_segments;
@@ -648,7 +648,7 @@ class cnt_writer_riff
 
 public:
 
-    cnt_writer_riff(const std::string& name, api::v1::RiffType riff, const std::string& history);
+    cnt_writer_riff(const std::filesystem::path& name, api::v1::RiffType riff, const std::string& history);
     ~cnt_writer_riff() = default;
     cnt_writer_riff(const cnt_writer_riff&) = delete;
     cnt_writer_riff& operator=(const cnt_writer_riff&) = delete;
@@ -671,7 +671,7 @@ public:
     // label is a 4 byte label.
     // label can not be any of: "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh " or "tfd " (maybe not "refh", "imp ", "nsh ", "vish", "egih", "egig", "egiz" and "binh" as well).
     // all labels in a file should be unique.
-    auto embed(std::string label, const std::string& fname) -> void;
+    auto embed(std::string label, const std::filesystem::path& fname) -> void;
 
     // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
     auto commited() const -> measurement_count;

@@ -23,6 +23,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <filesystem>
 
 #include "exception.h"
 
@@ -100,8 +101,8 @@ namespace ctk { namespace impl {
     };
     using file_ptr = std::unique_ptr<FILE, close_file>; // use different types for reading/writing?
 
-    auto open_r(const std::string& fname) -> file_ptr; 
-    auto open_w(const std::string& fname) -> file_ptr;
+    auto open_r(const std::filesystem::path& fname) -> file_ptr; 
+    auto open_w(const std::filesystem::path& fname) -> file_ptr;
 
 } /* namespace impl */ } /* namespace ctk */
 

@@ -24,6 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <memory>
 #include <vector>
 #include <memory>
+#include <filesystem>
 #include "exception.h"
 #include "api_data.h"
 
@@ -32,7 +33,7 @@ namespace ctk { namespace api {
 
         struct CntReaderReflib
         {
-            CntReaderReflib(const std::string& fname, bool is_broken = false);
+            CntReaderReflib(const std::filesystem::path& fname, bool is_broken = false);
             CntReaderReflib(const CntReaderReflib&);
             CntReaderReflib(CntReaderReflib&&);
             auto operator=(const CntReaderReflib&) -> CntReaderReflib&;
@@ -73,6 +74,7 @@ namespace ctk { namespace api {
             this interface delivers data in the following fashion:
                 - all output epochs but the last contain epoch length measurements
                 - the last epoch might be shorter
+            NB: do NOT interleave calls to range (rangeRowMajor, rangeColumnMajor, rangeScaled) and epoch functions.
             */
             auto epochs() const -> int64_t;
             auto epochRowMajor(int64_t i) -> std::vector<int32_t>;
@@ -99,7 +101,7 @@ namespace ctk { namespace api {
 
         struct CntWriterReflib
         {
-            CntWriterReflib(const std::string& fname, RiffType riff, const std::string& history);
+            CntWriterReflib(const std::filesystem::path& fname, RiffType riff, const std::string& history);
             CntWriterReflib(const CntWriterReflib&) = delete;
             CntWriterReflib(CntWriterReflib&&);
             auto operator=(const CntWriterReflib&) -> CntWriterReflib& = delete;

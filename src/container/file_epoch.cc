@@ -668,13 +668,13 @@ namespace ctk { namespace impl {
     : id{ file_tag::length /* invalid */} {
     }
 
-    tagged_file::tagged_file(file_tag id, const std::string& file_name)
+    tagged_file::tagged_file(file_tag id, const std::filesystem::path& file_name)
     : id{ id }
     , file_name{ file_name } {
     }
 
     auto operator<<(std::ostream& os, const tagged_file& x) -> std::ostream& {
-        os << x.id << ": " << x.file_name;
+        os << x.id << ": " << x.file_name.string();
         return os;
     }
 
@@ -1551,58 +1551,67 @@ namespace ctk { namespace impl {
     }
 
 
-    auto fname_data(const std::string& fname) -> std::string {
-        return fname + "_raw3_data.bin";
-    }
-
-    auto fname_ep(const std::string& fname) -> std::string {
-        return fname + "_raw3_ep.bin";
-    }
-
-    auto fname_chan(const std::string& fname) -> std::string {
-        return fname + "_raw3_chan.bin";
-    }
-
-    auto fname_sample_count(const std::string& fname) -> std::string {
-        return fname + "_raw3_sample_count.bin";
-    }
-
-    auto fname_electrodes(const std::string& fname) -> std::string {
-        return fname + "_electrodes.bin";
-    }
-
-    auto fname_sampling_frequency(const std::string& fname) -> std::string {
-        return fname + "_sampling_frequency.bin";
-    }
-
-    auto fname_triggers(const std::string& fname) -> std::string {
-        return fname + "_triggers.bin";
-    }
-
-    auto fname_info(const std::string& fname) -> std::string {
-        return fname + "_info.bin";
-    }
-
-    auto fname_cnt_type(const std::string& fname) -> std::string {
-        return fname + "_type.bin";
-    }
-
-    auto fname_history(const std::string& fname) -> std::string {
-        return fname + "_history.bin";
-    }
-
-    auto fname_time_series_header(const std::string& fname) -> std::string {
-        return fname + "time_series_header.bin";
-    }
-
-    auto fname_flat(const std::string& fname) -> std::string {
-        return fname + "_flat";
+    static
+    auto append_to_filename(std::filesystem::path x, std::string appendix) -> std::filesystem::path {
+        auto name{ x.filename() };
+        name += appendix;
+        x.replace_filename(name);
+        return x;
     }
 
 
-    auto delete_files(const std::vector<std::string>& v) -> bool {
-        const auto del = [](bool acc, const std::string& fname) -> bool { return acc && (std::remove(fname.c_str()) == 0); };
-        return std::accumulate(begin(v), end(v), true, del);
+    auto fname_data(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_raw3_data.bin");
+    }
+
+    auto fname_ep(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_raw3_ep.bin");
+    }
+
+    auto fname_chan(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_raw3_chan.bin");
+    }
+
+    auto fname_sample_count(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_raw3_sample_count.bin");
+    }
+
+    auto fname_electrodes(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_electrodes.bin");
+    }
+
+    auto fname_sampling_frequency(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_sampling_frequency.bin");
+    }
+
+    auto fname_triggers(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_triggers.bin");
+    }
+
+    auto fname_info(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_info.bin");
+    }
+
+    auto fname_cnt_type(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_type.bin");
+    }
+
+    auto fname_history(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_history.bin");
+    }
+
+    auto fname_time_series_header(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_time_series_header.bin");
+    }
+
+    auto fname_flat(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_flat");
+    }
+
+
+    auto delete_files(const std::vector<std::filesystem::path>& xs) -> bool {
+        const auto del = [](bool acc, const std::filesystem::path& x) -> bool { return acc && std::filesystem::remove(x); };
+        return std::accumulate(begin(xs), end(xs), true, del);
     }
 
 
@@ -1737,7 +1746,7 @@ namespace ctk { namespace impl {
     auto content2chunk(FILE* f, const riff_file& x) -> void {
         assert(is_even(tell(f)));
 
-        if (x.fname.empty()) {
+        if (!x.fname.has_filename()) {
             throw api::v1::ctk_bug{ "copy_common: empty file name" };
         }
 
@@ -1771,7 +1780,7 @@ namespace ctk { namespace impl {
     }
 
 
-    riff_file::riff_file(const chunk& c, const std::string& fname, int64_t offset)
+    riff_file::riff_file(const chunk& c, const std::filesystem::path& fname, int64_t offset)
     : c{ c }
     , fname{ fname }
     , offset{ offset } {
@@ -1831,7 +1840,7 @@ namespace ctk { namespace impl {
     }
 
 
-    auto epoch_writer_flat::add_file(std::string fname, file_tag id, std::string chunk_id) -> FILE* {
+    auto epoch_writer_flat::add_file(std::filesystem::path fname, file_tag id, std::string chunk_id) -> FILE* {
         tokens.push_back(own_file{ open_w(fname), file_token{ tagged_file{ id, fname }, as_label(chunk_id) } });
         write_part_header(tokens.back().f.get(), tokens.back().t.tag.id, tokens.back().t.chunk_id);
         return tokens.back().f.get();
@@ -1841,7 +1850,7 @@ namespace ctk { namespace impl {
         tokens.back().f.reset(nullptr);
     }
 
-    epoch_writer_flat::epoch_writer_flat(const std::string& fname, const time_signal& x, api::v1::RiffType s, const std::string& history)
+    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& name, const time_signal& x, api::v1::RiffType s, const std::string& history)
     : samples{ 0 }
     , epoch_size{ x.ts.epoch_length }
     , start_time{ x.ts.start_time }
@@ -1851,7 +1860,7 @@ namespace ctk { namespace impl {
     , f_triggers{ nullptr }
     , f_info{ nullptr }
     , riff{ make_cnt_field_size(s) }
-    , fname{ fname }
+    , fname{ name }
     , open_files{ 0 } {
         if (!is_valid(x)) {
             throw api::v1::ctk_limit{ "epoch_writer_flat: invalid description" };
@@ -1971,7 +1980,7 @@ namespace ctk { namespace impl {
         return result;
     }
 
-    auto epoch_writer_flat::file_name() const -> std::string {
+    auto epoch_writer_flat::file_name() const -> std::filesystem::path {
         return fname;
     }
 
@@ -2085,7 +2094,7 @@ namespace ctk { namespace impl {
 
 
     // NB: the initialization order in this constructor is important
-    epoch_reader_flat::epoch_reader_flat(const std::string& fname, const std::vector<tagged_file>& available)
+    epoch_reader_flat::epoch_reader_flat(const std::filesystem::path& fname, const std::vector<tagged_file>& available)
     : tokens{ available }
     , f_data{ open_r(data_file_name()) }
     , f_triggers{ open_r(trigger_file_name()) } // TODO: try_open_r or create the file always
@@ -2151,23 +2160,23 @@ namespace ctk { namespace impl {
         return segment;
     }
     
-    auto epoch_reader_flat::data_file_name() const -> std::string {
+    auto epoch_reader_flat::data_file_name() const -> std::filesystem::path {
         return get_name(file_tag::data);
     }
 
-    auto epoch_reader_flat::trigger_file_name() const -> std::string {
+    auto epoch_reader_flat::trigger_file_name() const -> std::filesystem::path {
         return get_name(file_tag::triggers);
     }
 
-    auto epoch_reader_flat::ep_file_name() const -> std::string {
+    auto epoch_reader_flat::ep_file_name() const -> std::filesystem::path {
         return get_name(file_tag::ep);
     }
 
-    auto epoch_reader_flat::chan_file_name() const -> std::string {
+    auto epoch_reader_flat::chan_file_name() const -> std::filesystem::path {
         return get_name(file_tag::chan);
     }
 
-    auto epoch_reader_flat::get_name(file_tag id) const -> std::string {
+    auto epoch_reader_flat::get_name(file_tag id) const -> std::filesystem::path {
         const auto match_id = [id](const auto& x) -> bool { return x.id == id; };
 
         const auto first{ begin(tokens) };
@@ -2242,7 +2251,7 @@ namespace ctk { namespace impl {
 
 
     // NB: the initialization order in this constructor is important
-    epoch_reader_riff::epoch_reader_riff(const std::string& fname, bool is_broken)
+    epoch_reader_riff::epoch_reader_riff(const std::filesystem::path& fname, bool is_broken)
     : f{ open_r(fname) }
     , file_name{ fname }
     , riff{ make_cnt_field_size(cnt_type()) }
@@ -2269,16 +2278,17 @@ namespace ctk { namespace impl {
         return result;
     }
 
-    auto epoch_reader_riff::extract_embedded_file(const std::string& label, const std::string& fname) const -> void {
+    auto epoch_reader_riff::extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> bool {
         const auto first{ begin(a.user) };
         const auto last{ end(a.user) };
         const auto chunk{ std::find_if(first, last, [label](const auto& x) -> bool { return x.label == label; }) };
         if (chunk == last) {
-            throw api::v1::ctk_data{ "epoch_reader_riff::extract_embedded_file: invalid chunk" };
+            return false;
         }
 
-        auto fout{ open_w(fname) };
+        auto fout{ open_w(output) };
         copy_file_portion(f.get(), chunk->storage, fout.get());
+        return true;
     }
 
     auto epoch_reader_riff::cnt_type() const -> api::v1::RiffType {

@@ -74,14 +74,14 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
                 }
             }
 
-            std::vector<std::string> fnames(loose_files.size());
+            std::vector<std::filesystem::path> fnames(loose_files.size());
             std::transform(begin(loose_files), end(loose_files), begin(fnames), get_fname);
             REQUIRE(delete_files(fnames));
             std::cerr << " ok\n";
         }
         catch (const std::exception&) {
             ignore_expected();
-            std::vector<std::string> fnames(loose_files.size());
+            std::vector<std::filesystem::path> fnames(loose_files.size());
             std::transform(begin(loose_files), end(loose_files), begin(fnames), get_fname);
             REQUIRE(delete_files(fnames));
         }
@@ -126,7 +126,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
 	std::string fname{ input.next() };
 	while (!fname.empty()) {
         std::vector<tagged_file> loose_files;
-        const auto get_fname = [](const auto& x) -> std::string { return x.file_name; };
+        const auto get_fname = [](const auto& x) -> std::filesystem::path { return x.file_name; };
 
 		try {
 			std::cerr << s2s(fname, fname_width);
@@ -184,7 +184,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
                         REQUIRE(v_rc == v_fc);
                     }
 
-                    std::vector<std::string> fnames(loose_files.size());
+                    std::vector<std::filesystem::path> fnames(loose_files.size());
                     std::transform(begin(loose_files), end(loose_files), begin(fnames), get_fname);
                     REQUIRE(delete_files(fnames));
                     fnames.clear();
@@ -195,7 +195,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
         }
         catch (const std::exception&) {
             ignore_expected();
-            std::vector<std::string> fnames(loose_files.size());
+            std::vector<std::filesystem::path> fnames(loose_files.size());
             std::transform(begin(loose_files), end(loose_files), begin(fnames), get_fname);
             REQUIRE(delete_files(fnames));
         }
