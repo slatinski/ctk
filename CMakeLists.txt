@@ -152,10 +152,7 @@ if(CTK_LIBEEP_TEST)
 endif()
 
 if(CTK_AFL_TEST)
-    include(CTest)
     add_subdirectory(test/afl)
-    add_test(NAME compress_decode COMMAND afl_matrix_api_decode)
-    add_test(NAME compress_encode_decode COMMAND afl_matrix_api_encode_decode)
 endif()
 
 add_subdirectory(examples)
