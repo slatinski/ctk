@@ -141,7 +141,6 @@ auto cnt_writer_reflib_riff::close() -> void {
 
     std::vector<std::filesystem::path> temporary_files(tokens.size());
     std::transform(begin(tokens), end(tokens), begin(temporary_files), get_fname);
-    //temporary_files.push_back(fname_flat(file_name));
     if (!delete_files(temporary_files)) {
         throw api::v1::ctk_data{ "cnt_writer_reflib_riff::close: cannot delete temporary files" };
     }
