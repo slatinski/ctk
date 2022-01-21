@@ -78,8 +78,8 @@ auto submatrix(ptrdiff_t amount, const buf_win<I>& input, ptrdiff_t i_offset, co
     const IOut result{ std::copy(fi, li, fo) };
 
     for (ptrdiff_t row{ 1 }; row < input.height; ++row) {
-        fi += input.length;
-        fo += output.length;
+        fi += cast(input.length, ptrdiff_t{}, ok{});
+        fo += cast(output.length, ptrdiff_t{}, ok{});
 
         std::copy(fi, fi + amount, fo);
     }
@@ -90,11 +90,14 @@ auto submatrix(ptrdiff_t amount, const buf_win<I>& input, ptrdiff_t i_offset, co
 
 template<typename I, typename IOut>
 auto submatrix(measurement_count amount, const buf_win<I>& input, measurement_count i_offset, const buf_win<IOut>& output, measurement_count o_offset) -> IOut {
-    const sint a{ amount };
-    const sint io{ i_offset };
-    const sint oo{ o_offset };
+    const measurement_count::value_type a{ amount };
+    const measurement_count::value_type io{ i_offset };
+    const measurement_count::value_type oo{ o_offset };
+    const ptrdiff_t amount_i{ cast(a, ptrdiff_t{}, ok{}) };
+    const ptrdiff_t input_i{ cast(io, ptrdiff_t{}, ok{}) };
+    const ptrdiff_t offset_i{ cast(oo, ptrdiff_t{}, ok{}) };
 
-    return submatrix(a, input, io, output, oo);
+    return submatrix(amount_i, input, input_i, output, offset_i);
 }
 
 

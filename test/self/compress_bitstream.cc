@@ -436,7 +436,8 @@ TEST_CASE("writer flush test", "[correct]") {
 		// after writing from 17 up to 24 bits the first three bytes (indices 0, 1 and 2) are consumed (bits were written to them). the next writable byte shall be the fourth byte (index 3)
 		// after writing from 25 up to 32 bits the first four bytes (indices 0, 1, 2 and 3) are consumed (bits were written to them). the next writable byte shall be the fifth byte (index 4)
 		// ...
-		const auto last_index{ static_cast<sint>((i - bit_count{ 1 }) / one_byte() + bit_count{ 1 }) };
+		const auto li{ static_cast<bit_count::value_type>((i - bit_count{ 1 }) / one_byte() + bit_count{ 1 }) };
+		const ptrdiff_t last_index{ cast(li, ptrdiff_t{}, ok{}) };
 
 		bit_writer writer{ first, last };
 		writer.write(i, word64);

@@ -21,6 +21,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include "container/io.h"
+#include "arithmetic.h"
 
 namespace ctk { namespace impl {
 
@@ -28,7 +29,7 @@ namespace ctk { namespace impl {
 #ifdef WIN32
         return ::_fseeki64(f, i, whence) == 0;
 #else
-        return ::fseeko(f, i, whence) == 0;
+        return ::fseeko(f, cast(i, off_t{}, ok{}), whence) == 0;
 #endif
     }
 

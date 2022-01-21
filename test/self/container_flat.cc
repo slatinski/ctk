@@ -134,8 +134,10 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
             std::vector<ptrdiff_t> chunks{ 1, 2, 3 };
             {
                 cnt_reader_reflib_riff reader_reflib{ fname, is_broken };
-                const ptrdiff_t epoch_length{ static_cast<sint>(reader_reflib.epoch_length()) };
-                const ptrdiff_t sample_count{ static_cast<sint>(reader_reflib.sample_count()) };
+                const auto el{ static_cast<measurement_count::value_type>(reader_reflib.epoch_length()) };
+                const auto sc{ static_cast<measurement_count::value_type>(reader_reflib.sample_count()) };
+		const ptrdiff_t epoch_length{ cast(el, ptrdiff_t{}, ok{}) };
+		const ptrdiff_t sample_count{ cast(sc, ptrdiff_t{}, ok{}) };
                 if (epoch_length < 3 || sample_count < 6) {
                     std::cerr << "the test will not work, skipping\n";
                     continue;

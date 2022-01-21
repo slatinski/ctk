@@ -63,13 +63,14 @@ namespace ctk { namespace impl {
     //     - I2 is random access iterator and ValueType(I1) is convertible to ValueType(I2)
     //     - AssignOp has an interface identical to the interface of storage2client or client2storage
     auto transpose(I1 client, I2 storage, const std::vector<int16_t>& row_order, measurement_count length, AssignOp assign) -> void {
-        const sint i_heigth{ cast(row_order.size(), sint{}, guarded{}) };
-        const sint i_length{ length };
-        sint column{ 0 };
+        const measurement_count::value_type l{ length };
+	const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
+        const ptrdiff_t i_heigth{ cast(row_order.size(), ptrdiff_t{}, ok{}) };
+        ptrdiff_t column{ 0 };
 
         for (int16_t row : row_order) {
-            sint x{ 0 };
-            sint y{ 0 };
+            ptrdiff_t x{ 0 };
+            ptrdiff_t y{ 0 };
 
             for (/* empty */; x < i_length; ++x, y += i_heigth) {
                 assign(client + row + y, storage + column + x);
@@ -112,9 +113,12 @@ namespace ctk { namespace impl {
             using U = typename std::iterator_traits<IConst>::value_type;
             static_assert(sizeof(T) == sizeof(U));
 
-            for (int16_t row : row_order) {
-                const auto row_begin{ row * static_cast<sint>(length) };
-                const auto row_end{ row_begin + static_cast<sint>(length) };
+	    const measurement_count::value_type l{ length };
+	    const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
+
+            for (ptrdiff_t row : row_order) {
+                const auto row_begin{ row * i_length };
+                const auto row_end{ row_begin + i_length };
 
                 storage = std::copy(client + row_begin, client + row_end, storage);
             }
@@ -127,15 +131,14 @@ namespace ctk { namespace impl {
             using U = typename std::iterator_traits<IConst>::value_type;
             static_assert(sizeof(T) == sizeof(U));
 
-            sint row_begin{ 0 };
-            const sint i_length{ length };
+            ptrdiff_t row_begin{ 0 };
+            const measurement_count::value_type l{ length };
+	    const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
 
-            for (int16_t row : row_order) {
-                static_assert(sizeof(int16_t) <= sizeof(sint));
-                const sint dest{ multiply(static_cast<sint>(row), i_length, guarded{}) };
-                const sint row_end{ plus(row_begin, i_length, guarded{}) };
-                //dest = row * i_length;
-                //row_end = row_begin + i_length;
+            for (ptrdiff_t row : row_order) {
+                static_assert(sizeof(int16_t) <= sizeof(ptrdiff_t));
+                const ptrdiff_t dest{ multiply(row, i_length, guarded{}) };
+                const ptrdiff_t row_end{ plus(row_begin, i_length, guarded{}) };
 
                 std::copy(storage + row_begin, storage + row_end, client + dest);
 

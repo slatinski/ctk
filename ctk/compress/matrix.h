@@ -616,15 +616,15 @@ template<typename T>
 class matrix_buffer final
 {
     std::vector<T> previous_matrix_buffer;
-    sint row_length;
-    sint area;
+    ptrdiff_t row_length;
+    ptrdiff_t area;
 
-    auto buffer_size(sensor_count height, measurement_count epoch_length) -> std::tuple<sint, sint, size_t> {
+    auto buffer_size(sensor_count height, measurement_count epoch_length) -> std::tuple<ptrdiff_t, ptrdiff_t, size_t> {
         assert(0 < height && 0 < epoch_length);
 
-        const sint size{ matrix_size(height, epoch_length) };
-        const sint length{ epoch_length };
-        const auto two_rows{ plus(length, length, ok{}) }; // dummy previous row and buffer
+        const auto size{ matrix_size(height, epoch_length) };
+        const measurement_count::value_type length{ epoch_length };
+        const measurement_count::value_type two_rows{ plus(length, length, ok{}) }; // dummy previous row and buffer
 
         return { length, size, as_sizet_unchecked(plus(size, two_rows, ok{})) };
     }
@@ -897,7 +897,8 @@ public:
             common.resize(epoch_length);
         }
 
-        const measurement_count::value_type length{ epoch_length };
+        const measurement_count::value_type l{ epoch_length };
+	const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
         auto previous{ common.data.previous() };
         auto first{ common.data.matrix() };
         auto next{ first + length };
@@ -995,7 +996,8 @@ public:
         auto last{ common.data.buffer() };
         dma.app2lib(first, last, common.order, epoch_length); // signed -> unsigned conversion
 
-        const measurement_count::value_type length{ epoch_length };
+        const measurement_count::value_type l{ epoch_length };
+	const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
         auto next{ first + length };
 
         for (sensor_count row{ 0 }; row < height; ++row, next += length) {
