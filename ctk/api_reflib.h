@@ -127,7 +127,7 @@ namespace ctk { namespace api {
                 13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
-            auto rangeColumnMajor(const std::vector<int32_t>& client) -> void;
+            auto rangeColumnMajor(const std::vector<int32_t>&) -> void;
 
             /*
             the input is in row major format.
@@ -137,10 +137,10 @@ namespace ctk { namespace api {
                 21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
-            auto rangeRowMajor(const std::vector<int32_t>& client) -> void;
+            auto rangeRowMajor(const std::vector<int32_t>&) -> void;
 
-            auto trigger(const Trigger& x) -> void;
-            auto triggers(const std::vector<Trigger>& xs) -> void;
+            auto trigger(const Trigger&) -> void;
+            auto triggers(const std::vector<Trigger>&) -> void;
 
             auto flush() -> void;
 
@@ -160,6 +160,62 @@ namespace ctk { namespace api {
             struct impl;
             std::unique_ptr<impl> p;
         };
+
+
+        struct EventReader
+        {
+            EventReader(const std::filesystem::path&);
+            EventReader(const EventReader&);
+            EventReader(EventReader&&);
+            auto operator=(const EventReader&) -> EventReader&;
+            auto operator=(EventReader&&) -> EventReader&;
+            ~EventReader();
+
+            auto impedanceCount() const -> size_t;
+            auto videoCount() const -> size_t;
+            auto epochCount() const -> size_t;
+
+            auto impedanceEvent(size_t) -> EventImpedance;
+            auto videoEvent(size_t) -> EventVideo;
+            auto epochEvent(size_t) -> EventEpoch;
+
+            auto impedanceEvents() -> std::vector<EventImpedance>;
+            auto videoEvents() -> std::vector<EventVideo>;
+            auto epochEvents() -> std::vector<EventEpoch>;
+
+            auto fileVersion() -> int32_t;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+            friend auto swap(EventReader&, EventReader&) -> void;
+        };
+
+
+
+        struct EventWriter
+        {
+            EventWriter();
+            EventWriter(const EventWriter&) = delete;
+            EventWriter(EventWriter&&);
+            auto operator=(const EventWriter&) -> EventWriter& = delete;
+            auto operator=(EventWriter&&) -> EventWriter&;
+            ~EventWriter();
+
+            auto addImpedance(const EventImpedance&) -> void;
+            auto addVideo(const EventVideo&) -> void;
+            auto addEpoch(const EventEpoch&) -> void;
+
+            auto eventCount() const -> size_t;
+            auto fileVersion(int32_t) -> void;
+
+            auto write(const std::filesystem::path&) -> void;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+        };
+
 
     } /* namespace v1 */
 } /* namespace api */ } /* namespace ctk */

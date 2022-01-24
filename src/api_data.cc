@@ -261,6 +261,30 @@ namespace ctk { namespace api {
             return os;
         }
 
+
+        EventImpedance::EventImpedance()
+        : stamp{ dcdate2timepoint({ 0, 0 }) } {
+        }
+
+        EventImpedance::EventImpedance(const std::chrono::system_clock::time_point& stamp, const std::vector<float>& values)
+        : stamp{ stamp }
+        , values{ values } {
+        }
+
+
+        EventVideo::EventVideo()
+        : stamp{ dcdate2timepoint({ 0, 0 }) }
+        , duration{ 0 }
+        , trigger_code{ std::numeric_limits<int32_t>::min() } {
+        }
+
+        EventEpoch::EventEpoch()
+        : stamp{ dcdate2timepoint({ 0, 0 }) }
+        , duration{ 0 }
+        , offset{ 0 },
+        trigger_code{ std::numeric_limits<int32_t>::min() } {
+        }
+
     } /* namespace v1 */
 
     namespace v2 {

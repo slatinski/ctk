@@ -230,6 +230,60 @@ namespace v1 {
     };
     auto operator<<(std::ostream&, const Version&) -> std::ostream&;
 
+
+    struct EventImpedance
+    {
+        std::chrono::system_clock::time_point stamp;
+        std::vector<float> values; // in Ohm
+
+        EventImpedance();
+        EventImpedance(const std::chrono::system_clock::time_point&, const std::vector<float>&);
+        EventImpedance(const EventImpedance&) = default;
+        auto operator=(const EventImpedance&) -> EventImpedance& = default;
+        auto operator=(EventImpedance&&) -> EventImpedance& = default;
+        ~EventImpedance() = default;
+        friend auto operator==(const EventImpedance&, const EventImpedance&) -> bool = default;
+        friend auto operator!=(const EventImpedance&, const EventImpedance&) -> bool = default;
+    };
+
+
+    struct EventVideo
+    {
+        std::chrono::system_clock::time_point stamp;
+        double duration;
+        int32_t trigger_code;
+        std::wstring condition_label;
+        std::string description;
+        std::wstring video_file;
+
+        EventVideo();
+        EventVideo(const EventVideo&) = default;
+        auto operator=(const EventVideo&) -> EventVideo& = default;
+        auto operator=(EventVideo&&) -> EventVideo& = default;
+        ~EventVideo() = default;
+        friend auto operator==(const EventVideo&, const EventVideo&) -> bool = default;
+        friend auto operator!=(const EventVideo&, const EventVideo&) -> bool = default;
+    };
+
+
+    struct EventEpoch
+    {
+        std::chrono::system_clock::time_point stamp;
+        double duration;
+        double offset;
+        int32_t trigger_code;
+        std::wstring condition_label;
+
+        EventEpoch();
+        EventEpoch(const EventEpoch&) = default;
+        auto operator=(const EventEpoch&) -> EventEpoch& = default;
+        auto operator=(EventEpoch&&) -> EventEpoch& = default;
+        ~EventEpoch() = default;
+        friend auto operator==(const EventEpoch&, const EventEpoch&) -> bool = default;
+        friend auto operator!=(const EventEpoch&, const EventEpoch&) -> bool = default;
+    };
+
+
 } /* namespace v1 */
 
 
