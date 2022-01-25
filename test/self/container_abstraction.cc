@@ -46,7 +46,7 @@ auto compare_readers(const std::string& fname) -> void {
     const auto desc_api{ reader_api.description() };
     REQUIRE(desc.ts.epoch_length == desc_api.epoch_length);
     REQUIRE(desc.ts.sampling_frequency == desc_api.sampling_frequency);
-    REQUIRE(desc.ts.start_time == api::dcdate2timepoint(desc_api.start_time));
+    REQUIRE(desc.ts.start_time == desc_api.start_time);
     REQUIRE(desc.ts.electrodes == desc_api.electrodes);
 
     REQUIRE(reader_direct.history() == reader_api.history());

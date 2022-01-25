@@ -31,24 +31,12 @@ namespace ctk { namespace api {
 
         using namespace ctk::impl;
 
-        auto to_api(const time_signal& x) -> TimeSignal {
-            //const measurement_count::value_type epoch_length{ x.epoch_length };
-
-            TimeSignal result;
-            result.epoch_length = x.ts.epoch_length;
-            result.sampling_frequency = x.ts.sampling_frequency;
-            result.start_time = api::timepoint2dcdate(x.ts.start_time);
-            result.electrodes = x.ts.electrodes;
-            return result;
+        auto to_api(const time_signal& x) -> TimeSeries {
+            return x.ts;
         }
 
-        auto from_api(const TimeSignal& x) -> time_signal {
-            time_signal result;
-            result.ts.epoch_length = x.epoch_length;
-            result.ts.sampling_frequency = x.sampling_frequency;
-            result.ts.start_time = api::dcdate2timepoint(x.start_time);
-            result.ts.electrodes = x.electrodes;
-            return result;
+        auto from_api(const TimeSeries& x) -> time_signal {
+            return time_signal{ x };
         }
 
 
@@ -134,7 +122,7 @@ namespace ctk { namespace api {
             return p->reader.epoch_compressed(epoch_count{ i });
         }
 
-        auto CntReaderReflib::description() const -> TimeSignal {
+        auto CntReaderReflib::description() const -> TimeSeries {
             assert(p);
             return to_api(p->reader.description());
         }
@@ -225,7 +213,7 @@ namespace ctk { namespace api {
             p->writer.recording_info(information);
         }
 
-        auto CntWriterReflib::addTimeSignal(const TimeSignal& description) -> bool {
+        auto CntWriterReflib::addTimeSignal(const TimeSeries& description) -> bool {
             assert(p);
             if (p->raw3) {
                 return false; // one segment only

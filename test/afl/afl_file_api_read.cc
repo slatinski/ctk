@@ -38,10 +38,10 @@ auto generate_input_file(const std::string& fname) -> void {
     std::vector<int32_t> input(epoch_length * height);
     std::iota(begin(input), end(input), 0);
 
-    ctk::TimeSignal description;
+    ctk::TimeSeries description;
     description.epoch_length = epoch_length;
     description.sampling_frequency = 1024;
-    description.start_time = { 0, 0 };
+    description.start_time = ctk::api::dcdate2timepoint({ 0, 0 });
     description.electrodes.resize(height);
     for (size_t i{ 0 }; i < height; ++i) {
         description.electrodes[i].label = "fpx";

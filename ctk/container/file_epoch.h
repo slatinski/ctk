@@ -121,12 +121,11 @@ namespace ctk { namespace impl {
 
     struct time_signal
     {
-        api::v2::TimeSeries ts;
+        api::v1::TimeSeries ts;
         label_type chunk_id; // parent chunk label, eg "raw3" in reflib
         segment_count index;
 
-        explicit time_signal(const api::v1::TimeSignal&);
-        explicit time_signal(const api::v2::TimeSeries&);
+        explicit time_signal(const api::v1::TimeSeries&);
         time_signal(std::chrono::system_clock::time_point, double, const std::vector<api::v1::Electrode>&, measurement_count, label_type);
         time_signal();
         time_signal(const time_signal&) = default;

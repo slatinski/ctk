@@ -81,7 +81,7 @@ namespace ctk { namespace api {
             auto epochColumnMajor(int64_t i) -> std::vector<int32_t>;
             auto epochCompressed(int64_t i) -> std::vector<uint8_t>;
 
-            auto description() const -> TimeSignal;
+            auto description() const -> TimeSeries;
             auto cntType() const -> RiffType;
             auto history() const -> std::string;
 
@@ -113,7 +113,7 @@ namespace ctk { namespace api {
             auto close() -> void;
 
             auto recordingInfo(const Info&) -> void;
-            auto addTimeSignal(const TimeSignal&) -> bool;
+            auto addTimeSignal(const TimeSeries&) -> bool;
             //auto add_avg_series(const mean_series& description) -> bool;
             //auto add_stddev_series(const mean_series& description) -> bool;
             //auto add_wav_series(const wav_series& description) -> bool;

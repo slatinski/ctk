@@ -186,6 +186,47 @@ namespace ctk { namespace api {
         }
 
 
+        TimeSeries::TimeSeries(std::chrono::system_clock::time_point t, double f, const std::vector<v1::Electrode>& e, int64_t l)
+            : start_time{ t }
+            , sampling_frequency{ f }
+            , electrodes{ e }
+            , epoch_length{ l } {
+        }
+
+        TimeSeries::TimeSeries(const DcDate& t, double f, const std::vector<v1::Electrode>& e, int64_t l)
+            : start_time{ dcdate2timepoint(t) }
+            , sampling_frequency{ f }
+            , electrodes{ e }
+            , epoch_length{ l } {
+        }
+
+        TimeSeries::TimeSeries()
+            : sampling_frequency{ 0 }
+            , epoch_length{ 256 } {
+        }
+
+        auto operator==(const TimeSeries& x, const TimeSeries& y) -> bool {
+            return x.start_time == y.start_time
+                && std::fabs(x.sampling_frequency - y.sampling_frequency) < 1e-6
+                && x.electrodes == y.electrodes
+                && x.epoch_length == y.epoch_length;
+        }
+
+        auto operator!=(const TimeSeries& x, const TimeSeries& y) -> bool {
+            return !(x == y);
+        }
+
+        auto operator<<(std::ostream& os, const TimeSeries& x) -> std::ostream& {
+            os << "epoch length " << x.epoch_length
+               << ", sampling frequency " << x.sampling_frequency << "\n";
+               //<< ", start time " << x.start_time << "\n";
+               for (const auto& e : x.electrodes) {
+                   os << e << "\n";
+               }
+
+            return os;
+        }
+        /*
         TimeSignal::TimeSignal(const DcDate& s, double f, const std::vector<v1::Electrode>& e, int64_t l)
             : start_time{ s }
             , sampling_frequency{ f }
@@ -210,6 +251,7 @@ namespace ctk { namespace api {
 
             return os;
         }
+        */
 
         auto operator<<(std::ostream& os, RiffType x) -> std::ostream& {
             switch(x) {
@@ -266,10 +308,16 @@ namespace ctk { namespace api {
         : stamp{ dcdate2timepoint({ 0, 0 }) } {
         }
 
-        EventImpedance::EventImpedance(const std::chrono::system_clock::time_point& stamp, const std::vector<float>& values)
+        EventImpedance::EventImpedance(std::chrono::system_clock::time_point stamp, const std::vector<float>& values)
         : stamp{ stamp }
         , values{ values } {
         }
+
+        EventImpedance::EventImpedance(const DcDate& time, const std::vector<float>& values)
+        : stamp{ dcdate2timepoint(time) }
+        , values{ values } {
+        }
+
 
 
         EventVideo::EventVideo()
@@ -290,6 +338,7 @@ namespace ctk { namespace api {
     namespace v2 {
 
 
+/*
         TimeSeries::TimeSeries(std::chrono::system_clock::time_point t, double f, const std::vector<v1::Electrode>& e, int64_t l)
             : start_time{ t }
             , sampling_frequency{ f }
@@ -330,6 +379,7 @@ namespace ctk { namespace api {
 
             return os;
         }
+        */
 
     } /* namespace v2 */
 

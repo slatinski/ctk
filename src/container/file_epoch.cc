@@ -604,13 +604,7 @@ namespace ctk { namespace impl {
         , index{ 0 } {
     }
 
-    time_signal::time_signal(const api::v1::TimeSignal& x)
-        : ts{ x }
-        , chunk_id{ 0 }
-        , index{ 0 } {
-    }
-
-    time_signal::time_signal(const api::v2::TimeSeries& x)
+    time_signal::time_signal(const api::v1::TimeSeries& x)
         : ts{ x }
         , chunk_id{ 0 }
         , index{ 0 } {

@@ -26,7 +26,7 @@ struct libeep_reader
 {
     v1::CntReaderReflib reader;
     std::vector<v1::Trigger> triggers;
-    v1::TimeSignal header;
+    v1::TimeSeries header;
 
     explicit
     libeep_reader(const std::string& fname)
@@ -125,7 +125,7 @@ struct libeep_writer
 
     libeep_writer(const std::string& fname, double sample_rate, const std::vector<channel_v4>& channels, int cnt64)
     : writer{ fname, int2riff(cnt64), "" } {
-        v1::TimeSignal ts;
+        v1::TimeSeries ts;
         ts.sampling_frequency = sample_rate;
         ts.electrodes = channels2electrodes(channels);
         writer.addTimeSignal(ts);
@@ -190,12 +190,12 @@ PYBIND11_MODULE(ctkpy, m) {
      .def_readwrite("rscale", &v1::Electrode::rscale)
      .def("__repr__", [](const v1::Electrode& x) { return print(x, "electrode"); });
 
-    py::class_<v1::TimeSignal> ts(m, "time_signal", py::module_local()/*, py::dynamic_attr()*/);
-    ts.def_readwrite("epoch_length", &v1::TimeSignal::epoch_length)
-      .def_readwrite("sampling_frequency", &v1::TimeSignal::sampling_frequency)
+    py::class_<v1::TimeSeries> ts(m, "time_signal", py::module_local()/*, py::dynamic_attr()*/);
+    ts.def_readwrite("epoch_length", &v1::TimeSeries::epoch_length)
+      .def_readwrite("sampling_frequency", &v1::TimeSeries::sampling_frequency)
       // missing start time
-      .def_readwrite("electrodes", &v1::TimeSignal::electrodes)
-      .def("__repr__", [](const v1::TimeSignal& x) { return print(x, "time_signal"); });
+      .def_readwrite("electrodes", &v1::TimeSeries::electrodes)
+      .def("__repr__", [](const v1::TimeSeries& x) { return print(x, "time_signal"); });
 
     py::class_<v1::Info> i(m, "information", py::module_local()/*, py::dynamic_attr()*/);
     i.def_readwrite("hospital", &v1::Info::hospital)

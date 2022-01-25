@@ -155,22 +155,27 @@ namespace v1 {
     auto operator<<(std::ostream&, const Electrode&) -> std::ostream&;
 
 
-    struct TimeSignal
+    struct TimeSeries
     {
-        DcDate start_time;
+        std::chrono::system_clock::time_point start_time; // utc
         double sampling_frequency;
-        std::vector<Electrode> electrodes;
+        std::vector<v1::Electrode> electrodes;
         int64_t epoch_length;
+        // compression level?
 
-        TimeSignal(const DcDate&, double, const std::vector<v1::Electrode>&, int64_t);
-        TimeSignal();
-        TimeSignal(const TimeSignal&) = default;
-        TimeSignal(TimeSignal&&) = default;
-        auto operator=(const TimeSignal&) -> TimeSignal& = default;
-        auto operator=(TimeSignal&&) -> TimeSignal& = default;
-        ~TimeSignal() = default;
+        TimeSeries(std::chrono::system_clock::time_point, double, const std::vector<v1::Electrode>&, int64_t);
+        TimeSeries(const DcDate&, double, const std::vector<v1::Electrode>&, int64_t);
+        TimeSeries();
+        TimeSeries(const TimeSeries&) = default;
+        TimeSeries(TimeSeries&&) = default;
+        auto operator=(const TimeSeries&) -> TimeSeries& = default;
+        auto operator=(TimeSeries&&) -> TimeSeries& = default;
+        ~TimeSeries() = default;
+
+        friend auto operator==(const TimeSeries&, const TimeSeries&) -> bool;
+        friend auto operator!=(const TimeSeries&, const TimeSeries&) -> bool;
     };
-    auto operator<<(std::ostream&, const TimeSignal&) -> std::ostream&;
+    auto operator<<(std::ostream&, const TimeSeries&) -> std::ostream&;
 
 
     enum class RiffType{ riff32, riff64 };
@@ -237,7 +242,8 @@ namespace v1 {
         std::vector<float> values; // in Ohm
 
         EventImpedance();
-        EventImpedance(const std::chrono::system_clock::time_point&, const std::vector<float>&);
+        EventImpedance(std::chrono::system_clock::time_point, const std::vector<float>&);
+        EventImpedance(const DcDate&, const std::vector<float>&);
         EventImpedance(const EventImpedance&) = default;
         auto operator=(const EventImpedance&) -> EventImpedance& = default;
         auto operator=(EventImpedance&&) -> EventImpedance& = default;
@@ -286,34 +292,6 @@ namespace v1 {
 
 } /* namespace v1 */
 
-
-namespace v2 {
-
-    struct TimeSeries
-    {
-        std::chrono::system_clock::time_point start_time; // utc
-        double sampling_frequency;
-        std::vector<v1::Electrode> electrodes;
-        int64_t epoch_length;
-        // compression level?
-
-        TimeSeries(std::chrono::system_clock::time_point, double, const std::vector<v1::Electrode>&, int64_t);
-        TimeSeries();
-        explicit TimeSeries(const v1::TimeSignal&);
-        TimeSeries(const TimeSeries&) = default;
-        TimeSeries(TimeSeries&&) = default;
-        auto operator=(const TimeSeries&) -> TimeSeries& = default;
-        auto operator=(TimeSeries&&) -> TimeSeries& = default;
-        ~TimeSeries() = default;
-
-        friend auto operator==(const TimeSeries&, const TimeSeries&) -> bool;
-        friend auto operator!=(const TimeSeries&, const TimeSeries&) -> bool;
-    };
-    auto operator<<(std::ostream&, const TimeSeries&) -> std::ostream&;
-
-    //using namespace v1;
-
-} /* namespace v2 */
 
     auto dcdate2timepoint(const v1::DcDate&) -> std::chrono::system_clock::time_point;
     auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
