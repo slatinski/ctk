@@ -30,13 +30,14 @@ namespace ctk { namespace impl { namespace test {
 TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
     const size_t fname_width{ 20 };
     constexpr const bool is_broken{ false };
+    const std::filesystem::path temp_cnt_file{ "delme.cnt" };
 
     input_txt input;
 	std::string fname{ input.next() };
 	while (!fname.empty()) {
         std::vector<tagged_file> loose_files;
 
-        const auto get_fname = [](const auto& x) -> std::string { return x.file_name; };
+        const auto get_fname = [](const auto& x) -> std::filesystem::path { return x.file_name; };
 
 		try {
 			std::cerr << s2s(fname, fname_width);
@@ -47,7 +48,7 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
             // scope for the epoch writer
             {
                 // REMEMBER MISSING: reader.data().channel_order()
-                epoch_writer_flat flat_writer{ "delme.cnt", reader.data().description(), reader.data().cnt_type(), reader.data().history() };
+                epoch_writer_flat flat_writer{ temp_cnt_file, reader.data().description(), reader.data().cnt_type(), reader.data().history() };
                 flat_writer.set_info(reader.data().information());
                 flat_writer.append(reader.data().triggers());
 
@@ -60,7 +61,7 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
 
             // scope for the epoch reader (if the file is still open delete_flat_files fails on windows)
             {
-                epoch_reader_flat flat_reader{ "delme.cnt", loose_files };
+                epoch_reader_flat flat_reader{ temp_cnt_file, loose_files };
                 const auto flat_count{ flat_reader.data().count() };
                 REQUIRE(flat_count == reflib_count);
                 REQUIRE(reader.data().description() == flat_reader.data().description());
@@ -91,7 +92,7 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
 }
 
 
-auto write_in_chunks(cnt_reader_reflib_riff& reader_reflib, const std::string& fname, sint chunk_size) -> std::vector<tagged_file> {
+auto write_in_chunks(cnt_reader_reflib_riff& reader_reflib, const std::filesystem::path& fname, sint chunk_size) -> std::vector<tagged_file> {
     // REMEMBER MISSING: reader_reflib.channel_order()
     cnt_writer_reflib_flat flat_writer{ fname, reader_reflib.description(), RiffType::riff64, reader_reflib.history() };
     flat_writer.set_info(reader_reflib.information());
@@ -121,6 +122,7 @@ auto write_in_chunks(cnt_reader_reflib_riff& reader_reflib, const std::string& f
 TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
     constexpr const size_t fname_width{ 20 };
     constexpr const bool is_broken{ false };
+    const std::filesystem::path temp_cnt_file{ "delme.cnt" };
 
     input_txt input;
 	std::string fname{ input.next() };
@@ -136,8 +138,8 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
                 cnt_reader_reflib_riff reader_reflib{ fname, is_broken };
                 const auto el{ static_cast<measurement_count::value_type>(reader_reflib.epoch_length()) };
                 const auto sc{ static_cast<measurement_count::value_type>(reader_reflib.sample_count()) };
-		const ptrdiff_t epoch_length{ cast(el, ptrdiff_t{}, ok{}) };
-		const ptrdiff_t sample_count{ cast(sc, ptrdiff_t{}, ok{}) };
+                const ptrdiff_t epoch_length{ cast(el, ptrdiff_t{}, ok{}) };
+                const ptrdiff_t sample_count{ cast(sc, ptrdiff_t{}, ok{}) };
                 if (epoch_length < 3 || sample_count < 6) {
                     std::cerr << "the test will not work, skipping\n";
                     continue;
@@ -155,7 +157,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
             for (auto stride : chunks) {
                 {
                     cnt_reader_reflib_riff reader_reflib{ fname, is_broken };
-                    loose_files = write_in_chunks(reader_reflib, "delme.cnt", stride);
+                    loose_files = write_in_chunks(reader_reflib, temp_cnt_file, stride);
 
                     epoch_reader_riff reflib_reader{ fname, is_broken };
                     const auto reflib_count{ reflib_reader.data().count() };
@@ -209,6 +211,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
 TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
     constexpr const size_t fname_width{ 20 };
     constexpr const bool is_broken{ false };
+    const std::filesystem::path temp_cnt_file{ "delme.cnt" };
 
     input_txt input;
 	std::string fname{ input.next() };
@@ -218,7 +221,7 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
 
             cnt_reader_reflib_riff r_orig{ fname, is_broken };
 
-            cnt_writer_reflib_riff writer{ "delme.cnt", RiffType::riff64, r_orig.history() }; // TODO: both 32/64
+            cnt_writer_reflib_riff writer{ temp_cnt_file, RiffType::riff64, r_orig.history() }; // TODO: both 32/64
             writer.recording_info(r_orig.information());
             // REMEMBER MISSING: r_orig.channel_order()
             auto* raw3{ writer.add_time_signal(r_orig.description()) };
@@ -232,7 +235,7 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
 
             writer.close();
 
-            cnt_reader_reflib_riff r_temp{ "delme.cnt", is_broken };
+            cnt_reader_reflib_riff r_temp{ temp_cnt_file, is_broken };
             REQUIRE(r_orig.epoch_length() == r_temp.epoch_length());
             REQUIRE(ascii_sampling_frequency(r_orig.sampling_frequency()) == ascii_sampling_frequency(r_temp.sampling_frequency()));
             REQUIRE(r_orig.segment_start_time() == r_temp.segment_start_time());
@@ -243,7 +246,7 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
             for (measurement_count i{ 0 }; i < sample_count; ++i) {
                 REQUIRE(r_orig.range_column_major(i, chunk) == r_temp.range_column_major(i, chunk));
             }
-            REQUIRE(std::remove("delme.cnt") == 0);
+            REQUIRE(std::filesystem::remove(temp_cnt_file));
             std::cerr << " ok\n";
         }
         catch(const std::exception&) {
