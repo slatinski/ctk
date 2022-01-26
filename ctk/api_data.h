@@ -57,8 +57,8 @@ namespace v1 {
 
     struct DcDate
     {
-        double date;
-        double fraction;
+        double date; // amount of seconds since 30 Dec 1899 divided by the numer of seconds per day (86400)
+        double fraction; // subsecond amount
 
         DcDate();
         DcDate(double date, double fraction);

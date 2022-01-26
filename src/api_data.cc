@@ -76,8 +76,7 @@ namespace ctk { namespace api {
         }
 
         auto operator<<(std::ostream& os, const DcDate& x) -> std::ostream& {
-               os << ctk::impl::d2s(x.date, 21) << " " << ctk::impl::d2s(x.fraction, 21);
-            return os;
+            return print(os, x);
         }
 
         auto operator<<(std::ostream& os, Sex x) -> std::ostream& {
@@ -187,22 +186,22 @@ namespace ctk { namespace api {
 
 
         TimeSeries::TimeSeries(std::chrono::system_clock::time_point t, double f, const std::vector<v1::Electrode>& e, int64_t l)
-            : start_time{ t }
-            , sampling_frequency{ f }
-            , electrodes{ e }
+        : start_time{ t }
+        , sampling_frequency{ f }
+        , electrodes{ e }
             , epoch_length{ l } {
         }
 
         TimeSeries::TimeSeries(const DcDate& t, double f, const std::vector<v1::Electrode>& e, int64_t l)
-            : start_time{ dcdate2timepoint(t) }
-            , sampling_frequency{ f }
-            , electrodes{ e }
-            , epoch_length{ l } {
+        : start_time{ dcdate2timepoint(t) }
+        , sampling_frequency{ f }
+        , electrodes{ e }
+        , epoch_length{ l } {
         }
 
         TimeSeries::TimeSeries()
-            : sampling_frequency{ 0 }
-            , epoch_length{ 256 } {
+        : sampling_frequency{ 0 }
+        , epoch_length{ 256 } {
         }
 
         auto operator==(const TimeSeries& x, const TimeSeries& y) -> bool {
@@ -217,41 +216,13 @@ namespace ctk { namespace api {
         }
 
         auto operator<<(std::ostream& os, const TimeSeries& x) -> std::ostream& {
-            os << "epoch length " << x.epoch_length
-               << ", sampling frequency " << x.sampling_frequency << "\n";
-               //<< ", start time " << x.start_time << "\n";
-               for (const auto& e : x.electrodes) {
-                   os << e << "\n";
-               }
-
+            os << "epoch length " << x.epoch_length << ", sampling frequency " << x.sampling_frequency;
+            os << ", start time "; print(os, x.start_time); os << "\n";
+            for (const auto& e : x.electrodes) {
+                os << e << "\n";
+            }
             return os;
         }
-        /*
-        TimeSignal::TimeSignal(const DcDate& s, double f, const std::vector<v1::Electrode>& e, int64_t l)
-            : start_time{ s }
-            , sampling_frequency{ f }
-            , electrodes{ e }
-            , epoch_length{ l } {
-        }
-
-
-        TimeSignal::TimeSignal()
-            : start_time{ 0, 0 }
-            , sampling_frequency{ 0 }
-            , epoch_length{ 256 } {
-        }
-
-        auto operator<<(std::ostream& os, const TimeSignal& x) -> std::ostream& {
-            os << "epoch length " << x.epoch_length
-               << ", sampling frequency " << x.sampling_frequency
-               << ", start time " << x.start_time << "\n";
-               for (const auto& e : x.electrodes) {
-                   os << e << "\n";
-               }
-
-            return os;
-        }
-        */
 
         auto operator<<(std::ostream& os, RiffType x) -> std::ostream& {
             switch(x) {
@@ -334,54 +305,6 @@ namespace ctk { namespace api {
         }
 
     } /* namespace v1 */
-
-    namespace v2 {
-
-
-/*
-        TimeSeries::TimeSeries(std::chrono::system_clock::time_point t, double f, const std::vector<v1::Electrode>& e, int64_t l)
-            : start_time{ t }
-            , sampling_frequency{ f }
-            , electrodes{ e }
-            , epoch_length{ l } {
-        }
-
-        TimeSeries::TimeSeries()
-            : sampling_frequency{ 0 }
-            , epoch_length{ 256 } {
-        }
-
-        TimeSeries::TimeSeries(const v1::TimeSignal& x)
-            : start_time{ dcdate2timepoint(x.start_time) }
-            , sampling_frequency{ x.sampling_frequency }
-            , electrodes{ x.electrodes }
-            , epoch_length{ x.epoch_length } {
-        }
-
-        auto operator==(const TimeSeries& x, const TimeSeries& y) -> bool {
-            return x.start_time == y.start_time
-                && std::fabs(x.sampling_frequency - y.sampling_frequency) < 1e-6
-                && x.electrodes == y.electrodes
-                && x.epoch_length == y.epoch_length;
-        }
-
-        auto operator!=(const TimeSeries& x, const TimeSeries& y) -> bool {
-            return !(x == y);
-        }
-
-        auto operator<<(std::ostream& os, const TimeSeries& x) -> std::ostream& {
-            os << "epoch length " << x.epoch_length
-               << ", sampling frequency " << x.sampling_frequency << "\n";
-               //<< ", start time " << x.start_time << "\n";
-               for (const auto& e : x.electrodes) {
-                   os << e << "\n";
-               }
-
-            return os;
-        }
-        */
-
-    } /* namespace v2 */
 
 
     constexpr const std::chrono::system_clock::time_point excel_epoch{ date::sys_days{ date::year{ 1899 }/12/30 } };
