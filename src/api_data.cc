@@ -297,11 +297,39 @@ namespace ctk { namespace api {
         , trigger_code{ std::numeric_limits<int32_t>::min() } {
         }
 
+        EventVideo::EventVideo(std::chrono::system_clock::time_point stamp, double duration, int32_t code)
+        : stamp{ stamp }
+        , duration{ duration }
+        , trigger_code{ code } {
+        }
+
+        EventVideo::EventVideo(const DcDate& time, double duration, int32_t code)
+        : stamp{ dcdate2timepoint(time) }
+        , duration{ duration }
+        , trigger_code{ code } {
+        }
+
+
+
         EventEpoch::EventEpoch()
         : stamp{ dcdate2timepoint({ 0, 0 }) }
         , duration{ 0 }
-        , offset{ 0 },
-        trigger_code{ std::numeric_limits<int32_t>::min() } {
+        , offset{ 0 }
+        , trigger_code{ std::numeric_limits<int32_t>::min() } {
+        }
+
+        EventEpoch::EventEpoch(std::chrono::system_clock::time_point stamp, double duration, double offset, int32_t code)
+        : stamp{ stamp }
+        , duration{ duration }
+        , offset{ offset }
+        , trigger_code{ code } {
+        }
+
+        EventEpoch::EventEpoch(const DcDate& time, double duration, double offset, int32_t code)
+        : stamp{ dcdate2timepoint(time) }
+        , duration{ duration }
+        , offset{ offset }
+        , trigger_code{ code } {
         }
 
     } /* namespace v1 */
@@ -350,11 +378,7 @@ namespace ctk { namespace api {
     }
 
 
-    auto dcdate2timespan(const v1::DcDate& x) -> std::chrono::nanoseconds {
-        return to_timespan(x, std::nano::den, std::chrono::nanoseconds{});
-    }
-
-
+    static
     auto timespan2dcdate(std::chrono::nanoseconds x) -> v1::DcDate {
         using namespace std::chrono;
 

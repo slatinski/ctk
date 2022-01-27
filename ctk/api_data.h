@@ -263,6 +263,8 @@ namespace v1 {
         std::wstring video_file;
 
         EventVideo();
+        EventVideo(std::chrono::system_clock::time_point, double, int32_t);
+        EventVideo(const DcDate&, double, int32_t);
         EventVideo(const EventVideo&) = default;
         auto operator=(const EventVideo&) -> EventVideo& = default;
         auto operator=(EventVideo&&) -> EventVideo& = default;
@@ -281,6 +283,8 @@ namespace v1 {
         std::wstring condition_label;
 
         EventEpoch();
+        EventEpoch(std::chrono::system_clock::time_point, double duration, double offset, int32_t);
+        EventEpoch(const DcDate&, double duration, double offset, int32_t);
         EventEpoch(const EventEpoch&) = default;
         auto operator=(const EventEpoch&) -> EventEpoch& = default;
         auto operator=(EventEpoch&&) -> EventEpoch& = default;
@@ -295,9 +299,6 @@ namespace v1 {
 
     auto dcdate2timepoint(const v1::DcDate&) -> std::chrono::system_clock::time_point;
     auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
-
-    auto dcdate2timespan(const v1::DcDate&) -> std::chrono::nanoseconds;
-    auto timespan2dcdate(std::chrono::nanoseconds) -> v1::DcDate;
 
     auto print(std::ostream&, std::chrono::system_clock::time_point) -> std::ostream&;
     auto print(std::ostream&, const v1::DcDate&) -> std::ostream&;
