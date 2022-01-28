@@ -269,38 +269,57 @@ namespace ctk { namespace impl {
         }
     }
 
+    enum class part_error { ok, not_ctk_part, unknown_version, invalid_tag };
+
     static
-    auto read_part_header(FILE* f, file_tag expected_tag, label_type expected_label, bool inspect_label = true) -> label_type {
+    auto read_part_header_impl(FILE* f, file_tag expected_tag, label_type expected_label, bool compare_label) -> std::pair<label_type, part_error> {
         uint8_t fourcc[]{ ' ', ' ', ' ', ' ' };
         read(f, std::begin(fourcc), std::end(fourcc));
         if (fourcc[0] != 'c' || fourcc[1] != 't' || fourcc[2] != 'k' || fourcc[3] != 'p') {
-            throw api::v1::ctk_data{ "read_part_header: not a ctk part file" };
+            return { 0, part_error::not_ctk_part };
         }
 
         const uint8_t version{ read(f, uint8_t{}) };
         if (version != 1) {
-            throw api::v1::ctk_data{ "read_part_header: unknown version" };
+            return { 0, part_error::unknown_version };
         }
 
         const uint8_t id{ read(f, uint8_t{}) };
         constexpr const uint8_t max_id{ static_cast<uint8_t>(file_tag::length) };
         if (max_id <= id) {
-            throw api::v1::ctk_data{ "read_part_header: invalid file_tag enumeration" };
+            return { 0, part_error::invalid_tag };
         }
 
         const file_tag tag_id{ static_cast<file_tag>(id) };
         if (tag_id != expected_tag) {
-            throw api::v1::ctk_bug{ "read_part_header: invalid part file tag" };
+            throw api::v1::ctk_bug{ "read_part_header_impl: invalid part file tag" };
         }
 
         const label_type chunk_id{ read(f, label_type{}) };
-        if (inspect_label && chunk_id != expected_label) {
-            throw api::v1::ctk_bug{ "read_part_header: invalid part file cnt label" };
+        if (compare_label && chunk_id != expected_label) {
+            throw api::v1::ctk_bug{ "read_part_header_impl: invalid part file cnt label" };
         }
 
-        return chunk_id;
+        return { chunk_id, part_error::ok };
     }
 
+    static
+    auto read_part_header(FILE* f, file_tag expected_tag, label_type expected_label, bool compare_label = true) -> label_type {
+        const auto[x, e]{ read_part_header_impl(f, expected_tag, expected_label, compare_label) };
+        if (e == part_error::ok) {
+            return x;
+        }
+        else if (e == part_error::not_ctk_part) {
+            throw api::v1::ctk_data{ "read_part_header: not a ctk part file" };
+        }
+        else if (e == part_error::unknown_version) {
+            throw api::v1::ctk_data{ "read_part_header: unknown version" };
+        }
+        else if (e == part_error::invalid_tag) {
+            throw api::v1::ctk_data{ "read_part_header: invalid file_tag enumeration" };
+        }
+        assert(false);
+    }
 
 
     ep_content::ep_content(measurement_count length, const std::vector<int64_t>& offsets)
@@ -2086,13 +2105,99 @@ namespace ctk { namespace impl {
     }
 
 
+    static
+    auto has_ctk_part(const std::filesystem::path& fname, file_tag tag, label_type label, bool compare_label) -> bool {
+        if (!std::filesystem::exists(fname)) {
+            return false;
+        }
+
+        auto f{ open_r(fname) };
+        const auto[x, e]{ read_part_header_impl(f.get(), tag, label, compare_label) };
+        return e == part_error::ok;
+    }
+
+
+    static
+    auto find_ctk_parts(const std::filesystem::path& cnt) -> std::vector<tagged_file> {
+        constexpr const bool compare_label{ true };
+        std::vector<tagged_file> result;
+
+        const auto name_data{ fname_data(cnt) };
+        if (has_ctk_part(name_data, file_tag::data, as_label("raw3"), compare_label)) {
+            result.emplace_back(file_tag::data, name_data);
+        }
+
+        const auto name_ep{ fname_ep(cnt) };
+        if (has_ctk_part(name_ep, file_tag::ep, as_label("raw3"), compare_label)) {
+            result.emplace_back(file_tag::ep, name_ep);
+        }
+
+        const auto name_chan{ fname_chan(cnt) };
+        if (has_ctk_part(name_chan, file_tag::chan, as_label("raw3"), compare_label)) {
+            result.emplace_back(file_tag::chan, name_chan);
+        }
+
+        const auto name_sample_count{ fname_sample_count(cnt) };
+        if (has_ctk_part(name_sample_count, file_tag::sample_count, as_label("eeph"), compare_label)) {
+            result.emplace_back(file_tag::sample_count, name_sample_count);
+        }
+
+        const auto name_electrodes{ fname_electrodes(cnt) };
+        if (has_ctk_part(name_electrodes, file_tag::electrodes, as_label("eeph"), compare_label)) {
+            result.emplace_back(file_tag::electrodes, name_electrodes);
+        }
+
+        const auto name_sampling_frequency{ fname_sampling_frequency(cnt) };
+        if (has_ctk_part(name_sampling_frequency, file_tag::sampling_frequency, as_label("eeph"), compare_label)) {
+            result.emplace_back(file_tag::sampling_frequency, name_sampling_frequency);
+        }
+
+        const auto name_triggers{ fname_triggers(cnt) };
+        if (has_ctk_part(name_triggers, file_tag::triggers, as_label("evt "), compare_label)) {
+            result.emplace_back(file_tag::triggers, name_triggers);
+        }
+
+        const auto name_info{ fname_info(cnt) };
+        if (has_ctk_part(name_info, file_tag::info, as_label("info"), compare_label)) {
+            result.emplace_back(file_tag::info, name_info);
+        }
+
+        const auto name_cnt_type{ fname_cnt_type(cnt) };
+        if (has_ctk_part(name_cnt_type, file_tag::cnt_type, as_label("cntt"), compare_label)) {
+            result.emplace_back(file_tag::cnt_type, name_cnt_type);
+        }
+
+        const auto name_history{ fname_history(cnt) };
+        if (has_ctk_part(name_history, file_tag::history, as_label("eeph"), compare_label)) {
+            result.emplace_back(file_tag::history, name_history);
+        }
+
+        const auto name_time_series_header{ fname_time_series_header(cnt) };
+        if (has_ctk_part(name_time_series_header, file_tag::time_series_header, as_label(""), false)) {
+            result.emplace_back(file_tag::time_series_header, name_time_series_header);
+        }
+
+        return result;
+    }
+
 
     // NB: the initialization order in this constructor is important
-    epoch_reader_flat::epoch_reader_flat(const std::filesystem::path& fname, const std::vector<tagged_file>& available)
+    epoch_reader_flat::epoch_reader_flat(const std::filesystem::path& cnt)
+    : tokens{ find_ctk_parts(cnt) }
+    , f_data{ open_r(data_file_name()) }
+    , f_triggers{ open_r(trigger_file_name()) } // TODO: try_open_r or create the file always
+    , file_name{ cnt }
+    , riff{ make_cnt_field_size(cnt_type()) }
+    , a{ init() }
+    , common{ f_data.get(), f_triggers.get(), a, riff.get(), file_header_size } {
+    }
+
+    // NB: the initialization order in this constructor is important
+    epoch_reader_flat::epoch_reader_flat(const std::filesystem::path& cnt, const std::vector<tagged_file>& available)
     : tokens{ available }
     , f_data{ open_r(data_file_name()) }
     , f_triggers{ open_r(trigger_file_name()) } // TODO: try_open_r or create the file always
-    , file_name{ fname }
+    , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
     , a{ init() }
     , common{ f_data.get(), f_triggers.get(), a, riff.get(), file_header_size } {
@@ -2316,7 +2421,6 @@ namespace ctk { namespace impl {
 
     auto operator<<(std::ostream& os, const file_tag& x) -> std::ostream& {
         switch(x) {
-            case file_tag::eeph: os << "eeph"; break;
             case file_tag::data: os << "data"; break;
             case file_tag::ep: os << "ep"; break;
             case file_tag::chan: os << "chan"; break;

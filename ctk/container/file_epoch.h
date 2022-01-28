@@ -217,8 +217,7 @@ namespace ctk { namespace impl {
 
     enum class file_tag : uint8_t
     { 
-        eeph
-      , data
+        data
       , ep
       , chan
       , sample_count
@@ -467,7 +466,8 @@ namespace ctk { namespace impl {
 
     public:
 
-        epoch_reader_flat(const std::filesystem::path& fname, const std::vector<tagged_file>& available);
+        epoch_reader_flat(const std::filesystem::path& cnt);
+        epoch_reader_flat(const std::filesystem::path& cnt, const std::vector<tagged_file>& available);
         epoch_reader_flat(const epoch_reader_flat&);
         epoch_reader_flat(epoch_reader_flat&&) = default;
         ~epoch_reader_flat() = default;
