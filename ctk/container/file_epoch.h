@@ -286,7 +286,7 @@ namespace ctk { namespace impl {
 
     public:
 
-        epoch_writer_flat(const std::filesystem::path& name, const time_signal& x, api::v1::RiffType s, const std::string& history);
+        epoch_writer_flat(const std::filesystem::path& cnt, const time_signal& x, api::v1::RiffType s, const std::string& history);
         epoch_writer_flat(const epoch_writer_flat&) = delete;
         epoch_writer_flat(epoch_writer_flat&&) = default;
         ~epoch_writer_flat() = default;
@@ -499,7 +499,7 @@ namespace ctk { namespace impl {
 
     public:
 
-        explicit epoch_reader_riff(const std::filesystem::path& fname, bool is_broken);
+        explicit epoch_reader_riff(const std::filesystem::path& cnt, bool is_broken);
         epoch_reader_riff(const epoch_reader_riff& x);
         epoch_reader_riff(epoch_reader_riff&&) = default;
         ~epoch_reader_riff() = default;

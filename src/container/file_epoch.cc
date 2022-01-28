@@ -265,7 +265,7 @@ namespace ctk { namespace impl {
         write(f, label);
 
         if (tell(f) != file_header_size) {
-            throw api::v1::ctk_bug{ "write_part_header: invalid size" };
+            throw api::v1::ctk_bug{ "write_part_header: invalid size / not the first record in a file" };
         }
     }
 
@@ -390,7 +390,7 @@ namespace ctk { namespace impl {
         }
 
         const T l{ read(f, type_tag) };
-        const measurement_count epoch_length{ cast(l, sint{}, ok{}) }; // ctk_data
+        const measurement_count epoch_length{ cast(l, measurement_count::value_type{}, ok{}) }; // ctk_data
 
         std::vector<T> v(items - 1 /* epoch length */);
         read(f, begin(v), end(v));
@@ -574,9 +574,9 @@ namespace ctk { namespace impl {
 
 
     chunk::chunk(api::v1::RiffType t)
-        : id{ 0 }
-        , label{ 0 }
-        , riff{ make_cnt_field_size(t) } {
+    : id{ 0 }
+    , label{ 0 }
+    , riff{ make_cnt_field_size(t) } {
     }
 
     chunk::chunk(const chunk& x)
@@ -587,8 +587,8 @@ namespace ctk { namespace impl {
     }
 
     auto chunk::operator=(const chunk& x) -> chunk& {
-        chunk tmp{ x };
-        swap(*this, tmp);
+        chunk y{ x };
+        swap(*this, y);
         return *this;
     }
 
@@ -619,20 +619,20 @@ namespace ctk { namespace impl {
 
 
     time_signal::time_signal()
-        : chunk_id{ 0 }
-        , index{ 0 } {
+    : chunk_id{ 0 }
+    , index{ 0 } {
     }
 
     time_signal::time_signal(const api::v1::TimeSeries& x)
-        : ts{ x }
-        , chunk_id{ 0 }
-        , index{ 0 } {
+    : ts{ x }
+    , chunk_id{ 0 }
+    , index{ 0 } {
     }
 
     time_signal::time_signal(std::chrono::system_clock::time_point start_time, double sampling_frequency, const std::vector<api::v1::Electrode>& electrodes, measurement_count epoch_length, label_type chunk_id)
-        : ts{ start_time, sampling_frequency, electrodes, static_cast<measurement_count::value_type>(epoch_length) }
-        , chunk_id{ chunk_id }
-        , index{ 0 } {
+    : ts{ start_time, sampling_frequency, electrodes, static_cast<measurement_count::value_type>(epoch_length) }
+    , chunk_id{ chunk_id }
+    , index{ 0 } {
     }
 
     auto operator<<(std::ostream& os, const time_signal& x) -> std::ostream& {
@@ -1225,8 +1225,8 @@ namespace ctk { namespace impl {
 
 
     static
-    auto read_info_riff(FILE* f, const chunk& inf, const api::v1::FileVersion& version) -> std::pair<std::chrono::system_clock::time_point, api::v1::Info> {
-        return read_info(f, chunk_payload(inf), version);
+    auto read_info_riff(FILE* f, const chunk& info, const api::v1::FileVersion& version) -> std::pair<std::chrono::system_clock::time_point, api::v1::Info> {
+        return read_info(f, chunk_payload(info), version);
     }
 
     auto read_sample_count(FILE* f) -> measurement_count {
@@ -1637,7 +1637,7 @@ namespace ctk { namespace impl {
         const measurement_count next{ multiply(i_next, el, ok{}) };
 
         if (total < next) {
-            const measurement_count previous{ static_cast<sint>(i * el) };
+            const measurement_count previous{ static_cast<measurement_count::value_type>(i * el) };
             if (total <= previous) {
                 return measurement_count{ 0 };
             }
@@ -1863,7 +1863,7 @@ namespace ctk { namespace impl {
         tokens.back().f.reset(nullptr);
     }
 
-    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& name, const time_signal& x, api::v1::RiffType s, const std::string& history)
+    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& cnt, const time_signal& x, api::v1::RiffType s, const std::string& history)
     : samples{ 0 }
     , epoch_size{ x.ts.epoch_length }
     , start_time{ x.ts.start_time }
@@ -1873,7 +1873,7 @@ namespace ctk { namespace impl {
     , f_triggers{ nullptr }
     , f_info{ nullptr }
     , riff{ make_cnt_field_size(s) }
-    , fname{ name }
+    , fname{ cnt }
     , open_files{ 0 } {
         if (!is_valid(x)) {
             throw api::v1::ctk_limit{ "epoch_writer_flat: invalid description" };
@@ -2282,7 +2282,6 @@ namespace ctk { namespace impl {
         const auto last{ end(tokens) };
         const auto found{ std::find_if(first, last, match_id) };
         if (found == last) {
-            //return "";
             throw api::v1::ctk_data{ "epoch_reader_flat::get_name: no file of this type" };
         }
 
@@ -2350,9 +2349,9 @@ namespace ctk { namespace impl {
 
 
     // NB: the initialization order in this constructor is important
-    epoch_reader_riff::epoch_reader_riff(const std::filesystem::path& fname, bool is_broken)
-    : f{ open_r(fname) }
-    , file_name{ fname }
+    epoch_reader_riff::epoch_reader_riff(const std::filesystem::path& cnt, bool is_broken)
+    : f{ open_r(cnt) }
+    , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
     , a{ init(is_broken) }
     , common{ f.get(), f.get(), a, riff.get(), 0 /* initial offset */ } {
