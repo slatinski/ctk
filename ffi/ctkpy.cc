@@ -1,6 +1,7 @@
 #include "pybind11/pybind11.h"
 #include "pybind11/stl.h"
 #include "pybind11/stl_bind.h"
+#include "pybind11/chrono.h"
 //#include <pybind11/numpy.h>
 #include "ctk.h"
 #include <sstream>
@@ -107,10 +108,10 @@ struct channel2electrode
     }
 };
 
-auto channels2electrodes(const std::vector<channel_v4>& channels) -> std::vector<v1::Electrode> {
-    std::vector<v1::Electrode> result(channels.size());
-    std::transform(begin(channels), end(channels), begin(result), channel2electrode{});
-    return result;
+auto channels2electrodes(const std::vector<channel_v4>& xs) -> std::vector<v1::Electrode> {
+    std::vector<v1::Electrode> ys(xs.size());
+    std::transform(begin(xs), end(xs), begin(ys), channel2electrode{});
+    return ys;
 }
 
 
@@ -193,7 +194,7 @@ PYBIND11_MODULE(ctkpy, m) {
     py::class_<v1::TimeSeries> ts(m, "time_signal", py::module_local()/*, py::dynamic_attr()*/);
     ts.def_readwrite("epoch_length", &v1::TimeSeries::epoch_length)
       .def_readwrite("sampling_frequency", &v1::TimeSeries::sampling_frequency)
-      // missing start time
+      .def_readwrite("start_time", &v1::TimeSeries::start_time)
       .def_readwrite("electrodes", &v1::TimeSeries::electrodes)
       .def("__repr__", [](const v1::TimeSeries& x) { return print(x, "time_signal"); });
 
