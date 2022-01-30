@@ -156,6 +156,7 @@ PYBIND11_MODULE(ctkpy, m) {
     //py::bind_vector<std::vector<int32_t>>(m, "VectorInt32", py::buffer_protocol());
     //py::bind_vector<std::vector<uint8_t>>(m, "VectorUInt8", py::buffer_protocol());
 
+    // 1) cnt files
     py::enum_<v1::RiffType>(m, "cnt_type", py::module_local())
         .value("cnt32", v1::RiffType::riff32)
         .value("cnt64", v1::RiffType::riff64);
@@ -243,7 +244,7 @@ PYBIND11_MODULE(ctkpy, m) {
 
     py::class_<v1::CntWriterReflib> rw(m, "reflib_writer", py::module_local()/*, py::dynamic_attr()*/);
     rw.def(py::init<const std::string&, v1::RiffType, const std::string&>())
-      .def("close", &v1::CntWriterReflib::close)
+      .def("close", &v1::CntWriterReflib::close, "Constructs the output cnt file")
       .def_property("recording_info", nullptr, &v1::CntWriterReflib::recordingInfo)
       .def_property("time_signal", nullptr, &v1::CntWriterReflib::addTimeSignal)
       .def("row_major", py::overload_cast<const std::vector<int32_t>&>(&v1::CntWriterReflib::rangeRowMajor))
@@ -257,8 +258,50 @@ PYBIND11_MODULE(ctkpy, m) {
       //.def("read_row_major", py::overload_cast<int64_t, int64_t>(&v1::CntWriterReflib::rangeRowMajor))
       //.def("read_column_major", py::overload_cast<int64_t, int64_t>(&v1::CntWriterReflib::rangeColumnMajor));
 
+    // 2) evt files
+    py::class_<v1::EventImpedance> ei(m, "event_impedance", py::module_local()/*, py::dynamic_attr()*/);
+    ei.def_readwrite("stamp", &v1::EventImpedance::stamp)
+      .def_readwrite("values", &v1::EventImpedance::values);
 
-    // pyeep interface
+    py::class_<v1::EventVideo> ev(m, "event_video", py::module_local()/*, py::dynamic_attr()*/);
+    ev.def_readwrite("stamp", &v1::EventVideo::stamp)
+      .def_readwrite("duration", &v1::EventVideo::duration)
+      .def_readwrite("trigger_code", &v1::EventVideo::trigger_code)
+      .def_readwrite("condition_label", &v1::EventVideo::condition_label)
+      .def_readwrite("description", &v1::EventVideo::description)
+      .def_readwrite("video_file", &v1::EventVideo::video_file);
+
+    py::class_<v1::EventEpoch> ee(m, "event_epoch", py::module_local()/*, py::dynamic_attr()*/);
+    ee.def_readwrite("stamp", &v1::EventEpoch::stamp)
+      .def_readwrite("duration", &v1::EventEpoch::duration)
+      .def_readwrite("offset", &v1::EventEpoch::offset)
+      .def_readwrite("trigger_code", &v1::EventEpoch::trigger_code)
+      .def_readwrite("condition_label", &v1::EventEpoch::condition_label);
+
+    py::class_<v1::EventReader> er(m, "event_reader", py::module_local()/*, py::dynamic_attr()*/);
+    er.def(py::init<const std::string&>())
+      .def_property_readonly("count_impedances", &v1::EventReader::impedanceCount, "Amount of impedance events")
+      .def_property_readonly("count_videos", &v1::EventReader::videoCount, "Amount of video events")
+      .def_property_readonly("count_epochs", &v1::EventReader::epochCount, "Amount of epoch events")
+      .def("impedance", &v1::EventReader::impedanceEvent, "Returns the impedance event at position n")
+      .def("video", &v1::EventReader::videoEvent, "Returns the video event at position n")
+      .def("epoch", &v1::EventReader::epochEvent, "Returns the epoch event at position n")
+      .def_property_readonly("impedances", &v1::EventReader::impedanceEvents, "All impedance events")
+      .def_property_readonly("videos", &v1::EventReader::videoEvents, "All video events")
+      .def_property_readonly("epochs", &v1::EventReader::epochEvents, "All epoch events");
+
+    py::class_<v1::EventWriter> ew(m, "event_writer", py::module_local()/*, py::dynamic_attr()*/);
+    ew.def(py::init<const std::string&>())
+      .def("add_impedance", &v1::EventWriter::addImpedance)
+      .def("add_video", &v1::EventWriter::addVideo)
+      .def("add_epoch", &v1::EventWriter::addEpoch)
+      .def("add_impedances", &v1::EventWriter::addImpedances)
+      .def("add_videos", &v1::EventWriter::addVideos)
+      .def("add_epochs", &v1::EventWriter::addEpochs)
+      .def("close", &v1::EventWriter::close, "Constructs the output evt file");
+
+
+    // 3) pyeep interface
     py::class_<libeep_reader> lr(m, "cnt_in", py::module_local()/*, py::dynamic_attr()*/);
     lr.def(py::init<const std::string&>())
       .def("get_channel_count", &libeep_reader::get_channel_count)
