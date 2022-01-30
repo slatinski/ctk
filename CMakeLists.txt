@@ -24,9 +24,7 @@ if(MSVC)
     add_definitions(-DUNICODE)
 else()
     set(CTK_CXX_FLAGS -ftrapv -pedantic -Wconversion -Wall -Wextra -Wstrict-overflow)
-    if(NOT CTK_AFL_TEST AND NOT CTK_PYTHON)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined,address,null")
-    endif()
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=undefined,address,null")
     add_compile_options("SHELL:-fdiagnostics-color=always") # colored output in ninja
 endif()
 
