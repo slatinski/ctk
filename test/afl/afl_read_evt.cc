@@ -19,6 +19,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <iostream>
 #include <numeric>
+#include <cassert>
 #include "ctk.h"
 
 auto generate_input_file(const std::filesystem::path& fname) -> void {
@@ -36,11 +37,11 @@ auto generate_input_file(const std::filesystem::path& fname) -> void {
     ctk::EventEpoch epoch{ std::chrono::system_clock::now(), 2.0, -1.5, 128 };
     epoch.condition_label = L"Frequent";
 
-    ctk::EventWriter writer;
+    ctk::EventWriter writer{ fname };
     writer.addImpedance(impedance);
     writer.addVideo(video);
     writer.addEpoch(epoch);
-    writer.write(fname);
+    writer.close();
 }
 
 
@@ -49,6 +50,25 @@ auto read(const std::filesystem::path& fname) -> void {
     const auto impedances{ reader.impedanceEvents() };
     const auto videos{ reader.videoEvents() };
     const auto epochs{ reader.epochEvents() };
+
+    size_t i_count{ reader.impedanceCount() };
+    size_t v_count{ reader.videoCount() };
+    size_t e_count{ reader.epochCount() };
+    assert(i_count == impedances.size());
+    assert(v_count == videos.size());
+    assert(e_count == epochs.size());
+
+    for (size_t i{ 0 }; i < i_count; ++i) {
+        assert(impedances[i] == reader.impedanceEvent(i));
+    }
+
+    for (size_t i{ 0 }; i < v_count; ++i) {
+        assert(videos[i] == reader.videoEvent(i));
+    }
+
+    for (size_t i{ 0 }; i < e_count; ++i) {
+        assert(epochs[i] == reader.epochEvent(i));
+    }
 }
 
 
@@ -63,11 +83,6 @@ auto ignore_expected() -> void {
     catch (const std::length_error& e) {
         std::cerr << " " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
     }
-    /*
-    catch (const std::ios_base::failure& e) {
-        std::cerr << " " << e.what() << "\n"; // string io
-    }
-    */
     catch (const std::invalid_argument& e) {
         std::cerr << " " << e.what() << "\n"; // garbage data. stol, stod
     }

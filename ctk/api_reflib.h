@@ -108,6 +108,7 @@ namespace ctk { namespace api {
             auto operator=(CntWriterReflib&&) -> CntWriterReflib&;
             ~CntWriterReflib();
 
+            // NB: the output file construction happens here.
             // assemblies the generated files into a single RIFF file.
             // this is the last function to call before destroying the object.
             auto close() -> void;
@@ -164,7 +165,7 @@ namespace ctk { namespace api {
 
         struct EventReader
         {
-            EventReader(const std::filesystem::path&);
+            explicit EventReader(const std::filesystem::path&);
             EventReader(const EventReader&);
             EventReader(EventReader&&);
             auto operator=(const EventReader&) -> EventReader&;
@@ -183,8 +184,6 @@ namespace ctk { namespace api {
             auto videoEvents() -> std::vector<EventVideo>;
             auto epochEvents() -> std::vector<EventEpoch>;
 
-            auto fileVersion() -> int32_t;
-
         private:
             struct impl;
             std::unique_ptr<impl> p;
@@ -195,21 +194,22 @@ namespace ctk { namespace api {
 
         struct EventWriter
         {
-            EventWriter();
+            explicit EventWriter(const std::filesystem::path& evt);
             EventWriter(const EventWriter&) = delete;
             EventWriter(EventWriter&&);
             auto operator=(const EventWriter&) -> EventWriter& = delete;
             auto operator=(EventWriter&&) -> EventWriter&;
             ~EventWriter();
 
+            auto close() -> bool; /* NB: the output file construction happens here */
+
             auto addImpedance(const EventImpedance&) -> void;
             auto addVideo(const EventVideo&) -> void;
             auto addEpoch(const EventEpoch&) -> void;
 
-            auto eventCount() const -> size_t;
-            auto fileVersion(int32_t) -> void;
-
-            auto write(const std::filesystem::path&) -> void;
+            auto addImpedances(const std::vector<EventImpedance>&) -> void;
+            auto addVideos(const std::vector<EventVideo>&) -> void;
+            auto addEpochs(const std::vector<EventEpoch>&) -> void;
 
         private:
             struct impl;

@@ -448,7 +448,7 @@ namespace ctk { namespace api {
         }
 
         EventReader::EventReader(const std::filesystem::path& file_name)
-        : p{ new impl{  file_name } } {
+        : p{ new impl{ file_name } } {
             assert(p);
         }
 
@@ -554,23 +554,58 @@ namespace ctk { namespace api {
             return xs;
         }
 
-        auto EventReader::fileVersion() -> int32_t {
-            assert(p);
-            return p->lib.version;
+
+
+        static
+        auto fname_archive_bin(std::filesystem::path x) -> std::filesystem::path {
+            auto name{ x.filename() };
+            name += "_archive.bin";
+            x.replace_filename(name);
+            return x;
         }
-
-
 
 
         struct EventWriter::impl
         {
+            // used for the evt file construction, not as event storage
             event_library lib;
+
+            // contains the data written out by store_vector_of_pointers
+            // (event_lib.cc) after the collection size.
+            // on close this data is appended to the approrpiate archive header
+            // and collection size in order to construct a valid evt file.
+            std::filesystem::path fname_evt;
+            file_ptr f_temp;
+            uint32_t events;
+
+            explicit impl(const std::filesystem::path& evt)
+            : fname_evt{ evt }
+            , f_temp{ open_w(fname_archive_bin(evt)) }
+            , events{ 0 } {
+                assert(f_temp);
+            }
         };
 
 
-        EventWriter::EventWriter()
-            : p{ new impl } {
+        template<typename T>
+        auto update_size(uint32_t x, T y) -> uint32_t {
+            static_assert(std::is_unsigned<T>::value);
+
+            const uint32_t sum{ static_cast<uint32_t>(x + y) };
+            if (sum < x || sum < y) {
+                std::ostringstream oss;
+                oss << "update_size: unsigned wrap around " << x << " + " << y << " = " << sum;
+                throw ctk_limit{ oss.str() };
+            }
+
+            return sum;
+        }
+
+
+        EventWriter::EventWriter(const std::filesystem::path& evt)
+            : p{ new impl{ evt } } {
             assert(p);
+            write_part_header(p->f_temp.get(), file_tag::satellite_evt, as_label("sevt"));
         }
 
 
@@ -586,46 +621,109 @@ namespace ctk { namespace api {
             return *this;
         }
 
-
         EventWriter::~EventWriter() {
         }
 
-
         auto EventWriter::addImpedance(const EventImpedance& x) -> void {
-            add_impedance(impedance2marker(x), p->lib);
-        }
+            if (p->f_temp == nullptr) {
+                throw ctk_limit{ "EventWriter::addImpedance: close already invoked" };
+            }
 
+            const uint32_t sum{ update_size(p->events, 1U) };
+
+            write_impedance(p->f_temp.get(), impedance2marker(x), p->lib.version);
+            p->events = sum;
+        }
 
         auto EventWriter::addVideo(const EventVideo& x) -> void {
-            add_video(video2marker(x), p->lib);
-        }
+            if (p->f_temp == nullptr) {
+                throw ctk_limit{ "EventWriter::addVideo: close already invoked" };
+            }
 
+            const uint32_t sum{ update_size(p->events, 1U) };
+
+            write_video(p->f_temp.get(), video2marker(x), p->lib.version);
+            p->events = sum;
+        }
 
         auto EventWriter::addEpoch(const EventEpoch& x) -> void {
-            add_epoch(eventepoch2epochevent(x), p->lib);
-        }
-
-
-        auto EventWriter::eventCount() const -> size_t {
-            return ctk::impl::event_count(p->lib, size_t{});
-        }
-
-        auto EventWriter::fileVersion(int32_t version) -> void {
-            if (177 < version) {
-                throw api::v1::ctk_limit{ "EventWriter::file_version: not implemented" };
+            if (p->f_temp == nullptr) {
+                throw ctk_limit{ "EventWriter::addEpoch: close already invoked" };
             }
 
-            if (version <= 0) {
-                p->lib.version = event_library::default_output_file_version();
-            }
-            else {
-                p->lib.version = version;
-            }
+            const uint32_t sum{ update_size(p->events, 1U) };
+
+            write_epoch(p->f_temp.get(), eventepoch2epochevent(x), p->lib.version);
+            p->events = sum;
         }
 
-        auto EventWriter::write(const std::filesystem::path &fname) -> void {
-            file_ptr f{ open_w(fname) };
-            write_archive(f.get(), p->lib);
+        auto EventWriter::addImpedances(const std::vector<EventImpedance>& xs) -> void {
+            if (p->f_temp == nullptr) {
+                throw ctk_limit{ "EventWriter::addImpedances: close already invoked" };
+            }
+
+            const uint32_t sum{ update_size(p->events, xs.size()) };
+
+            FILE* f{ p->f_temp.get() };
+            const auto version{ p->lib.version };
+
+            for (const auto& x : xs) {
+                write_impedance(f, impedance2marker(x), version);
+            }
+            p->events = sum;
+        }
+
+        auto EventWriter::addVideos(const std::vector<EventVideo>& xs) -> void {
+            if (p->f_temp == nullptr) {
+                throw ctk_limit{ "EventWriter::addVideos: close already invoked" };
+            }
+
+            const uint32_t sum{ update_size(p->events, xs.size()) };
+
+            FILE* f{ p->f_temp.get() };
+            const auto version{ p->lib.version };
+
+            for (const auto& x : xs) {
+                write_video(f, video2marker(x), version);
+            }
+            p->events = sum;
+        }
+
+        auto EventWriter::addEpochs(const std::vector<EventEpoch>& xs) -> void {
+            if (p->f_temp == nullptr) {
+                throw ctk_limit{ "EventWriter::addEpochs: close already invoked" };
+            }
+
+            const uint32_t sum{ update_size(p->events, xs.size()) };
+
+            FILE* f{ p->f_temp.get() };
+            const auto version{ p->lib.version };
+
+            for (const auto& x : xs) {
+                write_epoch(f, eventepoch2epochevent(x), version);
+            }
+            p->events = sum;
+        }
+
+        auto EventWriter::close() -> bool {
+            if (p->f_temp == nullptr) {
+                return true;
+            }
+            p->f_temp.reset(nullptr);
+            const auto tmp{ fname_archive_bin(p->fname_evt) };
+
+            if (0 < p->events) {
+                file_ptr f_in{ open_r(tmp) };
+                const int64_t fsize{ file_size(f_in.get()) };
+                read_part_header(f_in.get(), file_tag::satellite_evt, as_label("sevt"), true);
+                // TODO: read the events sequentially in order to ensure that the data is consitent?
+
+                file_ptr f_out{ open_w(p->fname_evt) };
+                write_partial_archive(f_out.get(), p->lib, p->events);
+                copy_file_portion(f_in.get(), { part_header_size, fsize - part_header_size }, f_out.get());
+            }
+
+            return std::filesystem::remove(tmp);
         }
 
     } /* namespace v1 */

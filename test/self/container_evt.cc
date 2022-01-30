@@ -123,9 +123,9 @@ TEST_CASE("write/read impedance event", "[consistency]") {
 
     const std::filesystem::path fname_temp{ "delme.evt" };
     {
-        api::v1::EventWriter writer;
+        api::v1::EventWriter writer{ fname_temp };
         writer.addImpedance(event_impedance);
-        writer.write(fname_temp);
+        writer.close();
     }
 
     api::v1::EventReader reader{ fname_temp };
@@ -148,24 +148,24 @@ TEST_CASE("read - write - read roundtrip", "[consistency]") {
 	std::string fname{ input.next() };
 	while (!fname.empty()) {
 		try {
-            std::filesystem::path p{ fname };
-            p.replace_extension("evt");
+            std::filesystem::path evt{ fname };
+            evt.replace_extension("evt");
 
 			std::cerr << s2s(fname, fname_width);
-            if (!std::filesystem::exists(p)) {
+            if (!std::filesystem::exists(evt)) {
                 std::cerr << ": skipping - no companion evt file\n";
                 fname = input.next();
                 continue;
             }
 
-            api::v1::EventReader input_reader{ p };
+            api::v1::EventReader input_reader{ evt };
 
             const auto input_impedances{ input_reader.impedanceEvents() };
             const auto input_videos{ input_reader.videoEvents() };
             const auto input_epochs{ input_reader.epochEvents() };
 
             {
-                api::v1::EventWriter writer;
+                api::v1::EventWriter writer{ fname_temp };
                 for (const auto& i : input_impedances) {
                     writer.addImpedance(i);
                 }
@@ -175,17 +175,20 @@ TEST_CASE("read - write - read roundtrip", "[consistency]") {
                 for (const auto& e : input_epochs) {
                     writer.addEpoch(e);
                 }
-                writer.write(fname_temp);
+                writer.close();
             }
 
-            api::v1::EventReader output_reader{ fname_temp };
-            const auto output_impedances{ output_reader.impedanceEvents() };
-            const auto output_videos{ output_reader.videoEvents() };
-            const auto output_epochs{ output_reader.epochEvents() };
+            const auto events{ input_impedances.size() + input_videos.size() + input_epochs.size() };
+            if (events != 0) {
+                api::v1::EventReader output_reader{ fname_temp };
+                const auto output_impedances{ output_reader.impedanceEvents() };
+                const auto output_videos{ output_reader.videoEvents() };
+                const auto output_epochs{ output_reader.epochEvents() };
 
-            REQUIRE(similar(input_impedances, output_impedances));
-            REQUIRE(similar(input_videos, output_videos));
-            REQUIRE(similar(input_epochs, output_epochs));
+                REQUIRE(similar(input_impedances, output_impedances));
+                REQUIRE(similar(input_videos, output_videos));
+                REQUIRE(similar(input_epochs, output_epochs));
+            }
 
             std::filesystem::remove(fname_temp);
             std::cerr << ": evt file roundtrip OK\n";
