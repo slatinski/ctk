@@ -30,35 +30,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl {
 
-
-    static
-    auto as_label_unchecked(const char* p) -> label_type {
-        label_type l;
-        memcpy(&l, p, sizeof(l));
-        return l;
-    }
-
-    auto as_label(const std::string& s) -> label_type {
-        constexpr const size_t size{ sizeof(label_type) };
-        std::array<char, size> a;
-        std::fill(begin(a), end(a), ' ');
-
-        const auto amount{ std::min(s.size(), size) };
-        const auto first{ begin(s) };
-        const auto last{ first + static_cast<ptrdiff_t>(amount) };
-        std::copy(first, last, begin(a));
-        return as_label_unchecked(a.data());
-    }
-
-    auto as_string(label_type l) -> std::string {
-        constexpr const size_t size{ sizeof(l) };
-        std::array<char, size> a;
-
-        memcpy(&a, &l, size);
-        return std::string{ begin(a), end(a) };
-    }
-
-
     file_range::file_range()
     : fpos{ 0 }
     , size{ 0 } {
@@ -235,93 +206,6 @@ namespace ctk { namespace impl {
 
 
 
-
-    auto file_size(FILE* f) -> int64_t {
-        if (!seek(f, 0, SEEK_END)) {
-            throw api::v1::ctk_data{ "file_size: can not seek to end" };
-        }
-        const auto result{ tell(f) };
-        
-        if (!seek(f, 0, SEEK_SET)) {
-            throw api::v1::ctk_data{ "file_size: can not seek to begin" };
-        }
-        return result;
-    }
-
-
-    constexpr const int64_t file_header_size{
-        sizeof(uint32_t) /* fourcc */ + sizeof(uint8_t) /* version */ + sizeof(file_tag) + sizeof(label_type)
-    };
-
-
-    static
-    auto write_part_header(FILE* f, file_tag tag, label_type label) -> void {
-        constexpr const uint8_t fourcc[]{ 'c', 't', 'k', 'p' };
-        constexpr const uint8_t version{ 1 };
-
-        write(f, std::begin(fourcc), std::end(fourcc));
-        write(f, version);
-        write(f, tag);
-        write(f, label);
-
-        if (tell(f) != file_header_size) {
-            throw api::v1::ctk_bug{ "write_part_header: invalid size / not the first record in a file" };
-        }
-    }
-
-    enum class part_error { ok, not_ctk_part, unknown_version, invalid_tag };
-
-    static
-    auto read_part_header_impl(FILE* f, file_tag expected_tag, label_type expected_label, bool compare_label) -> std::pair<label_type, part_error> {
-        uint8_t fourcc[]{ ' ', ' ', ' ', ' ' };
-        read(f, std::begin(fourcc), std::end(fourcc));
-        if (fourcc[0] != 'c' || fourcc[1] != 't' || fourcc[2] != 'k' || fourcc[3] != 'p') {
-            return { 0, part_error::not_ctk_part };
-        }
-
-        const uint8_t version{ read(f, uint8_t{}) };
-        if (version != 1) {
-            return { 0, part_error::unknown_version };
-        }
-
-        const uint8_t id{ read(f, uint8_t{}) };
-        constexpr const uint8_t max_id{ static_cast<uint8_t>(file_tag::length) };
-        if (max_id <= id) {
-            return { 0, part_error::invalid_tag };
-        }
-
-        const file_tag tag_id{ static_cast<file_tag>(id) };
-        if (tag_id != expected_tag) {
-            throw api::v1::ctk_bug{ "read_part_header_impl: invalid part file tag" };
-        }
-
-        const label_type chunk_id{ read(f, label_type{}) };
-        if (compare_label && chunk_id != expected_label) {
-            throw api::v1::ctk_bug{ "read_part_header_impl: invalid part file cnt label" };
-        }
-
-        return { chunk_id, part_error::ok };
-    }
-
-    static
-    auto read_part_header(FILE* f, file_tag expected_tag, label_type expected_label, bool compare_label = true) -> label_type {
-        const auto[x, e]{ read_part_header_impl(f, expected_tag, expected_label, compare_label) };
-        if (e == part_error::ok) {
-            return x;
-        }
-        else if (e == part_error::not_ctk_part) {
-            throw api::v1::ctk_data{ "read_part_header: not a ctk part file" };
-        }
-        else if (e == part_error::unknown_version) {
-            throw api::v1::ctk_data{ "read_part_header: unknown version" };
-        }
-        else if (e == part_error::invalid_tag) {
-            throw api::v1::ctk_data{ "read_part_header: invalid file_tag enumeration" };
-        }
-        assert(false);
-    }
-
-
     ep_content::ep_content(measurement_count length, const std::vector<int64_t>& offsets)
     : length{ length }
     , offsets{ offsets } {
@@ -337,11 +221,11 @@ namespace ctk { namespace impl {
 
     static
     auto read_ep_flat(FILE* f, api::v1::RiffType t) -> ep_content {
-        const auto size{ file_size(f) };
-        read_part_header(f, file_tag::ep, as_label("raw3"));
+        const int64_t size{ file_size(f) };
+        read_part_header(f, file_tag::ep, as_label("raw3"), true);
 
         const chunk ep{ t };
-        return ep.riff->read_ep(f, { file_header_size, size - file_header_size });
+        return ep.riff->read_ep(f, { part_header_size, size - part_header_size });
     }
 
 
@@ -1086,7 +970,7 @@ namespace ctk { namespace impl {
 
     static
     auto read_electrodes_flat(FILE* f) -> std::vector<api::v1::Electrode> {
-        read_part_header(f, file_tag::electrodes, as_label("eeph"));
+        read_part_header(f, file_tag::electrodes, as_label("eeph"), true);
         return read_electrodes(f);
     }
 
@@ -1233,12 +1117,12 @@ namespace ctk { namespace impl {
         constexpr const int64_t tsize{ sizeof(int64_t) };
 
         int64_t fsize{ file_size(f) };
-        read_part_header(f, file_tag::sample_count, as_label("eeph"));
-        if (fsize < file_header_size + tsize) {
+        read_part_header(f, file_tag::sample_count, as_label("eeph"), true);
+        if (fsize < part_header_size + tsize) {
             throw api::v1::ctk_data{ "read_sample_count: empty" };
         }
 
-        const auto payload_size{ fsize - file_header_size };
+        const auto payload_size{ fsize - part_header_size };
         const auto[quot, rem]{ std::div(payload_size, tsize) };
         if (rem != 0) {
             fsize = quot * tsize;
@@ -1735,27 +1619,6 @@ namespace ctk { namespace impl {
     }
 
 
-    static
-    auto copy_file_portion(FILE* fin, file_range x, FILE* fout) -> void {
-        if (!seek(fin, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "copy_file_portion: can not seek" };
-        }
-
-        constexpr const int64_t stride{ 1024 * 4 }; // arbitrary. TODO
-        std::array<uint8_t, stride> buffer;
-
-        auto chunk{ std::min(x.size, stride) };
-        while (0 < chunk) {
-            read(fin, begin(buffer), begin(buffer) + chunk);
-            write(fout, begin(buffer), begin(buffer) + chunk);
-
-            x.size -= chunk;
-            chunk = std::min(x.size, stride);
-        }
-    }
-
-
-
     auto content2chunk(FILE* f, const riff_file& x) -> void {
         assert(is_even(tell(f)));
 
@@ -1764,7 +1627,7 @@ namespace ctk { namespace impl {
         }
 
         auto fin{ open_r(x.fname) };
-        const auto fsize{ file_size(fin.get()) };
+        const int64_t fsize{ file_size(fin.get()) };
 
         riff_chunk_writer raii{ f, x.c };
         copy_file_portion(fin.get(), { x.offset, fsize - x.offset }, f);
@@ -1829,7 +1692,7 @@ namespace ctk { namespace impl {
 
     static
     auto write_time_series_header(FILE* f, const ts_header& h) {
-        assert(tell(f) == file_header_size);
+        assert(tell(f) == part_header_size);
         write(f, static_cast<measurement_count::value_type>(h.length));
         write(f, static_cast<segment_count::value_type>(h.segment_index));
         write(f, h.data_size);
@@ -1838,13 +1701,13 @@ namespace ctk { namespace impl {
 
     static
     auto update_time_series_header(FILE* f, measurement_count samples) {
-        seek(f, file_header_size, SEEK_SET);
+        seek(f, part_header_size, SEEK_SET);
         write(f, static_cast<measurement_count::value_type>(samples));
     }
 
     static
     auto read_time_series_header(FILE* f) -> ts_header {
-        assert(tell(f) == file_header_size);
+        assert(tell(f) == part_header_size);
         const auto length{ read(f, measurement_count::value_type{}) };
         const auto segment_index{ read(f, segment_count::value_type{}) };
         const auto data_size{ read(f, uint8_t{}) };
@@ -1939,7 +1802,7 @@ namespace ctk { namespace impl {
 
         // 2) offsets into the compressed epoch data
         riff->write_entity(f_ep, epoch_ranges.back().fpos);
-        epoch_ranges.emplace_back(tell(f_data) - file_header_size, 0);
+        epoch_ranges.emplace_back(tell(f_data) - part_header_size, 0);
 
         // 3) sample count
         const measurement_count::value_type length{ ce.length };
@@ -1980,7 +1843,7 @@ namespace ctk { namespace impl {
         assert(f_info);
         const api::v1::DcDate start{ api::timepoint2dcdate(start_time) };
         const auto i{ make_info_content(start, x) };
-        seek(f_info, file_header_size, SEEK_SET);
+        seek(f_info, part_header_size, SEEK_SET);
         write(f_info, begin(i), end(i));
         ::fflush(f_info);
     }
@@ -2111,9 +1974,8 @@ namespace ctk { namespace impl {
             return false;
         }
 
-        auto f{ open_r(fname) };
-        const auto[x, e]{ read_part_header_impl(f.get(), tag, label, compare_label) };
-        return e == part_error::ok;
+        file_ptr f{ open_r(fname) };
+        return is_part_header(f.get(), tag, label, compare_label);
     }
 
 
@@ -2189,7 +2051,7 @@ namespace ctk { namespace impl {
     , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
     , a{ init() }
-    , common{ f_data.get(), f_triggers.get(), a, riff.get(), file_header_size } {
+    , common{ f_data.get(), f_triggers.get(), a, riff.get(), part_header_size } {
     }
 
     // NB: the initialization order in this constructor is important
@@ -2200,7 +2062,7 @@ namespace ctk { namespace impl {
     , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
     , a{ init() }
-    , common{ f_data.get(), f_triggers.get(), a, riff.get(), file_header_size } {
+    , common{ f_data.get(), f_triggers.get(), a, riff.get(), part_header_size } {
     }
 
     // NB: the initialization order in this constructor is important
@@ -2211,7 +2073,7 @@ namespace ctk { namespace impl {
     , file_name{ x.file_name }
     , riff{ make_cnt_field_size(x.common.cnt_type()) }
     , a{ x.a }
-    , common{ f_data.get(), f_triggers.get(), x.a, x.riff.get(), file_header_size } {
+    , common{ f_data.get(), f_triggers.get(), x.a, x.riff.get(), part_header_size } {
     }
 
     auto epoch_reader_flat::data() const -> const epoch_reader_common& {
@@ -2221,7 +2083,7 @@ namespace ctk { namespace impl {
     // reflib
     auto epoch_reader_flat::writer_map() const -> riff_list {
         const auto t{ common.cnt_type() };
-        const int64_t offset{ file_header_size };
+        const int64_t offset{ part_header_size };
 
         riff_list root{ root_chunk(t) };
         root.push_back(riff_node{ riff_text{ data_chunk(t, "eeph"), make_eeph_content(a) } });
@@ -2242,7 +2104,7 @@ namespace ctk { namespace impl {
     
     auto epoch_reader_flat::writer_map_extended() const -> riff_list {
         const api::v1::RiffType t{ common.cnt_type() };
-        const int64_t offset{ file_header_size };
+        const int64_t offset{ part_header_size };
 
         riff_list segment{ list_chunk(t, "s000") }; // TODO
         //segment.push_back(riff_node{ riff_file{ data_chunk(t, "desc"), segment_header_file_name(), offset } });
@@ -2290,7 +2152,7 @@ namespace ctk { namespace impl {
 
     auto epoch_reader_flat::cnt_type() const -> api::v1::RiffType {
         auto f_type{ open_r(get_name(file_tag::cnt_type)) };
-        read_part_header(f_type.get(), file_tag::cnt_type, as_label("cntt"));
+        read_part_header(f_type.get(), file_tag::cnt_type, as_label("cntt"), true);
 
         std::string s("1234");
         read(f_type.get(), begin(s), end(s));
@@ -2308,18 +2170,18 @@ namespace ctk { namespace impl {
         auto f_history{ open_r(get_name(file_tag::history)) };
         auto f_header{ open_r(get_name(file_tag::time_series_header)) };
 
-        const auto data_size{ file_size(f_data.get()) - file_header_size };
-        const auto trigger_size{ file_size(f_triggers.get()) - file_header_size };
-        const auto chan_size{ file_size(f_chan.get()) - file_header_size };
-        const auto info_size{ file_size(f_info.get()) - file_header_size };
-        const auto history_size{ file_size(f_history.get()) - file_header_size };
+        const auto data_size{ file_size(f_data.get()) - part_header_size };
+        const auto trigger_size{ file_size(f_triggers.get()) - part_header_size };
+        const auto chan_size{ file_size(f_chan.get()) - part_header_size };
+        const auto info_size{ file_size(f_info.get()) - part_header_size };
+        const auto history_size{ file_size(f_history.get()) - part_header_size };
 
-        read_part_header(f_ep.get(), file_tag::ep, as_label("raw3"));
+        read_part_header(f_ep.get(), file_tag::ep, as_label("raw3"), true);
         const auto [length, offsets]{ read_ep_flat(f_ep.get(), cnt_type()) };
-        const auto [start_time, information]{ read_info(f_info.get(), { file_header_size, info_size }, { 4, 4 }) };
-        read_part_header(f_sampling_frequency.get(), file_tag::sampling_frequency, as_label("eeph"));
-        read_part_header(f_chan.get(), file_tag::chan, as_label("raw3"));
-        read_part_header(f_history.get(), file_tag::history, as_label("eeph"));
+        const auto [start_time, information]{ read_info(f_info.get(), { part_header_size, info_size }, { 4, 4 }) };
+        read_part_header(f_sampling_frequency.get(), file_tag::sampling_frequency, as_label("eeph"), true);
+        read_part_header(f_chan.get(), file_tag::chan, as_label("raw3"), true);
+        read_part_header(f_history.get(), file_tag::history, as_label("eeph"), true);
         const auto cnt_label{ read_part_header(f_header.get(), file_tag::time_series_header, as_label(""), false) };
 
         std::string history;
@@ -2336,9 +2198,9 @@ namespace ctk { namespace impl {
         result.header.ts.start_time = start_time;
         result.header.index = tsh.segment_index;
         result.header.chunk_id = cnt_label;
-        result.order = read_chan(f_chan.get(), { file_header_size, chan_size });
-        result.epoch_ranges = offsets2ranges({ file_header_size, data_size }, offsets);
-        result.trigger_range = { file_header_size, trigger_size };
+        result.order = read_chan(f_chan.get(), { part_header_size, chan_size });
+        result.epoch_ranges = offsets2ranges({ part_header_size, data_size }, offsets);
+        result.trigger_range = { part_header_size, trigger_size };
         result.information = information;
         //result.version = { CTK_FILE_VERSION_MAJOR, CTK_FILE_VERSION_MINOR };
         result.history = history;
@@ -2413,27 +2275,6 @@ namespace ctk { namespace impl {
         }
 
         return read_reflib_cnt(x, f.get(), is_broken);
-    }
-
-
-
-
-    auto operator<<(std::ostream& os, const file_tag& x) -> std::ostream& {
-        switch(x) {
-            case file_tag::data: os << "data"; break;
-            case file_tag::ep: os << "ep"; break;
-            case file_tag::chan: os << "chan"; break;
-            case file_tag::sample_count: os << "sample_count"; break;
-            case file_tag::electrodes: os << "electrodes"; break;
-            case file_tag::sampling_frequency: os << "sampling_frequency"; break;
-            case file_tag::triggers: os << "triggers"; break;
-            case file_tag::info: os << "info"; break;
-            case file_tag::cnt_type: os << "cnt_type"; break;
-            case file_tag::history: os << "history"; break;
-            case file_tag::time_series_header: os << "time_series_header"; break;
-            default: throw api::v1::ctk_bug{ "operator<<(file_tag): invalid" };
-        }
-        return os;
     }
 
 

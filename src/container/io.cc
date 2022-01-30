@@ -17,6 +17,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <array>
 #include <sstream>
 #include <cassert>
 
@@ -52,7 +53,7 @@ namespace ctk { namespace impl {
         file_ptr p{ fopen(fname.string().c_str(), "rb") };
         if (!p) {
             std::ostringstream oss;
-            oss << "open_r: cannot open " << fname << " for reading";
+            oss << "open_r: can not open " << fname << " for reading";
             throw api::v1::ctk_data{ oss.str() };
         }
         assert(p);
@@ -69,6 +70,38 @@ namespace ctk { namespace impl {
         }
         assert(p);
         return p;
+    }
+
+
+    auto copy_file_portion(FILE* fin, file_range x, FILE* fout) -> void {
+        if (!seek(fin, x.fpos, SEEK_SET)) {
+            throw api::v1::ctk_data{ "copy_file_portion: can not seek" };
+        }
+
+        constexpr const int64_t stride{ 1024 * 4 }; // arbitrary. TODO
+        std::array<uint8_t, stride> buffer;
+
+        auto chunk{ std::min(x.size, stride) };
+        while (0 < chunk) {
+            read(fin, begin(buffer), begin(buffer) + chunk);
+            write(fout, begin(buffer), begin(buffer) + chunk);
+
+            x.size -= chunk;
+            chunk = std::min(x.size, stride);
+        }
+    }
+
+
+    auto file_size(FILE* f) -> int64_t {
+        if (!seek(f, 0, SEEK_END)) {
+            throw api::v1::ctk_data{ "file_size: can not seek to end" };
+        }
+        const auto result{ tell(f) };
+
+        if (!seek(f, 0, SEEK_SET)) {
+            throw api::v1::ctk_data{ "file_size: can not seek to begin" };
+        }
+        return result;
     }
 
 } /* namespace impl */ } /* namespace ctk */

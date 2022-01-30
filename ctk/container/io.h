@@ -104,5 +104,28 @@ namespace ctk { namespace impl {
     auto open_r(const std::filesystem::path& fname) -> file_ptr; 
     auto open_w(const std::filesystem::path& fname) -> file_ptr;
 
+
+    struct file_range
+    {
+        int64_t fpos;
+        int64_t size;
+
+        file_range(int64_t fpos, int64_t size);
+        file_range();
+        file_range(const file_range&) = default;
+        file_range(file_range&&) = default;
+        ~file_range() = default;
+
+        auto operator=(const file_range&) -> file_range& = default;
+        auto operator=(file_range&&) -> file_range& = default;
+
+        friend auto operator==(const file_range&, const file_range&) -> bool = default;
+        friend auto operator!=(const file_range&, const file_range&) -> bool = default;
+    };
+    auto operator<<(std::ostream&, const file_range&) -> std::ostream&;
+
+    auto copy_file_portion(FILE* fin, file_range x, FILE* fout) -> void;
+    auto file_size(FILE*) -> int64_t; // at exit sets the file position at the file start
+
 } /* namespace impl */ } /* namespace ctk */
 

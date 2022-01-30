@@ -75,6 +75,8 @@ add_library(ctk_static
         src/compress/matrix.cc
         ctk/container/io.h
         src/container/io.cc
+        ctk/container/ctk_part.h
+        src/container/ctk_part.cc
         ctk/container/file_epoch.h
         src/container/file_epoch.cc
         ctk/container/file_reflib.h

@@ -28,29 +28,9 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "type_wrapper.h"
 #include "api_data.h"
 #include "container/io.h"
+#include "container/ctk_part.h"
 
 namespace ctk { namespace impl {
-
-
-    struct file_range
-    {
-        int64_t fpos;
-        int64_t size;
-
-        file_range(int64_t fpos, int64_t size);
-        file_range();
-        file_range(const file_range&) = default;
-        file_range(file_range&&) = default;
-        ~file_range() = default;
-
-        auto operator=(const file_range&) -> file_range& = default;
-        auto operator=(file_range&&) -> file_range& = default;
-
-        friend auto operator==(const file_range&, const file_range&) -> bool = default;
-        friend auto operator!=(const file_range&, const file_range&) -> bool = default;
-    };
-    auto operator<<(std::ostream&, const file_range&) -> std::ostream&;
-
 
 
     struct ep_content
@@ -93,8 +73,6 @@ namespace ctk { namespace impl {
     };
     using riff_ptr = std::unique_ptr<cnt_field_sizes>;
 
-
-    using label_type = uint32_t;
 
     struct chunk
     {
@@ -214,24 +192,6 @@ namespace ctk { namespace impl {
     };
     auto operator<<(std::ostream&, const compressed_epoch&) -> std::ostream&;
 
-
-    enum class file_tag : uint8_t
-    { 
-        data
-      , ep
-      , chan
-      , sample_count
-      , electrodes
-      , sampling_frequency
-      , triggers
-      , info
-      , cnt_type
-      , history
-      , time_series_header
-      , length
-    };
-
-    auto operator<<(std::ostream&, const file_tag&) -> std::ostream&;
 
     struct tagged_file
     {
@@ -517,13 +477,6 @@ namespace ctk { namespace impl {
     auto d2s(double x, int precision) -> std::string;
     auto ascii_sampling_frequency(double) -> std::string;
 
-
-    auto as_code(const std::string&) -> std::array<char, ctk::api::v1::evt_label_size + 2>;
-    auto as_string(const std::array<char, ctk::api::v1::evt_label_size + 2>&) -> std::string;
-
-    auto as_string(label_type l) -> std::string;
-    auto as_label(const std::string& s) -> label_type;
-
     auto sex2ch(ctk::api::v1::Sex x) -> uint8_t;
     auto ch2sex(uint8_t x) -> ctk::api::v1::Sex;
 
@@ -565,7 +518,6 @@ namespace ctk { namespace impl {
 
     auto is_valid(const ctk::api::v1::Electrode&) -> bool;
 
-    auto file_size(FILE*) -> int64_t;
 
 } /* namespace impl */ } /* namespace ctk */
 
