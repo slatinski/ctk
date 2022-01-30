@@ -545,7 +545,7 @@ namespace ctk { namespace impl {
         write(f, size);
 
         for (wchar_t x : xs) {
-            const auto y{ static_cast<int16_t>(x & 0xffff) };
+            const int16_t y{ static_cast<int16_t>(x & 0xffff) };
             write(f, y);
         }
     }
@@ -1266,6 +1266,21 @@ namespace ctk { namespace impl {
     }
 
 
+    auto write_impedance(FILE* f, const marker_event& x, int version) -> void {
+        write_class(f, tags::name, "class dcEventMarker_c");
+        store_event(f, x, version);
+    }
+
+    auto write_video(FILE* f, const marker_event& x, int version) -> void {
+        write_class(f, tags::name, "class dcEventMarker_c");
+        store_event(f, x, version);
+    }
+
+    auto write_epoch(FILE* f, const epoch_event& x, int version) -> void {
+        write_class(f, tags::name, "class dcEpochEvent_c");
+        store_event(f, x, version);
+    }
+
 
     static
     auto is_impedance(const marker_event& x) -> bool {
@@ -1354,10 +1369,8 @@ namespace ctk { namespace impl {
 
     template<typename T>
     auto store_events(FILE* f, const std::vector<T>& xs, int32_t version, std::string class_name) -> void {
-        constexpr const int32_t class_tag{ tags::name };
-
         for (const auto &x : xs) {
-            write_class(f, class_tag, class_name);
+            write_class(f, tags::name, class_name);
             store_event(f, x, version);
         }
     }
@@ -1430,9 +1443,17 @@ namespace ctk { namespace impl {
 
 
     auto write_archive(FILE* f, const event_library& lib) -> void {
-        write_archive_header(f,lib);
-        write_class(f, tags::name, std::string("class dcEventsLibrary_c"));
+        write_archive_header(f, lib);
+        write_class(f, tags::name, "class dcEventsLibrary_c");
         write_data_item_library(f, lib);
+    }
+
+    auto write_partial_archive(FILE* f, const event_library& lib, uint32_t events) -> void {
+        write_archive_header(f, lib);
+        write_class(f, tags::name, "class dcEventsLibrary_c");
+        write_abstract_data_item_library(f, lib);
+        write(f, events); // store_vector_of_pointers: event count
+
     }
 
 

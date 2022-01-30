@@ -269,12 +269,16 @@ namespace ctk { namespace impl {
 
     auto read_archive(FILE*) -> event_library;
     auto write_archive(FILE*, const event_library&) -> void;
-
-
     auto add_impedance(marker_event, event_library&) -> void;
     auto add_video(marker_event, event_library&) -> void;
     auto add_marker(marker_event, event_library&) -> void;
     auto add_epoch(epoch_event, event_library&) -> void;
+
+
+    auto write_impedance(FILE*, const marker_event&, int version) -> void;
+    auto write_video(FILE*, const marker_event&, int version) -> void;
+    auto write_epoch(FILE*, const epoch_event&, int version) -> void;
+    auto write_partial_archive(FILE*, const event_library&, uint32_t event_count) -> void;
 
 
 
