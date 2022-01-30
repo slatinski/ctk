@@ -396,6 +396,17 @@ namespace ctk { namespace impl {
         const uint16_t unicode{ sizes::max_word - 1 };
     } // namespace tags
 
+    namespace dc_names {
+        const std::string library { "class dcEventsLibrary_c" };
+        const std::string marker  { "class dcEventMarker_c" };
+        const std::string epoch   { "class dcEpochEvent_c" };
+        const std::string artefact{ "class dcArtefactEvent_c" };
+        const std::string spike   { "class dcSpikeEvent_c" };
+        const std::string seizure { "class dcSeizureEvent_c" };
+        const std::string sleep   { "class dcSleepEvent_c" };
+        const std::string rpeak   { "class dcRPeakEvent_c" };
+    } // namespace dcnames
+
 
 
     // reads the length and the character width of a string stored in a file.
@@ -570,7 +581,7 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_class(FILE* f, int32_t class_tag, std::string class_name) -> void {
+    auto write_class(FILE* f, int32_t class_tag, const std::string& class_name) -> void {
         if (class_tag == tags::null) {
             write(f, tags::null);
         }
@@ -1267,17 +1278,17 @@ namespace ctk { namespace impl {
 
 
     auto write_impedance(FILE* f, const marker_event& x, int version) -> void {
-        write_class(f, tags::name, "class dcEventMarker_c");
+        write_class(f, tags::name, dc_names::marker);
         store_event(f, x, version);
     }
 
     auto write_video(FILE* f, const marker_event& x, int version) -> void {
-        write_class(f, tags::name, "class dcEventMarker_c");
+        write_class(f, tags::name, dc_names::marker);
         store_event(f, x, version);
     }
 
     auto write_epoch(FILE* f, const epoch_event& x, int version) -> void {
-        write_class(f, tags::name, "class dcEpochEvent_c");
+        write_class(f, tags::name, dc_names::epoch);
         store_event(f, x, version);
     }
 
@@ -1310,10 +1321,10 @@ namespace ctk { namespace impl {
 
     static
     auto load_event(FILE* f, event_library& lib, const std::string& class_name) -> void {
-        if (class_name == "class dcEpochEvent_c") {
+        if (class_name == dc_names::epoch) {
             lib.epochs.push_back(load_event(f, lib.version, epoch_event{}));
         }
-        else if (class_name == "class dcEventMarker_c") {
+        else if (class_name == dc_names::marker) {
             const marker_event event{ load_event(f, lib.version, marker_event{}) };
             if (is_impedance(event)) {
                 lib.impedances.push_back(event);
@@ -1325,19 +1336,19 @@ namespace ctk { namespace impl {
                 lib.markers.push_back(event);
             }
         }
-        else if (class_name == "class dcArtefactEvent_c") {
+        else if (class_name == dc_names::artefact) {
             lib.artefacts.push_back(load_event(f, lib.version, artefact_event{}));
         }
-        else if (class_name == "class dcSpikeEvent_c") {
+        else if (class_name == dc_names::spike) {
             lib.spikes.push_back(load_event(f, lib.version, spike_event{}));
         }
-        else if (class_name == "class dcSeizureEvent_c") {
+        else if (class_name == dc_names::seizure) {
             lib.seizures.push_back(load_event(f, lib.version, seizure_event{}));
         }
-        else if (class_name == "class dcSleepEvent_c") {
+        else if (class_name == dc_names::sleep) {
             lib.sleeps.push_back(load_event(f, lib.version, sleep_event{}));
         }
-        else if (class_name == "class dcRPeakEvent_c") {
+        else if (class_name == dc_names::rpeak) {
             lib.rpeaks.push_back(load_event(f, lib.version, rpeak_event{}));
         }
         else {
@@ -1382,15 +1393,15 @@ namespace ctk { namespace impl {
         const uint32_t count{ event_count(lib, uint32_t{}) };
         write(f, count);
 
-        store_events(f, lib.impedances, lib.version, "class dcEventMarker_c");
-        store_events(f, lib.videos, lib.version, "class dcEventMarker_c");
-        store_events(f, lib.markers, lib.version, "class dcEventMarker_c");
-        store_events(f, lib.epochs, lib.version, "class dcEpochEvent_c");
-        store_events(f, lib.artefacts, lib.version, "class dcArtefactEvent_c");
-        store_events(f, lib.spikes, lib.version, "class dcSpikeEvent_c");
-        store_events(f, lib.seizures, lib.version, "class dcSeizureEvent_c");
-        store_events(f, lib.sleeps, lib.version, "class dcSleepEvent_c");
-        store_events(f, lib.rpeaks, lib.version, "class dcRPeakEvent_c");
+        store_events(f, lib.impedances, lib.version, dc_names::marker);
+        store_events(f, lib.videos, lib.version, dc_names::marker);
+        store_events(f, lib.markers, lib.version, dc_names::marker);
+        store_events(f, lib.epochs, lib.version, dc_names::epoch);
+        store_events(f, lib.artefacts, lib.version, dc_names::artefact);
+        store_events(f, lib.spikes, lib.version, dc_names::spike);
+        store_events(f, lib.seizures, lib.version, dc_names::seizure);
+        store_events(f, lib.sleeps, lib.version, dc_names::sleep);
+        store_events(f, lib.rpeaks, lib.version, dc_names::rpeak);
     }
 
 
@@ -1433,7 +1444,7 @@ namespace ctk { namespace impl {
             return lib;
         }
 
-        if (class_name != "class dcEventsLibrary_c") {
+        if (class_name != dc_names::library) {
             throw api::v1::ctk_data{ "read_archive: not an events library" };
         }
 
@@ -1444,13 +1455,13 @@ namespace ctk { namespace impl {
 
     auto write_archive(FILE* f, const event_library& lib) -> void {
         write_archive_header(f, lib);
-        write_class(f, tags::name, "class dcEventsLibrary_c");
+        write_class(f, tags::name, dc_names::library);
         write_data_item_library(f, lib);
     }
 
     auto write_partial_archive(FILE* f, const event_library& lib, uint32_t events) -> void {
         write_archive_header(f, lib);
-        write_class(f, tags::name, "class dcEventsLibrary_c");
+        write_class(f, tags::name, dc_names::library);
         write_abstract_data_item_library(f, lib);
         write(f, events); // store_vector_of_pointers: event count
 
