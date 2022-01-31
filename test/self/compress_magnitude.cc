@@ -535,7 +535,6 @@ auto run(epoch_reader_riff& reader, int repetitions) -> std::pair<reduction_stat
 TEST_CASE("magnitude", "[performance]") {
     constexpr const size_t fname_width{ 20 };
     constexpr const int repetitions{ 3 };
-    constexpr const bool is_broken{ false };
     std::cerr << repetitions << " repetitions per epoch\n";
     reduction_stat t_reduction;
     restore_stat t_restore;
@@ -546,7 +545,7 @@ TEST_CASE("magnitude", "[performance]") {
 	while (!fname.empty()) {
 		try {
 			std::cerr << s2s(fname, fname_width);
-            epoch_reader_riff reader{ fname, is_broken };
+            epoch_reader_riff reader{ fname };
             const auto[t_enc, t_dec]{ run(reader, repetitions) };
             t_reduction += t_enc;
             t_restore += t_dec;

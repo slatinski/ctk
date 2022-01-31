@@ -1272,7 +1272,7 @@ namespace ctk { namespace impl {
     }
 
 
-    static
+    //static
     auto scan_broken_reflib(FILE* f, chunk& chunk_ep, chunk& chunk_chan, chunk& chunk_data, chunk& chunk_eeph, chunk& chunk_info, chunk& chunk_evt) -> void {
         chunk* previous{ nullptr };
 
@@ -1371,7 +1371,7 @@ namespace ctk { namespace impl {
 
 
     static
-    auto read_reflib_cnt(const chunk& root, FILE* f, bool is_broken) -> amorph {
+    auto read_reflib_cnt(const chunk& root, FILE* f) -> amorph {
         if (!is_root(root)) {
             throw api::v1::ctk_bug{ "read_reflib_cnt: invalid file" };
         }
@@ -1384,12 +1384,8 @@ namespace ctk { namespace impl {
         chunk evt{ empty_chunk(root) };
         std::vector<chunk> user;
 
-        if (!is_broken) {
-            read_expected_chunks_reflib(root, f, ep, chan, data, eeph, inf, evt, user);
-        }
-        else {
-            scan_broken_reflib(f, ep, chan, data, eeph, inf, evt);
-        }
+        read_expected_chunks_reflib(root, f, ep, chan, data, eeph, inf, evt, user);
+        //scan_broken_reflib(f, ep, chan, data, eeph, inf, evt);
 
         if (ep.storage.size == 0 || chan.storage.size == 0 || data.storage.size == 0 || eeph.storage.size == 0) {
             throw api::v1::ctk_data{ "read_reflib_cnt: missing chunk eeph, raw3/ep, raw3/chan or raw3/data" };
@@ -2167,11 +2163,11 @@ namespace ctk { namespace impl {
 
 
     // NB: the initialization order in this constructor is important
-    epoch_reader_riff::epoch_reader_riff(const std::filesystem::path& cnt, bool is_broken)
+    epoch_reader_riff::epoch_reader_riff(const std::filesystem::path& cnt)
     : f{ open_r(cnt) }
     , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
-    , a{ init(is_broken) }
+    , a{ init() }
     , common{ f.get(), f.get(), a, riff.get(), 0 /* initial offset */ } {
     }
 
@@ -2223,14 +2219,14 @@ namespace ctk { namespace impl {
         throw api::v1::ctk_data{ "epoch_reader_riff::cnt_type: neither RIFF nor RF64" };
     }
 
-    auto epoch_reader_riff::init(bool is_broken) -> amorph {
+    auto epoch_reader_riff::init() -> amorph {
         rewind(f.get());
         const auto x{ read_root(f.get(), string2riff(riff->root_id())) };
         if (!is_root(x)) {
             throw api::v1::ctk_data{ "epoch_reader_riff::init: not a root chunk" };
         }
 
-        return read_reflib_cnt(x, f.get(), is_broken);
+        return read_reflib_cnt(x, f.get());
     }
 
 

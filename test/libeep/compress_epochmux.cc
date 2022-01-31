@@ -248,7 +248,6 @@ auto run(epoch_reader_riff& reader, int repetitions) -> std::tuple<execution_tim
 TEST_CASE("compepoch", "[compatibility] [consistency] [performance]") {
     const size_t fname_width{ 7 };
 	const int repetitions{ 1 };
-    constexpr const bool is_broken{ false };
     std::cerr << repetitions << " repetitions per epoch\n";
 
     execution_time t_decoder;
@@ -262,7 +261,7 @@ TEST_CASE("compepoch", "[compatibility] [consistency] [performance]") {
 	while (!fname.empty()) {
 		try {
 			std::cerr << s2s(fname, fname_width);
-            epoch_reader_riff reader{ fname, is_broken };
+            epoch_reader_riff reader{ fname };
 
             const auto[d, e, r, s]{ run(reader, repetitions) };
             t_decoder += d;

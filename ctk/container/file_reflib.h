@@ -121,8 +121,8 @@ public:
 
     // constructs epoch_reader_riff reader
     explicit
-    reflib_reader_common(const std::filesystem::path& fname, bool is_broken)
-    : reader{ fname, is_broken }
+    reflib_reader_common(const std::filesystem::path& fname)
+    : reader{ fname }
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }

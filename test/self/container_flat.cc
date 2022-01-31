@@ -29,7 +29,6 @@ namespace ctk { namespace impl { namespace test {
 
 TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
     const size_t fname_width{ 20 };
-    constexpr const bool is_broken{ false };
     const std::filesystem::path temp_cnt_file{ "delme.cnt" };
 
     input_txt input;
@@ -42,7 +41,7 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
 		try {
 			std::cerr << s2s(fname, fname_width);
 
-            epoch_reader_riff reader{ fname, is_broken };
+            epoch_reader_riff reader{ fname };
             const auto reflib_count{ reader.data().count() };
 
             // scope for the epoch writer
@@ -121,7 +120,6 @@ auto write_in_chunks(cnt_reader_reflib_riff& reader_reflib, const std::filesyste
 
 TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
     constexpr const size_t fname_width{ 20 };
-    constexpr const bool is_broken{ false };
     const std::filesystem::path temp_cnt_file{ "delme.cnt" };
 
     input_txt input;
@@ -135,7 +133,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
 
             std::vector<ptrdiff_t> chunks{ 1, 2, 3 };
             {
-                cnt_reader_reflib_riff reader_reflib{ fname, is_broken };
+                cnt_reader_reflib_riff reader_reflib{ fname };
                 const auto el{ static_cast<measurement_count::value_type>(reader_reflib.epoch_length()) };
                 const auto sc{ static_cast<measurement_count::value_type>(reader_reflib.sample_count()) };
                 const ptrdiff_t epoch_length{ cast(el, ptrdiff_t{}, ok{}) };
@@ -156,10 +154,10 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
 
             for (auto stride : chunks) {
                 {
-                    cnt_reader_reflib_riff reader_reflib{ fname, is_broken };
+                    cnt_reader_reflib_riff reader_reflib{ fname };
                     loose_files = write_in_chunks(reader_reflib, temp_cnt_file, stride);
 
-                    epoch_reader_riff reflib_reader{ fname, is_broken };
+                    epoch_reader_riff reflib_reader{ fname };
                     const auto reflib_count{ reflib_reader.data().count() };
 
                     epoch_reader_flat flat_reader{ fname, loose_files };
@@ -210,7 +208,6 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
 
 TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
     constexpr const size_t fname_width{ 20 };
-    constexpr const bool is_broken{ false };
     const std::filesystem::path temp_cnt_file{ "delme.cnt" };
 
     input_txt input;
@@ -219,7 +216,7 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
 		try {
 			std::cerr << s2s(fname, fname_width);
             {
-                cnt_reader_reflib_riff r_orig{ fname, is_broken };
+                cnt_reader_reflib_riff r_orig{ fname };
                 measurement_count sample_count{ 0 };
                 measurement_count ch{ 1 };
 
@@ -238,7 +235,7 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
                     writer.close();
                 }
 
-                cnt_reader_reflib_riff r_temp{ temp_cnt_file, is_broken };
+                cnt_reader_reflib_riff r_temp{ temp_cnt_file };
                 REQUIRE(r_orig.epoch_length() == r_temp.epoch_length());
                 REQUIRE(ascii_sampling_frequency(r_orig.sampling_frequency()) == ascii_sampling_frequency(r_temp.sampling_frequency()));
                 REQUIRE(r_orig.segment_start_time() == r_temp.segment_start_time());

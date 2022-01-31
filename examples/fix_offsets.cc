@@ -43,6 +43,7 @@ auto is_broken(const std::filesystem::path& ifile) -> bool {
 
 static
 auto recover(const std::filesystem::path& ifile, const std::filesystem::path& ofile) -> bool {
+    /*
     try {
         ctk::CntReaderReflib reader{ ifile.string(), true };
         const int64_t total{ reader.sampleCount() };
@@ -91,6 +92,7 @@ auto recover(const std::filesystem::path& ifile, const std::filesystem::path& of
     catch(const std::exception&) {
         std::cerr << " [I/O error]";
     }
+    */
 
     return false;
 }

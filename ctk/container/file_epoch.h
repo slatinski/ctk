@@ -455,11 +455,11 @@ namespace ctk { namespace impl {
         epoch_reader_common common;
 
         auto cnt_type() const -> api::v1::RiffType;
-        auto init(bool is_broken) -> amorph;
+        auto init() -> amorph;
 
     public:
 
-        explicit epoch_reader_riff(const std::filesystem::path& cnt, bool is_broken);
+        explicit epoch_reader_riff(const std::filesystem::path& cnt);
         epoch_reader_riff(const epoch_reader_riff& x);
         epoch_reader_riff(epoch_reader_riff&&) = default;
         ~epoch_reader_riff() = default;

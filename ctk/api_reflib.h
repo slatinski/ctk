@@ -33,7 +33,7 @@ namespace ctk { namespace api {
 
         struct CntReaderReflib
         {
-            CntReaderReflib(const std::filesystem::path& fname, bool is_broken = false);
+            CntReaderReflib(const std::filesystem::path& fname);
             CntReaderReflib(const CntReaderReflib&);
             CntReaderReflib(CntReaderReflib&&);
             auto operator=(const CntReaderReflib&) -> CntReaderReflib&;

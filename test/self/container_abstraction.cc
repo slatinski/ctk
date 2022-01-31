@@ -30,8 +30,7 @@ namespace ctk { namespace impl { namespace test {
 
 
 auto compare_readers(const std::string& fname) -> void {
-    constexpr const bool is_broken{ false };
-    ctk::impl::cnt_reader_reflib_riff reader_direct{ fname, is_broken };
+    ctk::impl::cnt_reader_reflib_riff reader_direct{ fname };
     ctk::CntReaderReflib reader_api{ fname };
 
     const auto samples{ reader_direct.sample_count() };
@@ -91,8 +90,7 @@ TEST_CASE("compare readers", "[consistency] [read]") {
 
 
 auto read_direct(const std::string& fname) -> int64_t {
-    constexpr const bool is_broken{ false };
-    ctk::impl::cnt_reader_reflib_riff reader{ fname, is_broken };
+    ctk::impl::cnt_reader_reflib_riff reader{ fname };
     const auto samples{ reader.sample_count() };
     const auto electrodes{ reader.channels() };
     const measurement_count chunk{ 1 };

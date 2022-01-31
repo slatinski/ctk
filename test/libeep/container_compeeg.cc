@@ -728,10 +728,9 @@ auto print(const std::string& op, const dimensions& x, measurement_count samples
 
 
 auto compare_libeep_reflib_readers(const std::string& fname) -> void {
-    constexpr const bool is_broken{ false };
-    cnt_reader_reflib_riff reflib{ fname, is_broken };
+    cnt_reader_reflib_riff reflib{ fname };
     cnt_reader_libeep_riff eeplib{ fname };
-    //cnt_reader_reflib_riff eeplib{ fname, is_broken };
+    //cnt_reader_reflib_riff eeplib{ fname };
     const bool ignore_trailing_ws{ false };
     compare_readers(eeplib, reflib, ignore_trailing_ws);
 
@@ -874,11 +873,10 @@ auto compare_user_chunks(const std::string& destname, cnt_reader_reflib_riff& re
 
 auto writer_consistency_compatibility(const std::string& fname, measurement_count sample_count, measurement_count chunk, RiffType riff) -> void {
     const std::string temp_name{ "delme.cnt" };
-    constexpr const bool is_broken{ false };
 
     // scope needed on windows. else delme.cnt cannot be deleted.
     {
-        cnt_reader_reflib_riff input{ fname, is_broken };
+        cnt_reader_reflib_riff input{ fname };
         cnt_writer_reflib_riff output{ temp_name, riff, input.history() };
         output.recording_info(input.information());
 
@@ -901,7 +899,7 @@ auto writer_consistency_compatibility(const std::string& fname, measurement_coun
         output.close();
 
         bool ignore_trailing_ws{ false };
-        cnt_reader_reflib_riff reflib{ temp_name, is_broken };
+        cnt_reader_reflib_riff reflib{ temp_name };
         compare_readers(input, reflib, ignore_trailing_ws); // consistency
         REQUIRE(compare_user_chunks(temp_name, reflib, has_user, fname));
 
@@ -919,8 +917,7 @@ auto test_writer(const std::string& fname) -> void {
     std::vector<measurement_count> sizes;
     measurement_count count;
     {
-        constexpr const bool is_broken{ false };
-        cnt_reader_reflib_riff lib{ fname, is_broken };
+        cnt_reader_reflib_riff lib{ fname };
         count = lib.sample_count();
         const auto length = lib.epoch_length();
         sizes = make_chunk_sizes(length, count);
@@ -958,7 +955,6 @@ TEST_CASE("test writer", "[consistency] [compatibility] [write]") {
 
 template<typename Reader, typename Writer>
 auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname, bool ignore_trailing_ws) -> std::chrono::microseconds {
-    constexpr const bool is_broken{ false };
     const auto s{ std::chrono::steady_clock::now() };
 
     // REMEMBER MISSING: reader.channel_order()
@@ -981,7 +977,7 @@ auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count
 
     const auto e{ std::chrono::steady_clock::now() };
 
-    cnt_reader_reflib_riff control{ fname, is_broken };
+    cnt_reader_reflib_riff control{ fname };
     compare_readers(reader, control, ignore_trailing_ws);
 
     return std::chrono::duration_cast<std::chrono::microseconds>(e - s);
@@ -989,9 +985,8 @@ auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count
 
 
 auto test_writer_speed(const std::string& fname) -> void {
-    constexpr const bool is_broken{ false };
 
-    cnt_reader_reflib_riff reader{ fname, is_broken };
+    cnt_reader_reflib_riff reader{ fname };
     const auto count{ reader.sample_count() };
     const auto length{ reader.epoch_length() };
     const auto sizes{ make_chunk_sizes(length, count) };

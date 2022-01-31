@@ -45,13 +45,13 @@ namespace ctk { namespace api {
             cnt_reader_reflib_riff reader;
 
             explicit
-            impl(const std::filesystem::path& fname, bool is_broken)
-            : reader{ fname, is_broken } {
+            impl(const std::filesystem::path& fname)
+            : reader{ fname } {
             }
         };
 
-        CntReaderReflib::CntReaderReflib(const std::filesystem::path& fname, bool is_broken)
-            : p{ new impl{ fname, is_broken } } {
+        CntReaderReflib::CntReaderReflib(const std::filesystem::path& fname)
+            : p{ new impl{ fname } } {
             assert(p);
         }
 
