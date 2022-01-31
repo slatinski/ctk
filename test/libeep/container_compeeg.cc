@@ -108,6 +108,13 @@ auto recordinfo2info(const libeep::record_info_t& x) -> Info {
 }
 
 
+#ifdef _WIN32
+    using Precision = std::chrono::microseconds;
+#else
+    using Precision = std::chrono::nanoseconds;
+#endif
+
+
 class cnt_reader_libeep_riff
 {
     file_ptr f;
@@ -131,14 +138,14 @@ public:
         }
         std::vector<int32_t> result(as_sizet_unchecked(matrix_size(channel_count(), length)));
 
-        const sint si{ start };
+        const measurement_count::value_type si{ start };
         const uint64_t i{ cast(si, uint64_t{}, guarded{}) };
         const int absolute{ 0 };
         if (libeep::eep_seek(cnt.get(), libeep::DATATYPE_EEG, i, absolute) != CNTERR_NONE) {
             throw ctk_data{ "cnt_reader_libeep_riff::get: can not seek" };
         }
 
-        const sint sn{ length };
+        const measurement_count::value_type sn{ length };
         const uint64_t n{ cast(sn, uint64_t{}, guarded{}) };
         if (libeep::eep_read_sraw(cnt.get(), libeep::DATATYPE_EEG, result.data(), n) != CNTERR_NONE) {
             throw ctk_data{ "cnt_reader_libeep_riff::get: can not read" };
@@ -164,7 +171,7 @@ public:
             throw ctk_data{ "cnt_reader_libeep_riff::channel_order: can not obtain channel order" };
         }
 
-        const auto size{ static_cast<size_t>(static_cast<sint>(channel_count())) };
+        const auto size{ static_cast<size_t>(static_cast<sensor_count::value_type>(channel_count())) };
         std::vector<int16_t> result(size);
         if (std::copy(seq.get(), seq.get() + size, begin(result)) != end(result)) {
             throw ctk_bug{ "cnt_reader_libeep_riff::channel_order: can not copy" };
@@ -175,12 +182,12 @@ public:
 
     auto sample_count() const -> measurement_count {
         const uint64_t samplec{ libeep::eep_get_samplec(cnt.get()) };
-        return measurement_count{ cast(samplec, sint{}, ok{}) };
+        return measurement_count{ cast(samplec, measurement_count::value_type{}, ok{}) };
     }
 
     auto epoch_length() const -> measurement_count {
         const int epochl{ libeep::eep_get_epochl(cnt.get(), libeep::DATATYPE_EEG) };
-        return measurement_count{ cast(epochl, sint{}, ok{}) };
+        return measurement_count{ cast(epochl, measurement_count::value_type{}, ok{}) };
     }
 
     auto sampling_frequency() const -> double {
@@ -264,8 +271,8 @@ public:
         return { api::dcdate2timepoint(segment_start_time()), sampling_frequency(), channels(), length };
     }
 
-    auto measure_get(ptrdiff_t start, ptrdiff_t length) -> std::chrono::microseconds {
-        const measurement_count samples{ cast(length, sint{}, ok{}) };
+    auto measure_get(ptrdiff_t start, ptrdiff_t length) -> Precision {
+        const measurement_count samples{ cast(length, measurement_count::value_type{}, ok{}) };
         std::vector<int32_t> result(as_sizet_unchecked(matrix_size(channel_count(), samples)));
         const int absolute{ 0 };
 
@@ -273,16 +280,16 @@ public:
 
         if (libeep::eep_seek(cnt.get(), libeep::DATATYPE_EEG, start, absolute) != CNTERR_NONE) {
             const auto e{ std::chrono::steady_clock::now() };
-            return std::chrono::duration_cast<std::chrono::microseconds>(e - s);
+            return std::chrono::duration_cast<Precision>(e - s);
         }
 
         if (libeep::eep_read_sraw(cnt.get(), libeep::DATATYPE_EEG, result.data(), length) != CNTERR_NONE) {
             const auto e{ std::chrono::steady_clock::now() };
-            return std::chrono::duration_cast<std::chrono::microseconds>(e - s);
+            return std::chrono::duration_cast<Precision>(e - s);
         }
 
         const auto e{ std::chrono::steady_clock::now() };
-        return std::chrono::duration_cast<std::chrono::microseconds>(e - s);
+        return std::chrono::duration_cast<Precision>(e - s);
     }
 
 
@@ -292,7 +299,7 @@ public:
 struct libeep_writer
 {
     libeep::eeg_t* cnt;
-    sint height;
+    sensor_count::value_type height;
 
     explicit
     libeep_writer(libeep::eeg_t* cnt)
@@ -467,7 +474,7 @@ public:
         }
 
         auto chanv{ natural_row_order(sensor_count{ chanc }) };
-        const sint length{ x.epoch_length };
+        const measurement_count::value_type length{ x.epoch_length };
         if (libeep::eep_prepare_to_write(cnt.get(), libeep::DATATYPE_EEG, cast(length, uint64_t{}, ok{}), chanv.data()) != CNTERR_NONE) {
             throw ctk_data{ "cnt_writer_libeep_riff::add_time_signal: eep_prepare_to_write failed" };
         }
@@ -553,8 +560,8 @@ auto consume_samples(Lib& lib, measurement_count sample_count, measurement_count
         const auto stride{ std::min(chunk, leftover) };
         leftover -= stride;
 
-        const auto n{ static_cast<sint>(i) };
-        const auto amount{ static_cast<sint>(stride) };
+        const measurement_count::value_type n{ i };
+        const measurement_count::value_type amount{ stride };
         lib.get(n, amount, transpose);
     }
 }
@@ -639,16 +646,16 @@ TEST_CASE("libeep/reflib file access: no data comparison", "[compatibility] [rea
 */
 
 
-auto measure_read_samples(cnt_reader_libeep_riff& eeplib, measurement_count sample_count, measurement_count chunk) -> std::chrono::microseconds {
-    std::chrono::microseconds sum_time{ 0 };
+auto measure_read_samples(cnt_reader_libeep_riff& eeplib, measurement_count sample_count, measurement_count chunk) -> Precision {
+    Precision sum_time{ 0 };
 
     auto leftover{ sample_count };
     for (measurement_count i{ 0 }; i < sample_count && leftover != 0; i += chunk) {
         const auto stride{ std::min(chunk, leftover) };
         leftover -= stride;
 
-        const auto n{ static_cast<sint>(i) };
-        const auto amount{ static_cast<sint>(stride) };
+        const measurement_count::value_type n{ i };
+        const measurement_count::value_type amount{ stride };
         sum_time += eeplib.measure_get(n, amount);
     }
 
@@ -656,8 +663,8 @@ auto measure_read_samples(cnt_reader_libeep_riff& eeplib, measurement_count samp
 }
 
 
-auto measure_read_samples(cnt_reader_reflib_riff& reflib, measurement_count sample_count, measurement_count chunk) -> std::chrono::microseconds {
-    std::chrono::microseconds sum_time{ 0 };
+auto measure_read_samples(cnt_reader_reflib_riff& reflib, measurement_count sample_count, measurement_count chunk) -> Precision {
+    Precision sum_time{ 0 };
 
     auto leftover{ sample_count };
     for (measurement_count i{ 0 }; i < sample_count && leftover != 0; i += chunk) {
@@ -665,10 +672,10 @@ auto measure_read_samples(cnt_reader_reflib_riff& reflib, measurement_count samp
         leftover -= stride;
 
         const auto s{ std::chrono::steady_clock::now() };
-        const auto v = reflib.range_column_major(i, stride);
+        const auto v{ reflib.range_column_major(i, stride) };
         const auto e{ std::chrono::steady_clock::now() };
 
-        sum_time += std::chrono::duration_cast<std::chrono::microseconds>(e - s);
+        sum_time += std::chrono::duration_cast<Precision>(e - s);
 
     }
 
@@ -864,7 +871,7 @@ auto compare_user_chunks(const std::string& destname, cnt_reader_reflib_riff& re
         const std::string dest_satelite_name{ replace_extension(destname, extension) };
         reader.extract_embedded_file(label, dest_satelite_name);
         compare_file_content(src_satelite_name, dest_satelite_name);
-        if (std::remove(dest_satelite_name.c_str()) != 0) {
+        if (!std::filesystem::remove(dest_satelite_name)) {
             std::cerr << "compare_user_chunks: can not delete " << dest_satelite_name << "\n";
         }
     }
@@ -909,7 +916,7 @@ auto writer_consistency_compatibility(const std::string& fname, measurement_coun
         compare_readers(eeplib, reflib, ignore_trailing_ws); // compatibility
     }
 
-    if (std::remove(temp_name.c_str()) != 0) {
+    if (!std::filesystem::remove(temp_name)) {
         std::cerr << "writer_consistency_compatibility: can not delete " << temp_name << "\n";
     }
 }
@@ -955,7 +962,7 @@ TEST_CASE("test writer", "[consistency] [compatibility] [write]") {
 
 
 template<typename Reader, typename Writer>
-auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname, bool ignore_trailing_ws) -> std::chrono::microseconds {
+auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname, bool ignore_trailing_ws) -> Precision {
     const auto s{ std::chrono::steady_clock::now() };
 
     // REMEMBER MISSING: reader.channel_order()
@@ -981,7 +988,7 @@ auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count
     cnt_reader_reflib_riff control{ fname };
     compare_readers(reader, control, ignore_trailing_ws);
 
-    return std::chrono::duration_cast<std::chrono::microseconds>(e - s);
+    return std::chrono::duration_cast<Precision>(e - s);
 }
 
 
@@ -1007,8 +1014,8 @@ auto test_writer_speed(const std::string& fname) -> void {
         const double ref_eep{ 100.0 * r_time.count() / l_time.count() };
         execution_times.emplace_back(ref_eep, chunk);
     }
-    if (std::remove("reflib.cnt") != 0) { std::cerr << "test_writer_speed: can not delete reflib.cnt\n"; }
-    if (std::remove("libeep.cnt") != 0) { std::cerr << "test_writer_speed: can not delete libeep.cnt\n"; }
+    if (!std::filesystem::remove("reflib.cnt")) { std::cerr << "test_writer_speed: can not delete reflib.cnt\n"; }
+    if (!std::filesystem::remove("libeep.cnt")) { std::cerr << "test_writer_speed: can not delete libeep.cnt\n"; }
 
     const auto chan{ vsize(reader.channels()) };
     const sensor_count channels{ chan };
