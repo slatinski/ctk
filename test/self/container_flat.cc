@@ -165,7 +165,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
                     epoch_reader_flat flat_reader{ fname, loose_files };
                     const auto flat_count{ flat_reader.data().count() };
                     REQUIRE(flat_count == reflib_count);
-                    const auto[start_time, information, is_ascii]{ parse_info(flat_reader.data().info_content()) };
+                    const auto [start_time, information, is_ascii] { parse_info(flat_reader.data().info_content()) };
                     REQUIRE(reflib_reader.data().information() == information);
 
                     matrix_decoder_reflib decode;
@@ -187,12 +187,12 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
                         const auto v_fc{ decode(fce.data, fce.length, copy) };
                         REQUIRE(v_rc == v_fc);
                     }
-
-                    std::vector<std::filesystem::path> fnames(loose_files.size());
-                    std::transform(begin(loose_files), end(loose_files), begin(fnames), get_fname);
-                    REQUIRE(delete_files(fnames));
-                    fnames.clear();
                 }
+
+                std::vector<std::filesystem::path> fnames(loose_files.size());
+                std::transform(begin(loose_files), end(loose_files), begin(fnames), get_fname);
+                REQUIRE(delete_files(fnames));
+                fnames.clear();
             }
 
             std::cerr << " ok\n";
@@ -218,34 +218,39 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
 	while (!fname.empty()) {
 		try {
 			std::cerr << s2s(fname, fname_width);
+            {
+                cnt_reader_reflib_riff r_orig{ fname, is_broken };
+                measurement_count sample_count{ 0 };
+                measurement_count ch{ 1 };
 
-            cnt_reader_reflib_riff r_orig{ fname, is_broken };
+                {
+                    cnt_writer_reflib_riff writer{ temp_cnt_file, RiffType::riff64, r_orig.history() }; // TODO: both 32/64
+                    writer.recording_info(r_orig.information());
+                    // REMEMBER MISSING: r_orig.channel_order()
+                    auto* raw3{ writer.add_time_signal(r_orig.description()) };
 
-            cnt_writer_reflib_riff writer{ temp_cnt_file, RiffType::riff64, r_orig.history() }; // TODO: both 32/64
-            writer.recording_info(r_orig.information());
-            // REMEMBER MISSING: r_orig.channel_order()
-            auto* raw3{ writer.add_time_signal(r_orig.description()) };
+                    sample_count = r_orig.sample_count();
+                    for (measurement_count i{ 0 }; i < sample_count; ++i) {
+                        raw3->range_column_major(r_orig.range_column_major(i, ch));
+                    }
+                    raw3->triggers(r_orig.triggers());
 
-            const auto sample_count{ r_orig.sample_count() };
-            const measurement_count chunk{ 1 };
-            for (measurement_count i{ 0 }; i < sample_count; ++i) {
-                raw3->range_column_major(r_orig.range_column_major(i, chunk));
+                    writer.close();
+                }
+
+                cnt_reader_reflib_riff r_temp{ temp_cnt_file, is_broken };
+                REQUIRE(r_orig.epoch_length() == r_temp.epoch_length());
+                REQUIRE(ascii_sampling_frequency(r_orig.sampling_frequency()) == ascii_sampling_frequency(r_temp.sampling_frequency()));
+                REQUIRE(r_orig.segment_start_time() == r_temp.segment_start_time());
+                REQUIRE(r_orig.channels() == r_temp.channels());
+                REQUIRE(r_orig.sample_count() == r_temp.sample_count());
+                REQUIRE(r_orig.triggers() == r_temp.triggers());
+                REQUIRE(r_orig.information() == r_temp.information());
+                for (measurement_count i{ 0 }; i < sample_count; ++i) {
+                    REQUIRE(r_orig.range_column_major(i, ch) == r_temp.range_column_major(i, ch));
+                }
             }
-            raw3->triggers(r_orig.triggers());
 
-            writer.close();
-
-            cnt_reader_reflib_riff r_temp{ temp_cnt_file, is_broken };
-            REQUIRE(r_orig.epoch_length() == r_temp.epoch_length());
-            REQUIRE(ascii_sampling_frequency(r_orig.sampling_frequency()) == ascii_sampling_frequency(r_temp.sampling_frequency()));
-            REQUIRE(r_orig.segment_start_time() == r_temp.segment_start_time());
-            REQUIRE(r_orig.channels() == r_temp.channels());
-            REQUIRE(r_orig.sample_count() == r_temp.sample_count());
-            REQUIRE(r_orig.triggers() == r_temp.triggers());
-            REQUIRE(r_orig.information() == r_temp.information());
-            for (measurement_count i{ 0 }; i < sample_count; ++i) {
-                REQUIRE(r_orig.range_column_major(i, chunk) == r_temp.range_column_major(i, chunk));
-            }
             REQUIRE(std::filesystem::remove(temp_cnt_file));
             std::cerr << " ok\n";
         }
