@@ -97,29 +97,6 @@ namespace ctk { namespace impl {
 
 
 
-    struct time_signal
-    {
-        api::v1::TimeSeries ts;
-        label_type chunk_id; // parent chunk label, eg "raw3" in reflib
-        segment_count index;
-
-        explicit time_signal(const api::v1::TimeSeries&);
-        time_signal(std::chrono::system_clock::time_point, double, const std::vector<api::v1::Electrode>&, measurement_count, label_type);
-        time_signal();
-        time_signal(const time_signal&) = default;
-        time_signal(time_signal&&) = default;
-        ~time_signal() = default;
-
-        auto operator=(const time_signal&) -> time_signal& = default;
-        auto operator=(time_signal&&) -> time_signal& = default;
-
-        friend auto operator==(const time_signal&, const time_signal&) -> bool = default;
-        friend auto operator!=(const time_signal&, const time_signal&) -> bool = default;
-    };
-    auto operator<<(std::ostream&, const time_signal&) -> std::ostream&;
-
-
-
     struct user_content
     {
         std::string label;
@@ -144,7 +121,7 @@ namespace ctk { namespace impl {
     {
         // time signal(s)
         measurement_count sample_count;
-        time_signal header;
+        api::v1::TimeSeries header;
         std::vector<int16_t> order;
         std::vector<file_range> epoch_ranges;
         file_range trigger_range;
@@ -246,7 +223,7 @@ namespace ctk { namespace impl {
 
     public:
 
-        epoch_writer_flat(const std::filesystem::path& cnt, const time_signal& x, api::v1::RiffType s, const std::string& history);
+        epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s, const std::string& history);
         epoch_writer_flat(const epoch_writer_flat&) = delete;
         epoch_writer_flat(epoch_writer_flat&&) = default;
         ~epoch_writer_flat() = default;
@@ -397,7 +374,7 @@ namespace ctk { namespace impl {
         auto epoch_length() const -> measurement_count;
         auto sample_count() const -> measurement_count;
         auto sampling_frequency() const -> double;
-        auto description() const -> time_signal;
+        auto description() const -> api::v1::TimeSeries;
         auto order() const -> std::vector<int16_t>;
         auto channel_count() const -> sensor_count;
         auto channels() const -> std::vector<api::v1::Electrode>;
@@ -471,7 +448,6 @@ namespace ctk { namespace impl {
         auto embedded_files() const -> std::vector<std::string>;
         auto extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> bool;
     };
-
 
 
     auto d2s(double x, int precision) -> std::string;

@@ -43,10 +43,10 @@ auto compare_readers(const std::string& fname) -> void {
 
     const auto desc{ reader_direct.description() };
     const auto desc_api{ reader_api.description() };
-    REQUIRE(desc.ts.epoch_length == desc_api.epoch_length);
-    REQUIRE(desc.ts.sampling_frequency == desc_api.sampling_frequency);
-    REQUIRE(desc.ts.start_time == desc_api.start_time);
-    REQUIRE(desc.ts.electrodes == desc_api.electrodes);
+    REQUIRE(desc.epoch_length == desc_api.epoch_length);
+    REQUIRE(desc.sampling_frequency == desc_api.sampling_frequency);
+    REQUIRE(desc.start_time == desc_api.start_time);
+    REQUIRE(desc.electrodes == desc_api.electrodes);
 
     REQUIRE(reader_direct.history() == reader_api.history());
     REQUIRE(reader_direct.file_version().major == reader_api.fileVersion().major);

@@ -259,8 +259,9 @@ public:
         return { cast(major, uint8_t{}, ok{}), cast(minor, uint8_t{}, ok{}) };
     }
 
-    auto description() const -> time_signal {
-        return { api::dcdate2timepoint(segment_start_time()), sampling_frequency(), channels(), epoch_length(), 0 };
+    auto description() const -> TimeSeries {
+        const measurement_count::value_type length{ epoch_length() }; 
+        return { api::dcdate2timepoint(segment_start_time()), sampling_frequency(), channels(), length };
     }
 
     auto measure_get(ptrdiff_t start, ptrdiff_t length) -> std::chrono::microseconds {
@@ -428,28 +429,28 @@ public:
         writer->set_info(start_time, x);
     }
 
-    auto add_time_signal(const time_signal& x) -> libeep_writer* {
-        start_time = api::timepoint2dcdate(x.ts.start_time);
+    auto add_time_signal(const TimeSeries& x) -> libeep_writer* {
+        start_time = api::timepoint2dcdate(x.start_time);
 
         using free_ptr = std::unique_ptr<libeep::eegchan_t, mem_free>;
 
-        const short chanc{ cast(x.ts.electrodes.size(), short{}, ok{}) };
+        const short chanc{ cast(x.electrodes.size(), short{}, ok{}) };
         free_ptr elc{ (libeep::eegchan_t*)malloc(size_t(chanc) * sizeof(libeep::eegchan_t)) };
         if (!elc) {
             throw ctk_limit{ "cnt_writer_libeep_riff::add_time_signal: can not allocate elc" };
         }
         libeep::eegchan_t* e{ elc.get() };
-        for (size_t i{ 0 }; i < x.ts.electrodes.size(); ++i) {
-            std::strncpy(e[i].lab, x.ts.electrodes[i].label.c_str(), sizeof(e[i].lab) - 1);
-            e[i].iscale = x.ts.electrodes[i].iscale;
-            e[i].rscale = x.ts.electrodes[i].rscale;
-            std::strncpy(e[i].runit, x.ts.electrodes[i].unit.c_str(), sizeof(e[i].runit) - 1);
-            std::strncpy(e[i].reflab, x.ts.electrodes[i].reference.c_str(), sizeof(e[i].reflab) - 1);
-            std::strncpy(e[i].status, x.ts.electrodes[i].status.c_str(), sizeof(e[i].status) - 1);
-            std::strncpy(e[i].type, x.ts.electrodes[i].type.c_str(), sizeof(e[i].type) - 1);
+        for (size_t i{ 0 }; i < x.electrodes.size(); ++i) {
+            std::strncpy(e[i].lab, x.electrodes[i].label.c_str(), sizeof(e[i].lab) - 1);
+            e[i].iscale = x.electrodes[i].iscale;
+            e[i].rscale = x.electrodes[i].rscale;
+            std::strncpy(e[i].runit, x.electrodes[i].unit.c_str(), sizeof(e[i].runit) - 1);
+            std::strncpy(e[i].reflab, x.electrodes[i].reference.c_str(), sizeof(e[i].reflab) - 1);
+            std::strncpy(e[i].status, x.electrodes[i].status.c_str(), sizeof(e[i].status) - 1);
+            std::strncpy(e[i].type, x.electrodes[i].type.c_str(), sizeof(e[i].type) - 1);
         }
 
-        const auto period{ 1.0 / x.ts.sampling_frequency };
+        const auto period{ 1.0 / x.sampling_frequency };
         cnt.reset(libeep::eep_init_from_values(period, chanc, elc.release()));
         if (!cnt) {
             throw ctk_data{ "cnt_writer_libeep_riff::add_time_signal: eep_init_from_values failed" };
@@ -466,7 +467,7 @@ public:
         }
 
         auto chanv{ natural_row_order(sensor_count{ chanc }) };
-        const sint length{ x.ts.epoch_length };
+        const sint length{ x.epoch_length };
         if (libeep::eep_prepare_to_write(cnt.get(), libeep::DATATYPE_EEG, cast(length, uint64_t{}, ok{}), chanv.data()) != CNTERR_NONE) {
             throw ctk_data{ "cnt_writer_libeep_riff::add_time_signal: eep_prepare_to_write failed" };
         }

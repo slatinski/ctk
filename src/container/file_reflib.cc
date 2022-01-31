@@ -63,7 +63,7 @@ auto cnt_writer_reflib_riff::recording_info(const api::v1::Info& x) -> void {
     flat_writer->set_info(x);
 }
 
-auto cnt_writer_reflib_riff::add_time_signal(const time_signal& description) -> cnt_writer_reflib_flat* {
+auto cnt_writer_reflib_riff::add_time_signal(const api::v1::TimeSeries& description) -> cnt_writer_reflib_flat* {
     if (flat_writer) {
         throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::add_time_signal: one segment only" };
     }

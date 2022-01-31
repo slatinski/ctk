@@ -31,14 +31,6 @@ namespace ctk { namespace api {
 
         using namespace ctk::impl;
 
-        auto to_api(const time_signal& x) -> TimeSeries {
-            return x.ts;
-        }
-
-        auto from_api(const TimeSeries& x) -> time_signal {
-            return time_signal{ x };
-        }
-
 
         struct CntReaderReflib::impl
         {
@@ -124,7 +116,7 @@ namespace ctk { namespace api {
 
         auto CntReaderReflib::description() const -> TimeSeries {
             assert(p);
-            return to_api(p->reader.description());
+            return p->reader.description();
         }
 
         auto CntReaderReflib::cntType() const -> RiffType {
@@ -219,7 +211,7 @@ namespace ctk { namespace api {
                 return false; // one segment only
             }
 
-            p->raw3 = p->writer.add_time_signal(from_api(description));
+            p->raw3 = p->writer.add_time_signal(description);
             return p->raw3 != nullptr;
         }
 

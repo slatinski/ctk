@@ -502,36 +502,6 @@ namespace ctk { namespace impl {
     }
 
 
-    time_signal::time_signal()
-    : chunk_id{ 0 }
-    , index{ 0 } {
-    }
-
-    time_signal::time_signal(const api::v1::TimeSeries& x)
-    : ts{ x }
-    , chunk_id{ 0 }
-    , index{ 0 } {
-    }
-
-    time_signal::time_signal(std::chrono::system_clock::time_point start_time, double sampling_frequency, const std::vector<api::v1::Electrode>& electrodes, measurement_count epoch_length, label_type chunk_id)
-    : ts{ start_time, sampling_frequency, electrodes, static_cast<measurement_count::value_type>(epoch_length) }
-    , chunk_id{ chunk_id }
-    , index{ 0 } {
-    }
-
-    auto operator<<(std::ostream& os, const time_signal& x) -> std::ostream& {
-        os << "segment " << x.index
-           << ", epoch length " << x.ts.epoch_length
-           << ", sampling frequency " << x.ts.sampling_frequency
-           << ", start time " << std::chrono::duration_cast<std::chrono::nanoseconds>(x.ts.start_time.time_since_epoch()).count() << "\n";
-           for (const auto& e : x.ts.electrodes) {
-               os << e << "\n";
-           }
-
-        return os;
-    }
-
-
 
     user_content::user_content(const std::string& label, const file_range& storage)
     : label{ label }
@@ -1002,11 +972,11 @@ namespace ctk { namespace impl {
         std::ostringstream oss;
 
         oss << "[File Version]\n" << CTK_FILE_VERSION_MAJOR << "." << CTK_FILE_VERSION_MINOR << "\n";
-        oss << "[Sampling Rate]\n" << ascii_sampling_frequency(data.header.ts.sampling_frequency) << "\n";
+        oss << "[Sampling Rate]\n" << ascii_sampling_frequency(data.header.sampling_frequency) << "\n";
         oss << "[Samples]\n" << data.sample_count << "\n";
-        oss << "[Channels]\n" << data.header.ts.electrodes.size() << "\n";
+        oss << "[Channels]\n" << data.header.electrodes.size() << "\n";
         oss << "[Basic Channel Data]\n";
-        oss << make_electrodes_content(data.header.ts.electrodes);
+        oss << make_electrodes_content(data.header.electrodes);
         oss << "[History]\n" << data.history << "\nEOH\n";
 
         return oss.str();
@@ -1049,7 +1019,7 @@ namespace ctk { namespace impl {
     }
 
     auto make_info_content(const amorph& x) -> std::string {
-        return make_info_content(api::timepoint2dcdate(x.header.ts.start_time), x.information);
+        return make_info_content(api::timepoint2dcdate(x.header.start_time), x.information);
     }
 
 
@@ -1184,32 +1154,32 @@ namespace ctk { namespace impl {
 
 
     static
-    auto is_valid(const time_signal& x) -> bool {
-        if (x.ts.epoch_length < 1) {
-            std::cerr << "is_valid(time_signal): epoch length " << x.ts.epoch_length << "\n";
+    auto is_valid(const api::v1::TimeSeries& x) -> bool {
+        if (x.epoch_length < 1) {
+            std::cerr << "is_valid(TimeSeries): epoch length " << x.epoch_length << "\n";
             return false;
         }
 
-        if (!std::isfinite(x.ts.sampling_frequency) || x.ts.sampling_frequency <= 0) {
-            std::cerr << "is_valid(time_signal): sampling frequency " << x.ts.sampling_frequency << "\n";
+        if (!std::isfinite(x.sampling_frequency) || x.sampling_frequency <= 0) {
+            std::cerr << "is_valid(TimeSeries): sampling frequency " << x.sampling_frequency << "\n";
             return false;
         }
 
         /*
-        if (!is_valid(api::timepoint2dcdate(x.ts.start_time))) {
-            std::cerr << "is_valid(time_signal): start time " << x.ts.start_time << "\n";
+        if (!is_valid(api::timepoint2dcdate(x.start_time))) {
+            std::cerr << "is_valid(TimeSeries): start time " << x.start_time << "\n";
             return false;
         }
         */
 
-        if (x.ts.electrodes.empty()) {
-            std::cerr << "is_valid(time_signal): no electrodes\n";
+        if (x.electrodes.empty()) {
+            std::cerr << "is_valid(TimeSeries): no electrodes\n";
             return false;
         }
 
         const auto valid_electrode = [](bool acc, const api::v1::Electrode& e) -> bool { return acc && is_valid(e); };
 
-        return std::accumulate(begin(x.ts.electrodes), end(x.ts.electrodes), true, valid_electrode);
+        return std::accumulate(begin(x.electrodes), end(x.electrodes), true, valid_electrode);
     }
 
 
@@ -1230,8 +1200,8 @@ namespace ctk { namespace impl {
             return false;
         }
 
-        if (x.order.size() != x.header.ts.electrodes.size()) {
-            std::cerr << "is_valid(amorph): electrodes " << x.header.ts.electrodes.size() << ", channel order " << x.order.size() << "\n";
+        if (x.order.size() != x.header.electrodes.size()) {
+            std::cerr << "is_valid(amorph): electrodes " << x.header.electrodes.size() << ", channel order " << x.order.size() << "\n";
             return false;
         }
         
@@ -1409,10 +1379,10 @@ namespace ctk { namespace impl {
         const auto[start_time, information]{ read_info_riff(f, inf, eep_h.version) };
 
         amorph result;
-        result.header.ts.start_time = start_time;
-        result.header.ts.epoch_length = static_cast<measurement_count::value_type>(length);
-        result.header.ts.electrodes = eep_h.electrodes;
-        result.header.ts.sampling_frequency = eep_h.sampling_frequency;
+        result.header.start_time = start_time;
+        result.header.epoch_length = static_cast<measurement_count::value_type>(length);
+        result.header.electrodes = eep_h.electrodes;
+        result.header.sampling_frequency = eep_h.sampling_frequency;
         result.sample_count = eep_h.sample_count;
         result.version = eep_h.version;
         result.history = eep_h.history;
@@ -1696,10 +1666,10 @@ namespace ctk { namespace impl {
         tokens.back().f.reset(nullptr);
     }
 
-    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& cnt, const time_signal& x, api::v1::RiffType s, const std::string& history)
+    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s, const std::string& history)
     : samples{ 0 }
-    , epoch_size{ x.ts.epoch_length }
-    , start_time{ x.ts.start_time }
+    , epoch_size{ x.epoch_length }
+    , start_time{ x.start_time }
     , f_ep{ nullptr }
     , f_data{ nullptr }
     , f_sample_count{ nullptr }
@@ -1730,19 +1700,19 @@ namespace ctk { namespace impl {
         write(f_info, begin(i), end(i));
         ::fflush(f_info);
 
-        const sensor_count c{ vsize(x.ts.electrodes) };
+        const sensor_count c{ vsize(x.electrodes) };
         const auto o{ natural_row_order(c) };
         auto f_chan{ add_file(fname_chan(fname), file_tag::chan, "raw3") };
         write(f_chan, begin(o), end(o));
         close_last();
 
-        ascii_parseable(x.ts.sampling_frequency); // compatibility: stored in eeph
+        ascii_parseable(x.sampling_frequency); // compatibility: stored in eeph
         auto f_sampling_frequency{ add_file(fname_sampling_frequency(fname), file_tag::sampling_frequency, "eeph") };
-        write(f_sampling_frequency, x.ts.sampling_frequency);
+        write(f_sampling_frequency, x.sampling_frequency);
         close_last();
 
         auto f_electrodes{ add_file(fname_electrodes(fname), file_tag::electrodes, "eeph") };
-        write_electrodes(f_electrodes, x.ts.electrodes);
+        write_electrodes(f_electrodes, x.electrodes);
         close_last();
 
         auto f_type{ add_file(fname_cnt_type(fname), file_tag::cnt_type, "cntt") };
@@ -1853,7 +1823,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::epoch(epoch_count i) const -> compressed_epoch {
-        return epoch_n(f_data, i, data->epoch_ranges, data->sample_count, measurement_count{ data->header.ts.epoch_length });
+        return epoch_n(f_data, i, data->epoch_ranges, data->sample_count, measurement_count{ data->header.epoch_length });
     }
 
     auto epoch_reader_common::epoch(epoch_count i, std::nothrow_t) const -> compressed_epoch {
@@ -1879,7 +1849,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::epoch_length() const -> measurement_count {
-        return measurement_count{ data->header.ts.epoch_length };
+        return measurement_count{ data->header.epoch_length };
     }
 
     auto epoch_reader_common::sample_count() const -> measurement_count {
@@ -1887,10 +1857,10 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::sampling_frequency() const -> double {
-        return data->header.ts.sampling_frequency;
+        return data->header.sampling_frequency;
     }
 
-    auto epoch_reader_common::description() const -> time_signal {
+    auto epoch_reader_common::description() const -> api::v1::TimeSeries {
         return data->header;
     }
 
@@ -1903,7 +1873,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::channels() const -> std::vector<api::v1::Electrode> {
-        return data->header.ts.electrodes;
+        return data->header.electrodes;
     }
 
     auto epoch_reader_common::info_content() const -> std::string {
@@ -1923,7 +1893,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::segment_start_time() const -> api::v1::DcDate {
-        return api::timepoint2dcdate(data->header.ts.start_time);
+        return api::timepoint2dcdate(data->header.start_time);
     }
 
     auto epoch_reader_common::history() const -> std::string {
@@ -2145,11 +2115,11 @@ namespace ctk { namespace impl {
         read(f_history.get(), begin(history), end(history));
 
         amorph result;
-        result.header.ts.epoch_length = static_cast<measurement_count::value_type>(length);
+        result.header.epoch_length = static_cast<measurement_count::value_type>(length);
         result.sample_count = read_sample_count(f_sample_count.get());
-        result.header.ts.sampling_frequency = read(f_sampling_frequency.get(), double{});
-        result.header.ts.electrodes = read_electrodes_flat(f_electrodes.get());
-        result.header.ts.start_time = start_time;
+        result.header.sampling_frequency = read(f_sampling_frequency.get(), double{});
+        result.header.electrodes = read_electrodes_flat(f_electrodes.get());
+        result.header.start_time = start_time;
         result.order = read_chan(f_chan.get(), { part_header_size, chan_size });
         result.epoch_ranges = offsets2ranges({ part_header_size, data_size }, offsets);
         result.trigger_range = { part_header_size, trigger_size };
