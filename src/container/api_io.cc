@@ -105,7 +105,6 @@ namespace ctk { namespace impl {
         , info
         , electrode
         , time_signal
-        , time_series_header
         , length
     };
 
@@ -281,22 +280,6 @@ namespace ctk { namespace impl {
         write(f, begin(epoch_length), end(epoch_length));
         write_electrodes(f, x.electrodes);
         // TODO: encoding parameters: format, size, sidedness
-    }
-
-    auto write_time_series_header(FILE* f, const api::v1::TimeSeries& x, int64_t sample_count, size_t input_data_size, bool is_signed) -> void {
-        const uint8_t data_size{ static_cast<uint8_t>(input_data_size) };
-        const uint8_t signum{ static_cast<uint8_t>(is_signed) };
-
-        write(f, object_tags::time_series_header);
-        write(f, sample_count);
-        write_time_series(f, x);
-        write(f, data_size);
-        write(f, signum);
-    }
-
-    auto patch_time_series_header(FILE* f, int64_t sample_count) -> void {
-        seek(f, sizeof(object_tags), SEEK_SET);
-        write(f, sample_count);
     }
 
 } /* namespace impl */ } /* namespace ctk */

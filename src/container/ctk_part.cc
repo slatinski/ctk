@@ -139,7 +139,6 @@ namespace ctk { namespace impl {
             case file_tag::info: os << "info"; break;
             case file_tag::cnt_type: os << "cnt type"; break;
             case file_tag::history: os << "history"; break;
-            case file_tag::time_series_header: os << "time series header"; break;
             case file_tag::satellite_evt: os << "evt data"; break;
             default: throw api::v1::ctk_bug{ "operator<<(file_tag): invalid" };
         }

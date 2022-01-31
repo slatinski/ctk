@@ -48,7 +48,6 @@ namespace ctk { namespace impl {
       , info
       , cnt_type
       , history
-      , time_series_header
       // .evt
       , satellite_evt
       // cannary

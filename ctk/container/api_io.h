@@ -28,9 +28,6 @@ namespace ctk { namespace impl {
     auto write_info(FILE*, const api::v1::Info&) -> void;
     auto write_time_series(FILE*, const api::v1::TimeSeries&) -> void;
 
-    auto write_time_series_header(FILE*, const api::v1::TimeSeries&, int64_t sample_count, size_t input_data_size, bool is_signed) -> void;
-    auto patch_time_series_header(FILE*, int64_t sample_count) -> void;
-
     auto write_electrodes(FILE*, const std::vector<api::v1::Electrode>&) -> void;
     auto read_electrodes(FILE*) -> std::vector<api::v1::Electrode>;
 

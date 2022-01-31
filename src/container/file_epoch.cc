@@ -1690,32 +1690,6 @@ namespace ctk { namespace impl {
     };
 
 
-    static
-    auto write_time_series_header(FILE* f, const ts_header& h) {
-        assert(tell(f) == part_header_size);
-        write(f, static_cast<measurement_count::value_type>(h.length));
-        write(f, static_cast<segment_count::value_type>(h.segment_index));
-        write(f, h.data_size);
-        write(f, h.is_signed);
-    }
-
-    static
-    auto update_time_series_header(FILE* f, measurement_count samples) {
-        seek(f, part_header_size, SEEK_SET);
-        write(f, static_cast<measurement_count::value_type>(samples));
-    }
-
-    static
-    auto read_time_series_header(FILE* f) -> ts_header {
-        assert(tell(f) == part_header_size);
-        const auto length{ read(f, measurement_count::value_type{}) };
-        const auto segment_index{ read(f, segment_count::value_type{}) };
-        const auto data_size{ read(f, uint8_t{}) };
-        const auto is_signed{ read(f, uint8_t{}) };
-        return { segment_count{ segment_index }, measurement_count{ length }, data_size, is_signed };
-    }
-
-
     auto epoch_writer_flat::add_file(std::filesystem::path fname, file_tag id, std::string chunk_id) -> FILE* {
         tokens.push_back(own_file{ open_w(fname), file_token{ tagged_file{ id, fname }, as_label(chunk_id) } });
         write_part_header(tokens.back().f.get(), tokens.back().t.tag.id, tokens.back().t.chunk_id);
@@ -1783,10 +1757,6 @@ namespace ctk { namespace impl {
         auto f_history{ add_file(fname_history(fname), file_tag::history, "eeph") };
         write(f_history, begin(history), end(history));
         close_last();
-
-        auto f_header{ add_file(fname_time_series_header(fname), file_tag::time_series_header, as_string(x.chunk_id)) };
-        write_time_series_header(f_header, { x.index, measurement_count{ 0 }, sizeof(int32_t), std::is_signed<int32_t>::value });
-        close_last();
     }
 
     auto epoch_writer_flat::append(const compressed_epoch& ce) -> void {
@@ -1827,9 +1797,6 @@ namespace ctk { namespace impl {
             tokens[i].f.reset(nullptr);
         }
         open_files = 0;
-
-        auto f_header{ open_w(fname) };
-        update_time_series_header(f_header.get(), samples);
     }
 
     auto epoch_writer_flat::flush() -> void {
@@ -2034,11 +2001,6 @@ namespace ctk { namespace impl {
             result.emplace_back(file_tag::history, name_history);
         }
 
-        const auto name_time_series_header{ fname_time_series_header(cnt) };
-        if (has_ctk_part(name_time_series_header, file_tag::time_series_header, as_label(""), false)) {
-            result.emplace_back(file_tag::time_series_header, name_time_series_header);
-        }
-
         return result;
     }
 
@@ -2168,7 +2130,6 @@ namespace ctk { namespace impl {
         auto f_info{ open_r(get_name(file_tag::info)) };
         auto f_type{ open_r(get_name(file_tag::cnt_type)) };
         auto f_history{ open_r(get_name(file_tag::history)) };
-        auto f_header{ open_r(get_name(file_tag::time_series_header)) };
 
         const auto data_size{ file_size(f_data.get()) - part_header_size };
         const auto trigger_size{ file_size(f_triggers.get()) - part_header_size };
@@ -2182,13 +2143,10 @@ namespace ctk { namespace impl {
         read_part_header(f_sampling_frequency.get(), file_tag::sampling_frequency, as_label("eeph"), true);
         read_part_header(f_chan.get(), file_tag::chan, as_label("raw3"), true);
         read_part_header(f_history.get(), file_tag::history, as_label("eeph"), true);
-        const auto cnt_label{ read_part_header(f_header.get(), file_tag::time_series_header, as_label(""), false) };
 
         std::string history;
         history.resize(as_sizet_unchecked(history_size));
         read(f_history.get(), begin(history), end(history));
-
-        const ts_header tsh{ read_time_series_header(f_header.get()) };
 
         amorph result;
         result.header.ts.epoch_length = static_cast<measurement_count::value_type>(length);
@@ -2196,8 +2154,6 @@ namespace ctk { namespace impl {
         result.header.ts.sampling_frequency = read(f_sampling_frequency.get(), double{});
         result.header.ts.electrodes = read_electrodes_flat(f_electrodes.get());
         result.header.ts.start_time = start_time;
-        result.header.index = tsh.segment_index;
-        result.header.chunk_id = cnt_label;
         result.order = read_chan(f_chan.get(), { part_header_size, chan_size });
         result.epoch_ranges = offsets2ranges({ part_header_size, data_size }, offsets);
         result.trigger_range = { part_header_size, trigger_size };
