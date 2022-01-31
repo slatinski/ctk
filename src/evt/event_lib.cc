@@ -684,12 +684,12 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_archive_vector(FILE* f, const str_variant& v) -> void {
-        const uint32_t size{ cast(v.data.size(), uint32_t{}, ok{}) };
+    auto write_archive_vector(FILE* f, const str_variant& x) -> void {
+        const uint32_t size{ cast(x.data.size(), uint32_t{}, ok{}) };
         write(f, size);
 
-        for (const std::string& x : v.data) {
-            write_value(f, x, v.type);
+        for (const std::string& str : x.data) {
+            write_value(f, str, x.type);
         }
     }
 
@@ -762,66 +762,66 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_simple_variant(FILE* f, const str_variant& v) -> void {
-        const auto count{ v.data.size() };
+    auto write_simple_variant(FILE* f, const str_variant& x) -> void {
+        const auto count{ x.data.size() };
         if (count != 1) {
             throw api::v1::ctk_bug{ "write_simple_variant: not a simple variant" };
         }
 
-        write(f, static_cast<int16_t>(v.type));
-        write_value(f, v.data[0], v.type);
+        write(f, static_cast<int16_t>(x.type));
+        write_value(f, x.data[0], x.type);
     }
 
 
     static
-    auto read_variant_array(FILE* f, str_variant& v) -> void {
+    auto read_variant_array(FILE* f, str_variant& x) -> void {
         const auto [array_type, valid]{ read_simple_variant(f) };
         if (!valid) {
             throw api::v1::ctk_data{ "read_variant_array: invalid array type" };
         }
 
-        v.type = array_type.type;
-        v.is_array = true;
+        x.type = array_type.type;
+        x.is_array = true;
 
         if (array_type.type == vt_i1) {
-            v.data = read_archive_vector(f, int8_t{});
+            x.data = read_archive_vector(f, int8_t{});
         }
         else if (array_type.type == vt_i2) {
-            v.data = read_archive_vector(f, int16_t{});
+            x.data = read_archive_vector(f, int16_t{});
         }
         else if (array_type.type == vt_i4) {
-            v.data = read_archive_vector(f, int32_t{});
+            x.data = read_archive_vector(f, int32_t{});
         }
         /*
         else if (array_type.type == vt_i8) {
-            v.data = read_archive_vector(f, int64_t{});
+            x.data = read_archive_vector(f, int64_t{});
         }
         */
         else if (array_type.type == vt_u1) {
-            v.data = read_archive_vector(f, uint8_t{});
+            x.data = read_archive_vector(f, uint8_t{});
         }
         else if (array_type.type == vt_u2) {
-            v.data = read_archive_vector(f, uint16_t{});
+            x.data = read_archive_vector(f, uint16_t{});
         }
         else if (array_type.type == vt_u4) {
-            v.data = read_archive_vector(f, uint32_t{});
+            x.data = read_archive_vector(f, uint32_t{});
         }
         /*
         else if (array_type.type == vt_u8) {
-            v.data = read_archive_vector(f, uint64_t{});
+            x.data = read_archive_vector(f, uint64_t{});
         }
         */
         else if (array_type.type == vt_r4) {
-            v.data = read_archive_vector(f, float{});
+            x.data = read_archive_vector(f, float{});
         }
         else if (array_type.type == vt_r8) {
-            v.data = read_archive_vector(f, double{});
+            x.data = read_archive_vector(f, double{});
         }
         else if (array_type.type == vt_bool) {
-            v.data = read_archive_vector(f, bool{});
+            x.data = read_archive_vector(f, bool{});
         }
         else if (array_type.type == vt_bstr) {
-            v.data = read_archive_vector(f, std::wstring{});
+            x.data = read_archive_vector(f, std::wstring{});
         }
         else {
             throw api::v1::ctk_data{ "read_variant_array: invalid element type" };
@@ -866,12 +866,12 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_variant_array(FILE* f, const str_variant& v) -> void {
+    auto write_variant_array(FILE* f, const str_variant& x) -> void {
         constexpr const int16_t array_of_variants{ vt_array | vt_variant };
 
         write(f, array_of_variants);
-        write_simple_variant(f, make_dummy_variant(v.type));
-        write_archive_vector(f, v);
+        write_simple_variant(f, make_dummy_variant(x.type));
+        write_archive_vector(f, x);
     }
 
 
@@ -893,17 +893,17 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_variant(FILE* f, const str_variant& v) -> void {
-        if (v.data.empty() && v.type != vt_empty) {
+    auto write_variant(FILE* f, const str_variant& x) -> void {
+        if (x.data.empty() && x.type != vt_empty) {
             throw api::v1::ctk_bug{ "write_variant: invalid input" };
         }
 
-        if (v.is_array) {
-            write_variant_array(f, v);
+        if (!x.is_array) {
+            write_simple_variant(f, x);
+            return;
         }
-        else {
-            write_simple_variant(f, v);
-        }
+
+        write_variant_array(f, x);
     }
 
 
@@ -932,16 +932,14 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_channel_info(FILE* f, const channel_info& channel) -> void {
-        write_archive_string(f, channel.active);
-        write_archive_string(f, channel.reference);
+    auto write_channel_info(FILE* f, const channel_info& x) -> void {
+        write_archive_string(f, x.active);
+        write_archive_string(f, x.reference);
     }
 
 
     static
     auto read_archive_header(FILE* f, event_library& lib) -> void {
-        lib.version = 0;
-
         read(f, uint32_t{}); // ctime
         read(f, uint32_t{}); // mtime
         read(f, uint32_t{}); // atime
@@ -1028,10 +1026,10 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_descriptor(FILE* f, const event_descriptor& descriptor) -> void {
-        write_archive_string(f, descriptor.name);
-        write_variant(f, descriptor.value);
-        write_archive_string(f, descriptor.unit);
+    auto write_descriptor(FILE* f, const event_descriptor& x) -> void {
+        write_archive_string(f, x.name);
+        write_variant(f, x.value);
+        write_archive_string(f, x.unit);
     }
 
 
@@ -1325,15 +1323,15 @@ namespace ctk { namespace impl {
             lib.epochs.push_back(load_event(f, lib.version, epoch_event{}));
         }
         else if (class_name == dc_names::marker) {
-            const marker_event event{ load_event(f, lib.version, marker_event{}) };
-            if (is_impedance(event)) {
-                lib.impedances.push_back(event);
+            const marker_event x{ load_event(f, lib.version, marker_event{}) };
+            if (is_impedance(x)) {
+                lib.impedances.push_back(x);
             }
-            else if (is_video(event)) {
-                lib.videos.push_back(event);
+            else if (is_video(x)) {
+                lib.videos.push_back(x);
             }
             else {
-                lib.markers.push_back(event);
+                lib.markers.push_back(x);
             }
         }
         else if (class_name == dc_names::artefact) {
@@ -1370,6 +1368,7 @@ namespace ctk { namespace impl {
             }
 
             if (class_tag == tags::null) {
+                assert(class_name.empty());
                 continue;
             }
 
@@ -1441,6 +1440,7 @@ namespace ctk { namespace impl {
         read_class(f, class_tag, class_name);
 
         if (class_tag == tags::null) {
+            assert(class_name.empty());
             return lib;
         }
 
@@ -1468,28 +1468,28 @@ namespace ctk { namespace impl {
     }
 
 
-    auto add_marker(marker_event marker, event_library& lib) -> void {
+    auto add_marker(marker_event x, event_library& lib) -> void {
         const int32_t count{ event_count(lib, int32_t{}) };
-        marker.common.visible_id = plus(count, 1, ok{});
-        lib.markers.push_back(marker);
+        x.common.visible_id = plus(count, 1, ok{});
+        lib.markers.push_back(x);
     }
 
-    auto add_video(marker_event marker, event_library& lib) -> void {
+    auto add_video(marker_event x, event_library& lib) -> void {
         const int32_t count{ event_count(lib, int32_t{}) };
-        marker.common.visible_id = plus(count, 1, ok{});
-        lib.videos.push_back(marker);
+        x.common.visible_id = plus(count, 1, ok{});
+        lib.videos.push_back(x);
     }
 
-    auto add_impedance(marker_event marker, event_library& lib) -> void {
+    auto add_impedance(marker_event x, event_library& lib) -> void {
         const int32_t count{ event_count(lib, int32_t{}) };
-        marker.common.visible_id = plus(count, 1, ok{});
-        lib.impedances.push_back(marker);
+        x.common.visible_id = plus(count, 1, ok{});
+        lib.impedances.push_back(x);
     }
 
-    auto add_epoch(epoch_event epoch, event_library& lib) -> void {
+    auto add_epoch(epoch_event x, event_library& lib) -> void {
         const int32_t count{ event_count(lib, int32_t{}) };
-        epoch.common.visible_id = plus(count, 1, ok{});
-        lib.epochs.push_back(epoch);
+        x.common.visible_id = plus(count, 1, ok{});
+        lib.epochs.push_back(x);
     }
 
 } /* namespace impl */ } /* namespace ctk */
