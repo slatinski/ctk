@@ -219,8 +219,7 @@ namespace ctk { namespace impl {
 
         const uint8_t tag{ read(f, uint8_t{}) };
         if (tag != static_cast<uint8_t>(object_tags::electrode)) {
-            std::cerr << "\nread_collection_size: expected " << unsigned(object_tags::electrode) << ", got " << unsigned(tag) << "\n";
-            throw api::v1::ctk_data{ "read_collection_size: not an electrode" };
+            throw api::v1::ctk_data{ "read_electrode: not an electrode" };
         }
 
         const std::string tag_string;
@@ -248,7 +247,6 @@ namespace ctk { namespace impl {
     auto read_collection_size(FILE* f) -> size_t {
         const uint8_t tag{ read(f, uint8_t{}) };
         if (tag != static_cast<uint8_t>(object_tags::collection)) {
-            std::cerr << "\nread_collection_size: expected " << unsigned(object_tags::collection) << ", got " << unsigned(tag) << "\n";
             throw api::v1::ctk_data{ "read_collection_size: not a collection" };
         }
 
