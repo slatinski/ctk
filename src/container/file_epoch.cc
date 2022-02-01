@@ -1666,7 +1666,7 @@ namespace ctk { namespace impl {
         tokens.back().f.reset(nullptr);
     }
 
-    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s, const std::string& history)
+    epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s)
     : samples{ 0 }
     , epoch_size{ x.epoch_length }
     , start_time{ x.start_time }
@@ -1675,6 +1675,7 @@ namespace ctk { namespace impl {
     , f_sample_count{ nullptr }
     , f_triggers{ nullptr }
     , f_info{ nullptr }
+    , f_history{ nullptr }
     , riff{ make_cnt_field_size(s) }
     , fname{ cnt }
     , open_files{ 0 } {
@@ -1687,6 +1688,7 @@ namespace ctk { namespace impl {
         f_sample_count = add_file(fname_sample_count(fname), file_tag::sample_count, "eeph");
         f_triggers = add_file(fname_triggers(fname), file_tag::triggers, "evt ");
         f_info = add_file(fname_info(fname), file_tag::info, "info");
+        f_history = add_file(fname_history(fname), file_tag::history, "eeph");
         open_files = tokens.size();
 
         const measurement_count::value_type epoch_length{ epoch_size };
@@ -1718,10 +1720,6 @@ namespace ctk { namespace impl {
         auto f_type{ add_file(fname_cnt_type(fname), file_tag::cnt_type, "cntt") };
         const auto t{ riff->root_id() };
         write(f_type, begin(t), end(t));
-        close_last();
-
-        auto f_history{ add_file(fname_history(fname), file_tag::history, "eeph") };
-        write(f_history, begin(history), end(history));
         close_last();
     }
 
@@ -1772,13 +1770,20 @@ namespace ctk { namespace impl {
         ::fflush(f_triggers);
     }
 
-    auto epoch_writer_flat::set_info(const api::v1::Info& x) -> void {
+    auto epoch_writer_flat::info(const api::v1::Info& x) -> void {
         assert(f_info);
         const api::v1::DcDate start{ api::timepoint2dcdate(start_time) };
         const auto i{ make_info_content(start, x) };
         seek(f_info, part_header_size, SEEK_SET);
         write(f_info, begin(i), end(i));
         ::fflush(f_info);
+    }
+
+    auto epoch_writer_flat::history(const std::string& x) -> void {
+        assert(f_history);
+        seek(f_history, part_header_size, SEEK_SET);
+        write(f_history, begin(x), end(x));
+        ::fflush(f_history);
     }
 
     auto epoch_writer_flat::file_tokens() const -> std::vector<tagged_file> {

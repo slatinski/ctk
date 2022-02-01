@@ -125,7 +125,7 @@ struct libeep_writer
     v1::CntWriterReflib writer;
 
     libeep_writer(const std::string& fname, double sample_rate, const std::vector<channel_v4>& channels, int cnt64)
-    : writer{ fname, int2riff(cnt64), "" } {
+    : writer{ fname, int2riff(cnt64) } {
         v1::TimeSeries ts;
         ts.sampling_frequency = sample_rate;
         ts.electrodes = channels2electrodes(channels);
@@ -243,7 +243,7 @@ PYBIND11_MODULE(ctkpy, m) {
       .def("__repr__", [](const v1::CntReaderReflib& x) { return print(x.description(), "reflib_reader"); });
 
     py::class_<v1::CntWriterReflib> rw(m, "reflib_writer", py::module_local()/*, py::dynamic_attr()*/);
-    rw.def(py::init<const std::string&, v1::RiffType, const std::string&>())
+    rw.def(py::init<const std::string&, v1::RiffType>())
       .def("close", &v1::CntWriterReflib::close, "Constructs the output cnt file")
       .def_property("recording_info", nullptr, &v1::CntWriterReflib::recordingInfo)
       .def_property("time_signal", nullptr, &v1::CntWriterReflib::addTimeSignal)

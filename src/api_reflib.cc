@@ -165,14 +165,14 @@ namespace ctk { namespace api {
             cnt_writer_reflib_riff writer;
             cnt_writer_reflib_flat *raw3;
 
-            impl(const std::filesystem::path& fname, RiffType riff, const std::string& history)
-            : writer{ fname, riff, history }
+            impl(const std::filesystem::path& fname, RiffType riff)
+            : writer{ fname, riff }
             , raw3{ nullptr } {
             }
         };
 
-        CntWriterReflib::CntWriterReflib(const std::filesystem::path& fname, RiffType riff, const std::string& history)
-            : p{ new impl{ fname, riff, history } } {
+        CntWriterReflib::CntWriterReflib(const std::filesystem::path& fname, RiffType riff)
+            : p{ new impl{ fname, riff } } {
             assert(p);
         }
 
@@ -249,6 +249,11 @@ namespace ctk { namespace api {
             }
 
             p->raw3->triggers(triggers);
+        }
+
+        auto CntWriterReflib::history(const std::string& x) -> void {
+            assert(p);
+            p->writer.history(x);
         }
 
         auto CntWriterReflib::flush() -> void {

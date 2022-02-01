@@ -101,7 +101,7 @@ namespace ctk { namespace api {
 
         struct CntWriterReflib
         {
-            CntWriterReflib(const std::filesystem::path& fname, RiffType riff, const std::string& history);
+            CntWriterReflib(const std::filesystem::path& fname, RiffType riff);
             CntWriterReflib(const CntWriterReflib&) = delete;
             CntWriterReflib(CntWriterReflib&&);
             auto operator=(const CntWriterReflib&) -> CntWriterReflib& = delete;
@@ -142,6 +142,8 @@ namespace ctk { namespace api {
 
             auto trigger(const Trigger&) -> void;
             auto triggers(const std::vector<Trigger>&) -> void;
+
+            auto history(const std::string&) -> void;
 
             auto flush() -> void;
 

@@ -24,14 +24,14 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 auto write(const std::string& fname) -> void {
     std::cerr << "writing " << fname << "\n";
 
-    const std::string history{ "initial recording" };
-    ctk::Info i;
-    i.subject_name = "Jane Doe";
-    i.physician = "Dr X";
-    i.technician = "Mr Y";
-    i.machine_make = "eego";
-    i.machine_model = "201";
-    i.machine_sn = "0000";
+    const std::string note{ "initial recording" };
+    ctk::Info info;
+    info.subject_name = "Jane Doe";
+    info.physician = "Dr X";
+    info.technician = "Mr Y";
+    info.machine_make = "eego";
+    info.machine_model = "201";
+    info.machine_sn = "0000";
 
     constexpr const int64_t epoch_length{ 4 };
     constexpr const int64_t height{ 3 };
@@ -51,9 +51,10 @@ auto write(const std::string& fname) -> void {
         description.electrodes[i].rscale = 1.0;
     }
 
-    ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64, history };
+    ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
     writer.addTimeSignal(description);
-    writer.recordingInfo(i);
+    writer.recordingInfo(info);
+    writer.history(note);
 
     for (int epoch{ 0 }; epoch < 25; ++epoch) {
         writer.rangeColumnMajor(input); // used by libeep's interface

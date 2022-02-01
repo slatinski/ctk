@@ -24,7 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 auto generate_input_file(const std::string& fname) -> void {
     std::cerr << "writing " << fname << "\n";
 
-    const std::string history{ "initial recording" };
+    const std::string note{ "initial recording" };
     ctk::Info i;
     i.subject_name = "Jane Doe";
     i.physician = "Dr X";
@@ -51,9 +51,10 @@ auto generate_input_file(const std::string& fname) -> void {
         description.electrodes[i].rscale = 1.0;
     }
 
-    ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64, history };
+    ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
     writer.addTimeSignal(description);
     writer.recordingInfo(i);
+    writer.history(note);
 
     for (size_t epoch{ 0 }; epoch < 3; ++epoch) {
         writer.rangeColumnMajor(input);

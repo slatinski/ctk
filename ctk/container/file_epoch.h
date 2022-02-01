@@ -213,6 +213,7 @@ namespace ctk { namespace impl {
         FILE* f_sample_count;
         FILE* f_triggers;
         FILE* f_info;
+        FILE* f_history;
         riff_ptr riff;
         std::filesystem::path fname;
         size_t open_files;
@@ -223,7 +224,7 @@ namespace ctk { namespace impl {
 
     public:
 
-        epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s, const std::string& history);
+        epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s);
         epoch_writer_flat(const epoch_writer_flat&) = delete;
         epoch_writer_flat(epoch_writer_flat&&) = default;
         ~epoch_writer_flat() = default;
@@ -231,10 +232,11 @@ namespace ctk { namespace impl {
         auto operator=(const epoch_writer_flat&) -> epoch_writer_flat& = delete;
         auto operator=(epoch_writer_flat&&) -> epoch_writer_flat& = default;
 
-        auto append(const compressed_epoch& ce) -> void;
-        auto append(const api::v1::Trigger& x) -> void;
+        auto append(const compressed_epoch&) -> void;
+        auto append(const api::v1::Trigger&) -> void;
         auto append(const std::vector<api::v1::Trigger>& v) -> void;
-        auto set_info(const api::v1::Info& x) -> void;
+        auto info(const api::v1::Info&) -> void;
+        auto history(const std::string&) -> void;
         auto flush() -> void;
         auto close() -> void;
 

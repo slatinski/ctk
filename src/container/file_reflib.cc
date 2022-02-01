@@ -48,10 +48,9 @@ auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::p
 
 
 
-cnt_writer_reflib_riff::cnt_writer_reflib_riff(const std::filesystem::path& fname, api::v1::RiffType riff, const std::string& h)
+cnt_writer_reflib_riff::cnt_writer_reflib_riff(const std::filesystem::path& fname, api::v1::RiffType riff)
     : riff{ riff }
-    , file_name{ fname }
-    , history{ h } {
+    , file_name{ fname } {
 }
 
 auto cnt_writer_reflib_riff::recording_info(const api::v1::Info& x) -> void {
@@ -60,17 +59,27 @@ auto cnt_writer_reflib_riff::recording_info(const api::v1::Info& x) -> void {
     if (!flat_writer) {
         return;
     }
-    flat_writer->set_info(x);
+    flat_writer->info(x);
+}
+
+auto cnt_writer_reflib_riff::history(const std::string& x) -> void {
+    notes = x;
+
+    if (!flat_writer) {
+        return;
+    }
+    flat_writer->history(x);
 }
 
 auto cnt_writer_reflib_riff::add_time_signal(const api::v1::TimeSeries& description) -> cnt_writer_reflib_flat* {
     if (flat_writer) {
         throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::add_time_signal: one segment only" };
     }
-    flat_writer.reset(new cnt_writer_reflib_flat{ fname_flat(file_name), description, riff, history });
+    flat_writer.reset(new cnt_writer_reflib_flat{ fname_flat(file_name), description, riff });
     assert(flat_writer);
 
-    flat_writer->set_info(information);
+    flat_writer->info(information);
+    flat_writer->history(notes);
     return flat_writer.get();
 }
 

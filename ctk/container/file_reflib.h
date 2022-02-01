@@ -386,8 +386,8 @@ class cnt_writer_flat
 
 public:
 
-    cnt_writer_flat(const std::filesystem::path& fname, const api::v1::TimeSeries& description, api::v1::RiffType riff, const std::string& history)
-    : epoch_writer{ fname, description, riff, history }
+    cnt_writer_flat(const std::filesystem::path& fname, const api::v1::TimeSeries& description, api::v1::RiffType riff)
+    : epoch_writer{ fname, description, riff }
     , cache_index{ 0 }
     , height{ vsize(description.electrodes) }
     , closed{ false } {
@@ -496,8 +496,12 @@ public:
         closed = true;
     }
 
-    auto set_info(const api::v1::Info& x) -> void {
-        epoch_writer.set_info(x);
+    auto info(const api::v1::Info& x) -> void {
+        epoch_writer.info(x);
+    }
+
+    auto history(const std::string& x) -> void {
+        epoch_writer.history(x);
     }
 
     auto file_tokens() const -> std::vector<tagged_file> {
@@ -601,12 +605,12 @@ class cnt_writer_reflib_riff
     std::filesystem::path file_name;
     std::unique_ptr<cnt_writer_reflib_flat> flat_writer;
     api::v1::Info information;
-    std::string history;
+    std::string notes;
     std::vector<external_file> user;
 
 public:
 
-    cnt_writer_reflib_riff(const std::filesystem::path& name, api::v1::RiffType riff, const std::string& history);
+    cnt_writer_reflib_riff(const std::filesystem::path& name, api::v1::RiffType riff);
     ~cnt_writer_reflib_riff() = default;
     cnt_writer_reflib_riff(const cnt_writer_reflib_riff&) = delete;
     cnt_writer_reflib_riff& operator=(const cnt_writer_reflib_riff&) = delete;
@@ -636,6 +640,7 @@ public:
     auto range_row_major(measurement_count i, measurement_count samples) -> std::vector<int32_t>;
     auto range_column_major(measurement_count i, measurement_count samples) -> std::vector<int32_t>;
 
+    auto history(const std::string&) -> void;
 };
 
 

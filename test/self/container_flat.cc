@@ -47,8 +47,9 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
             // scope for the epoch writer
             {
                 // REMEMBER MISSING: reader.data().channel_order()
-                epoch_writer_flat flat_writer{ temp_cnt_file, reader.data().description(), reader.data().cnt_type(), reader.data().history() };
-                flat_writer.set_info(reader.data().information());
+                epoch_writer_flat flat_writer{ temp_cnt_file, reader.data().description(), reader.data().cnt_type() };
+                flat_writer.info(reader.data().information());
+                flat_writer.history(reader.data().history());
                 flat_writer.append(reader.data().triggers());
 
                 for (epoch_count i{ 0 }; i < reflib_count; ++i) {
@@ -93,8 +94,9 @@ TEST_CASE("read/write flat files - compressed epochs", "[consistency]") {
 
 auto write_in_chunks(cnt_reader_reflib_riff& reader_reflib, const std::filesystem::path& fname, sint chunk_size) -> std::vector<tagged_file> {
     // REMEMBER MISSING: reader_reflib.channel_order()
-    cnt_writer_reflib_flat flat_writer{ fname, reader_reflib.description(), RiffType::riff64, reader_reflib.history() };
-    flat_writer.set_info(reader_reflib.information());
+    cnt_writer_reflib_flat flat_writer{ fname, reader_reflib.description(), RiffType::riff64 };
+    flat_writer.info(reader_reflib.information());
+    flat_writer.history(reader_reflib.history());
 
     const sint sample_count{ reader_reflib.sample_count() };
     for (sint i{ 0 }; i < sample_count; i += chunk_size) {
@@ -221,8 +223,9 @@ TEST_CASE("cnt_writer_reflib_riff", "[consistency]") {
                 measurement_count ch{ 1 };
 
                 {
-                    cnt_writer_reflib_riff writer{ temp_cnt_file, RiffType::riff64, r_orig.history() }; // TODO: both 32/64
+                    cnt_writer_reflib_riff writer{ temp_cnt_file, RiffType::riff64 }; // TODO: both 32/64
                     writer.recording_info(r_orig.information());
+                    writer.history(r_orig.history());
                     // REMEMBER MISSING: r_orig.channel_order()
                     auto* raw3{ writer.add_time_signal(r_orig.description()) };
 

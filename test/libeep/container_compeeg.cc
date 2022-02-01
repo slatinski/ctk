@@ -401,7 +401,7 @@ class cnt_writer_libeep_riff
     writer_ptr writer;
     std::string file_name;
     DcDate start_time;
-    std::string history;
+    std::string notes;
 
 public:
 
@@ -409,7 +409,7 @@ public:
     : f{ open_w(fname) }
     , t{ t }
     , file_name{ fname }
-    , history{ h } {
+    , notes{ h } {
     }
 
     ~cnt_writer_libeep_riff() = default;
@@ -434,6 +434,10 @@ public:
         }
 
         writer->set_info(start_time, x);
+    }
+
+    auto history(const std::string&) -> void {
+        // already set in the constructor
     }
 
     auto add_time_signal(const TimeSeries& x) -> libeep_writer* {
@@ -479,7 +483,7 @@ public:
             throw ctk_data{ "cnt_writer_libeep_riff::add_time_signal: eep_prepare_to_write failed" };
         }
 
-        libeep::eep_set_history(cnt.get(), history.c_str());
+        libeep::eep_set_history(cnt.get(), notes.c_str());
 
         writer.reset(new libeep_writer{ cnt.get() });
         if (!writer) {
@@ -885,8 +889,9 @@ auto writer_consistency_compatibility(const std::string& fname, measurement_coun
     // scope needed on windows. else delme.cnt cannot be deleted.
     {
         cnt_reader_reflib_riff input{ fname };
-        cnt_writer_reflib_riff output{ temp_name, riff, input.history() };
+        cnt_writer_reflib_riff output{ temp_name, riff };
         output.recording_info(input.information());
+        output.history(input.history());
 
         // REMEMBER MISSING: input.channel_order()
         auto* segment{ output.add_time_signal(input.description()) };
@@ -970,6 +975,7 @@ auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count
     segment->triggers(reader.triggers());
 
     writer.recording_info(reader.information());
+    writer.history(reader.history());
 
     auto stride{ std::min(sample_count, chunk) };
     measurement_count i{ 0 };
@@ -1004,7 +1010,7 @@ auto test_writer_speed(const std::string& fname) -> void {
 
     for (auto chunk : sizes) {
         bool ignore_trailing_ws{ false };
-        cnt_writer_reflib_riff writer_reflib{ "reflib.cnt", RiffType::riff64, reader.history() };
+        cnt_writer_reflib_riff writer_reflib{ "reflib.cnt", RiffType::riff64 };
         const auto r_time{ writer_speed(reader, writer_reflib, count, chunk, "reflib.cnt", ignore_trailing_ws) };
 
         ignore_trailing_ws = true;
