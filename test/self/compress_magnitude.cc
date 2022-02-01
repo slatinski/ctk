@@ -414,9 +414,9 @@ auto restore_time(const compressed_epoch& e, const std::vector<int16_t>& order, 
         const auto next{ first_buffer };
         const auto next_buffer{ next + i_length };
 
-        auto[v_time, u0]{ time_reduction(reduce_time{}, previous, first, next, first_buffer, first, next) };
-        auto[v_time2, u1]{ time_reduction(reduce_time2_time{}, previous, first, next, first_buffer, begin(v_time), end(v_time)) };
-        auto[v_chan, u2]{ time_reduction(reduce_chan_time{}, previous, first, next, first_buffer, begin(v_time), end(v_time)) };
+        auto[v_time, u1]{ time_reduction(reduce_time{}, previous, first, next, first_buffer, first, next) };
+        auto[v_time2, u2]{ time_reduction(reduce_time2_time{}, previous, first, next, first_buffer, begin(v_time), end(v_time)) };
+        auto[v_chan, u3]{ time_reduction(reduce_chan_time{}, previous, first, next, first_buffer, begin(v_time), end(v_time)) };
 
         std::copy(begin(v_time), end(v_time), first);
         const auto t_time{ time_restore(restore_time_inplace{}, previous, first, next, first_buffer, next_buffer, repetitions) };

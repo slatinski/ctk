@@ -41,7 +41,7 @@ struct different_size_same_sidedness
         constexpr const Wide wone{ 1 };
         constexpr const Wide w_nmin{ nmin };
 
-        if (std::is_signed<Narrow>::value && std::is_signed<Wide>::value) {
+        if constexpr (std::is_signed<Narrow>::value && std::is_signed<Wide>::value) {
             REQUIRE_THROWS(throw_cast<Wide, Narrow>(static_cast<Wide>(w_nmin - wone)));
         }
 

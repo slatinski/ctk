@@ -33,7 +33,7 @@ namespace ctk { namespace api {
 
         Trigger::Trigger()
         : sample{ std::numeric_limits<int64_t>::max() } {
-            std::fill(begin(code), end(code), 0);
+            std::fill(begin(code), end(code), char{ 0 });
         }
 
         Trigger::Trigger(int64_t s, const std::string& c)

@@ -50,7 +50,7 @@ namespace ctk { namespace impl {
         const UInt size{ cast(sn, UInt{}, ok{}) };
         std::vector<int16_t> v(size);
 
-        std::iota(begin(v), end(v), 0);
+        std::iota(begin(v), end(v), int16_t{ 0 });
         return v;
     }
 

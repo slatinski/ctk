@@ -1656,8 +1656,8 @@ namespace ctk { namespace impl {
     };
 
 
-    auto epoch_writer_flat::add_file(std::filesystem::path fname, file_tag id, std::string chunk_id) -> FILE* {
-        tokens.push_back(own_file{ open_w(fname), file_token{ tagged_file{ id, fname }, as_label(chunk_id) } });
+    auto epoch_writer_flat::add_file(std::filesystem::path name, file_tag id, std::string chunk_id) -> FILE* {
+        tokens.push_back(own_file{ open_w(name), file_token{ tagged_file{ id, name }, as_label(chunk_id) } });
         write_part_header(tokens.back().f.get(), tokens.back().t.tag.id, tokens.back().t.chunk_id);
         return tokens.back().f.get();
     }
