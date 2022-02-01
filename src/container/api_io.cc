@@ -63,14 +63,14 @@ namespace ctk { namespace impl {
             return result;
         }
 
-        const seconds s{ duration_cast<seconds>(x.time_since_epoch()) };
-        const date::days ds{ duration_cast<date::days>(s) };
+        const seconds s{ floor<seconds>(x.time_since_epoch()) };
+        const date::days ds{ floor<date::days>(s) };
         const date::year_month_day ymd{ date::sys_days{ ds } };
         const seconds hh_mm_ss = s - ds;
 
-        const hours hh{ duration_cast<hours>(hh_mm_ss) };
-        const minutes mm{ duration_cast<minutes>(hh_mm_ss - hh) };
-        const seconds ss{ duration_cast<seconds>(hh_mm_ss - hh - mm) };
+        const hours hh{ floor<hours>(hh_mm_ss) };
+        const minutes mm{ floor<minutes>(hh_mm_ss - hh) };
+        const seconds ss{ floor<seconds>(hh_mm_ss - hh - mm) };
 
         if (!ymd.ok() ||
             hh.count() < 0 || 23 < hh.count() ||
