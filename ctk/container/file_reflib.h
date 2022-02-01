@@ -172,14 +172,24 @@ public:
         return get(i, amount, transpose);
     }
 
-    // libeep v4 interface
-    auto range_scaled(measurement_count i, measurement_count amount) -> std::vector<float> {
-        const auto scale = [](int32_t x, float y) -> float { return static_cast<float>(x) * y; };
+    auto range_scaled(measurement_count i, measurement_count amount) -> std::vector<double> {
+        const auto scale = [](int32_t x, double y) -> double { return x * y; };
 
-        const auto unscaled{ range_column_major(i, amount) };
-        std::vector<float> result(unscaled.size());
-        std::transform(begin(unscaled), end(unscaled), begin(scales), begin(result), scale);
-        return result;
+        const auto ints{ range_column_major(i, amount) };
+        std::vector<double> doubles(ints.size());
+        std::transform(begin(ints), end(ints), begin(scales), begin(doubles), scale);
+        return doubles;
+    }
+
+
+    // libeep v4 interface
+    auto range_scaled_libeep(measurement_count i, measurement_count amount) -> std::vector<float> {
+        const auto double2float = [](double x) -> float { return static_cast<float>(x); };
+
+        const auto doubles{ range_scaled(i, amount) };
+        std::vector<float> floats(doubles.size());
+        std::transform(begin(doubles), end(doubles), begin(floats), double2float);
+        return floats;
     }
 
 

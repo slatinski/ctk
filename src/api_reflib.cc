@@ -88,14 +88,19 @@ namespace ctk { namespace api {
             return p->reader.range_column_major(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeScaled(int64_t i, int64_t samples) -> std::vector<float> {
+        auto CntReaderReflib::rangeScaled(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
             return p->reader.range_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
+        auto CntReaderReflib::rangeScaledLibeep(int64_t i, int64_t samples) -> std::vector<float> {
+            assert(p);
+            return p->reader.range_scaled_libeep(measurement_count{ i }, measurement_count{ samples });
+        }
+
         auto CntReaderReflib::epochs() const -> int64_t {
             assert(p);
-            const sint result{ p->reader.epochs() };
+            const epoch_count::value_type result{ p->reader.epochs() };
             return result;
         }
 

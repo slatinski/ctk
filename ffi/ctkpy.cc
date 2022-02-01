@@ -65,7 +65,7 @@ struct libeep_reader
     }
 
     auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
-        return reader.rangeScaled(i, amount);
+        return reader.rangeScaledLibeep(i, amount);
     }
 
     auto get_trigger_count() const -> size_t {

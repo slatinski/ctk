@@ -64,8 +64,10 @@ namespace ctk { namespace api {
             } */
             auto rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
+            auto rangeScaled(int64_t i, int64_t samples) -> std::vector<double>;
+
             // libeep v4 interface: column major, applied electrode scaling
-            auto rangeScaled(int64_t i, int64_t samples) -> std::vector<float>;
+            auto rangeScaledLibeep(int64_t i, int64_t samples) -> std::vector<float>;
 
             /*
             epoch interface:
