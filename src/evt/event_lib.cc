@@ -127,6 +127,46 @@ namespace ctk { namespace impl {
 
 
 
+    namespace descriptor_name {
+        const std::string impedance{ "Impedance" };
+        const std::string event_code{ "EventCode" };
+        const std::string condition{ "Condition" };
+        const std::string video_marker_type{ "VideoMarkerType" };
+        const std::string video_file_name{ "VideoFileName" };
+
+    }
+
+    namespace event_type {
+        const int32_t marker{ 1 };
+        //const int32_t sleep{ 3 };
+        const int32_t epoch{ 4 };
+        //const int32_t spike{ 6 };
+        //const int32_t seizure{ 7 };
+        //const int32_t artefact{ 8 };
+        //const int32_t rpeak{ 101 };
+
+    }
+
+    namespace event_name {
+        const std::string marker{ "Event Marker" };
+        const std::string epoch{ "Epoch Event" };
+
+    }
+
+    namespace event_description {
+        const std::string impedance{ "Impedance" };
+
+    }
+
+    namespace video_marker_type {
+        const int16_t recording{ 0 };
+        //const int16_t cut{ 1 };
+        //const int16_t performed_cut{ 2 };
+    }
+
+
+
+
     auto is_int8(const str_variant& x) -> bool { return !x.is_array && x.type == vt_i1 && x.data.size() == 1; }
     auto is_int16(const str_variant& x) -> bool { return !x.is_array && x.type == vt_i2 && x.data.size() == 1; }
     auto is_int32(const str_variant& x) -> bool { return !x.is_array && x.type == vt_i4 && x.data.size() == 1; }
@@ -1275,29 +1315,141 @@ namespace ctk { namespace impl {
     }
 
 
-    auto write_impedance(FILE* f, const marker_event& x, int version) -> void {
-        write_class(f, tags::name, dc_names::marker);
-        store_event(f, x, version);
+    static auto is_impedance_descriptor(const event_descriptor& x) -> bool { return x.name == descriptor_name::impedance; }
+    static auto is_condition_label_descriptor(const event_descriptor& x) -> bool { return x.name == descriptor_name::condition; }
+    static auto is_event_code_descriptor(const event_descriptor& x) -> bool { return x.name == descriptor_name::event_code; }
+    static auto is_videofile_descriptor(const event_descriptor& x) -> bool { return x.name == descriptor_name::video_file_name; }
+    static auto is_videomarker_descriptor = [](const event_descriptor& d) -> bool { return d.name == descriptor_name::video_marker_type; };
+    static auto ohm2kohm(float x) -> float { return x / std::kilo::num; }
+    static auto kohm2ohm(float x) -> float { return x * std::kilo::num; }
+
+
+
+    auto marker2impedance(const marker_event& x) -> api::v1::EventImpedance {
+        const auto first{ begin(x.common.descriptors) };
+        const auto last{ end(x.common.descriptors) };
+
+        const auto i_impedance{ std::find_if(first, last, is_impedance_descriptor) };
+        if (i_impedance == last || !is_float_array(i_impedance->value)) {
+            throw api::v1::ctk_bug{ "marker2impedance: no impedance descriptor" };
+        }
+        const std::vector<float> impedances{ as_float_array(i_impedance->value) };
+
+        api::v1::EventImpedance result;
+        result.values.resize(impedances.size());
+        std::transform(begin(impedances), end(impedances), begin(result.values), kohm2ohm);
+
+        result.stamp = x.common.stamp;
+        return result;
     }
 
-    auto write_video(FILE* f, const marker_event& x, int version) -> void {
-        write_class(f, tags::name, dc_names::marker);
-        store_event(f, x, version);
+    auto impedance2marker(const api::v1::EventImpedance& x) -> marker_event {
+        std::vector<float> impedance(x.values.size());
+        std::transform(begin(x.values), end(x.values), begin(impedance), ohm2kohm);
+
+        const event_descriptor descriptor{ str_variant{ impedance }, descriptor_name::impedance, "kOhm" };
+        const base_event common{ x.stamp, event_type::marker, event_name::marker, { descriptor }, 0, 0 };
+        return marker_event{ common, event_description::impedance };
     }
 
-    auto write_epoch(FILE* f, const epoch_event& x, int version) -> void {
-        write_class(f, tags::name, dc_names::epoch);
-        store_event(f, x, version);
+
+    auto marker2video(const marker_event& x) -> api::v1::EventVideo {
+        api::v1::EventVideo result;
+        const auto first{ begin(x.common.descriptors) };
+        const auto last{ end(x.common.descriptors) };
+
+        const auto i_condition_label{ std::find_if(first, last, is_condition_label_descriptor) };
+        if (i_condition_label != last && is_wstring(i_condition_label->value)) {
+            result.condition_label = as_wstring(i_condition_label->value);
+        }
+
+        const auto i_event_code{ std::find_if(first, last, is_event_code_descriptor) };
+        if (i_event_code != last && is_int32(i_event_code->value)) {
+            result.trigger_code = as_int32(i_event_code->value);
+        }
+
+        const auto i_video_file{ std::find_if(first, last, is_videofile_descriptor) };
+        if (i_video_file != last && is_wstring(i_video_file->value)) {
+            result.video_file = as_wstring(i_video_file->value);
+        }
+
+        result.description = x.description;
+        result.duration = x.common.duration;
+        result.stamp = x.common.stamp;
+        return result;
     }
+
+    auto video2marker(const api::v1::EventVideo& x) -> marker_event {
+        const std::string unit;
+        std::vector<event_descriptor> descriptors;
+        descriptors.reserve(4);
+
+        // compatibility: if present, the condition descriptor must be first
+        if (!x.condition_label.empty()) {
+            descriptors.emplace_back(str_variant{ x.condition_label }, descriptor_name::condition, unit);
+        }
+
+        if (x.trigger_code != std::numeric_limits<int32_t>::min()) {
+            descriptors.emplace_back(str_variant{ x.trigger_code }, descriptor_name::event_code, unit);
+        }
+
+        descriptors.emplace_back(str_variant{ video_marker_type::recording }, descriptor_name::video_marker_type, unit);
+
+        if (!x.video_file.empty()) {
+            descriptors.emplace_back(str_variant{ x.video_file }, descriptor_name::video_file_name, unit);
+        }
+
+        const base_event common{ x.stamp, event_type::marker, event_name::marker, descriptors, x.duration, 0 };
+        return marker_event{ common, x.description };
+    }
+
+
+    auto epochevent2eventepoch(const epoch_event& x) -> api::v1::EventEpoch {
+        api::v1::EventEpoch result;
+        const auto first{ begin(x.common.descriptors) };
+        const auto last{ end(x.common.descriptors) };
+
+        const auto i_event_code{ std::find_if(first, last, is_event_code_descriptor) };
+        if (i_event_code != last && is_int32(i_event_code->value)) {
+            result.trigger_code = as_int32(i_event_code->value);
+        }
+
+        const auto i_condition_label{ std::find_if(first, last, is_condition_label_descriptor) };
+        if (i_condition_label != last && is_wstring(i_condition_label->value)) {
+            result.condition_label = as_wstring(i_condition_label->value);
+        }
+
+        result.duration = x.common.duration;
+        result.offset = x.common.duration_offset;
+        result.stamp = x.common.stamp;
+        return result;
+    }
+
+    auto eventepoch2epochevent(const api::v1::EventEpoch& x) -> epoch_event {
+        const std::string unit;
+        std::vector<event_descriptor> descriptors;
+        descriptors.reserve(2);
+
+        // compatibility: if present, the condition descriptor must be first
+        if (!x.condition_label.empty()) {
+            descriptors.emplace_back(str_variant{ x.condition_label }, descriptor_name::condition, unit);
+        }
+
+        if (x.trigger_code != std::numeric_limits<int32_t>::min()) {
+            descriptors.emplace_back(str_variant{ x.trigger_code }, descriptor_name::event_code, unit);
+        }
+
+        const base_event common{ x.stamp, event_type::epoch, event_name::epoch, descriptors, x.duration, x.offset };
+        return epoch_event{ common };
+    }
+
 
 
     static
     auto is_impedance(const marker_event& x) -> bool {
-        const auto has_descriptor = [](const event_descriptor& d) -> bool { return d.name == descriptor_name::impedance; };
-
         const auto first{ begin(x.common.descriptors) };
         const auto last{ end(x.common.descriptors) };
-        const auto found{ std::find_if(first, last, has_descriptor) };
+        const auto found{ std::find_if(first, last, is_impedance_descriptor) };
         if (found == last) {
             return false;
         }
@@ -1308,11 +1460,9 @@ namespace ctk { namespace impl {
 
     static
     auto is_video(const marker_event& x) -> bool {
-        const auto has_descriptor = [](const event_descriptor& d) -> bool { return d.name == descriptor_name::video_marker_type; };
-
         const auto first{ begin(x.common.descriptors) };
         const auto last{ end(x.common.descriptors) };
-        const auto found{ std::find_if(first, last, has_descriptor) };
+        const auto found{ std::find_if(first, last, is_videomarker_descriptor) };
         return found != last;
     }
 
@@ -1490,6 +1640,21 @@ namespace ctk { namespace impl {
         const int32_t count{ event_count(lib, int32_t{}) };
         x.common.visible_id = plus(count, 1, ok{});
         lib.epochs.push_back(x);
+    }
+
+    auto write_impedance(FILE* f, const marker_event& x, int version) -> void {
+        write_class(f, tags::name, dc_names::marker);
+        store_event(f, x, version);
+    }
+
+    auto write_video(FILE* f, const marker_event& x, int version) -> void {
+        write_class(f, tags::name, dc_names::marker);
+        store_event(f, x, version);
+    }
+
+    auto write_epoch(FILE* f, const epoch_event& x, int version) -> void {
+        write_class(f, tags::name, dc_names::epoch);
+        store_event(f, x, version);
     }
 
 } /* namespace impl */ } /* namespace ctk */

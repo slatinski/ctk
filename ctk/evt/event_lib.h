@@ -274,51 +274,17 @@ namespace ctk { namespace impl {
     auto add_marker(marker_event, event_library&) -> void;
     auto add_epoch(epoch_event, event_library&) -> void;
 
+    auto marker2impedance(const marker_event&) -> api::v1::EventImpedance;
+    auto impedance2marker(const api::v1::EventImpedance&) -> marker_event;
+    auto marker2video(const marker_event&) -> api::v1::EventVideo;
+    auto video2marker(const api::v1::EventVideo&) -> marker_event;
+    auto epochevent2eventepoch(const epoch_event&) -> api::v1::EventEpoch;
+    auto eventepoch2epochevent(const api::v1::EventEpoch&) -> epoch_event;
 
     auto write_impedance(FILE*, const marker_event&, int version) -> void;
     auto write_video(FILE*, const marker_event&, int version) -> void;
     auto write_epoch(FILE*, const epoch_event&, int version) -> void;
     auto write_partial_archive(FILE*, const event_library&, uint32_t event_count) -> void;
-
-
-
-    namespace descriptor_name {
-        const std::string impedance{ "Impedance" };
-        const std::string event_code{ "EventCode" };
-        const std::string condition{ "Condition" };
-        const std::string video_marker_type{ "VideoMarkerType" };
-        const std::string video_file_name{ "VideoFileName" };
-
-    }
-
-    namespace event_type {
-        const int32_t marker{ 1 };
-        //const int32_t sleep{ 3 };
-        const int32_t epoch{ 4 };
-        //const int32_t spike{ 6 };
-        //const int32_t seizure{ 7 };
-        //const int32_t artefact{ 8 };
-        //const int32_t rpeak{ 101 };
-
-    }
-
-    namespace event_name {
-        const std::string marker{ "Event Marker" };
-        const std::string epoch{ "Epoch Event" };
-
-    }
-
-    namespace event_description {
-        const std::string impedance{ "Impedance" };
-
-    }
-
-    namespace video_marker_type {
-        const int16_t recording{ 0 };
-        //const int16_t cut{ 1 };
-        //const int16_t performed_cut{ 2 };
-    }
-
 
 } /* namespace impl */ } /* namespace ctk */
 
