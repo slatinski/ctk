@@ -23,7 +23,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "exception.h"
 #include "container/ctk_part.h"
 #include "container/io.h"
-#include "container/api_io.h"
 
 namespace ctk { namespace impl {
 

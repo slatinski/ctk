@@ -79,8 +79,6 @@ add_library(ctk_static
         src/container/file_epoch.cc
         ctk/container/file_reflib.h
         src/container/file_reflib.cc
-        ctk/container/api_io.h
-        src/container/api_io.cc
         ctk/evt/event_lib.h
         src/evt/event_lib.cc
         ctk/api_compression.h

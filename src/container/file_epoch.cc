@@ -23,7 +23,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <iomanip>
 
 #include "container/file_epoch.h"
-#include "container/api_io.h"
 #include "compress/matrix.h"
 #include "ctk_version.h"
 
@@ -937,6 +936,74 @@ namespace ctk { namespace impl {
 
         return s;
     }
+
+
+    static
+    auto write_string(FILE* f, const std::string& xs) -> void {
+        const int64_t size{ cast(xs.size(), int64_t{}, ok{}) }; // TODO: uleb128?
+        write(f, size);
+        write(f, begin(xs), end(xs));
+    }
+
+    static
+    auto read_string(FILE* f) -> std::string {
+        const int64_t size{ read(f, int64_t{}) }; // TODO: uleb128?
+        const size_t count{ cast(size, size_t{}, ok{}) };
+
+        std::string xs;
+        xs.resize(count);
+        read(f, begin(xs), end(xs));
+        return xs;
+    }
+
+    static
+    auto write_electrode(FILE* f, const api::v1::Electrode& x) -> void {
+        write_string(f, x.label);
+        write_string(f, x.reference);
+        write_string(f, x.unit);
+        write_string(f, x.status);
+        write_string(f, x.type);
+        write(f, x.iscale);
+        write(f, x.rscale);
+    }
+
+    static
+    auto read_electrode(FILE* f) -> api::v1::Electrode {
+        api::v1::Electrode x;
+        x.label = read_string(f);
+        x.reference = read_string(f);
+        x.unit = read_string(f);
+        x.status = read_string(f);
+        x.type = read_string(f);
+        x.iscale = read(f, double{});
+        x.rscale = read(f, double{});
+        return x;
+    }
+
+
+    static
+    auto write_electrodes(FILE* f, const std::vector<api::v1::Electrode>& xs) -> void {
+        const int64_t size{ cast(xs.size(), int64_t{}, ok{}) };
+        write(f, size);
+
+        for (const auto& x : xs) {
+            write_electrode(f, x);
+        }
+    }
+
+    static
+    auto read_electrodes(FILE* f) -> std::vector<api::v1::Electrode> {
+        const int64_t size{ read(f, int64_t{}) };
+        const size_t count{ cast(size, size_t{}, ok{}) };
+
+        std::vector<api::v1::Electrode> xs;
+        xs.reserve(count);
+        for (size_t i{ 0 }; i < count; ++i) {
+            xs.push_back(read_electrode(f));
+        }
+        return xs;
+    }
+
 
     static
     auto read_electrodes_flat(FILE* f) -> std::vector<api::v1::Electrode> {

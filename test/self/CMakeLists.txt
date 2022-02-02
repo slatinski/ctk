@@ -52,11 +52,6 @@ target_link_libraries(api_data PRIVATE ctk_static)
 target_include_directories(api_data PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
 target_compile_options(api_data PRIVATE ${CTK_CXX_FLAGS})
 
-add_executable(api_io api_io.cc)
-target_link_libraries(api_io PRIVATE ctk_static)
-target_include_directories(api_io PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
-target_compile_options(api_io PRIVATE ${CTK_CXX_FLAGS})
-
 
 
 # requires the presence of input.txt in the current working directory.
