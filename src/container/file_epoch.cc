@@ -24,7 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "container/file_epoch.h"
 #include "compress/matrix.h"
-#include "compress/leb128.h"
+#include "container/leb128.h"
 #include "ctk_version.h"
 
 

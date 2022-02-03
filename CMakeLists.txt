@@ -139,7 +139,7 @@ if(CTK_SELF_TEST)
     add_test(NAME submatrix COMMAND container_submatrix)
     add_test(NAME cnt_objects COMMAND container_objects)
     add_test(NAME api_data COMMAND api_data)
-    add_test(NAME leb128 COMMAND leb128)
+    add_test(NAME leb128 COMMAND container_leb128)
 endif()
 
 if(CTK_LIBEEP_TEST)
