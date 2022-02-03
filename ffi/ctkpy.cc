@@ -134,12 +134,12 @@ struct libeep_writer
     }
     libeep_writer(libeep_writer&&) = default;
 
-    auto add_samples(const std::vector<float>& v) -> void {
+    auto add_samples(const std::vector<float>& xs) -> void {
         const auto float2int = [](float x) -> int32_t { return static_cast<int32_t>(std::round(x * scaling_factor)); };
 
-        std::vector<int32_t> ints(v.size());
-        std::transform(begin(v), end(v), begin(ints), float2int);
-        writer.rangeColumnMajor(ints);
+        std::vector<int32_t> ys(xs.size());
+        std::transform(begin(xs), end(xs), begin(ys), float2int);
+        writer.rangeColumnMajor(ys);
     }
 
     auto close() -> void {
@@ -193,12 +193,12 @@ PYBIND11_MODULE(ctkpy, m) {
      .def_readwrite("rscale", &v1::Electrode::rscale)
      .def("__repr__", [](const v1::Electrode& x) { return print(x, "electrode"); });
 
-    py::class_<v1::TimeSeries> ts(m, "time_signal", py::module_local()/*, py::dynamic_attr()*/);
+    py::class_<v1::TimeSeries> ts(m, "time_series", py::module_local()/*, py::dynamic_attr()*/);
     ts.def_readwrite("epoch_length", &v1::TimeSeries::epoch_length)
       .def_readwrite("sampling_frequency", &v1::TimeSeries::sampling_frequency)
       .def_readwrite("start_time", &v1::TimeSeries::start_time)
       .def_readwrite("electrodes", &v1::TimeSeries::electrodes)
-      .def("__repr__", [](const v1::TimeSeries& x) { return print(x, "time_signal"); });
+      .def("__repr__", [](const v1::TimeSeries& x) { return print(x, "time_series"); });
 
     py::class_<v1::Info> i(m, "information", py::module_local()/*, py::dynamic_attr()*/);
     i.def_readwrite("hospital", &v1::Info::hospital)
@@ -232,10 +232,9 @@ PYBIND11_MODULE(ctkpy, m) {
       .def_property_readonly("epoch_count", &v1::CntReaderReflib::epochs)
       .def("epoch_row_major", &v1::CntReaderReflib::epochRowMajor)
       .def("epoch_column_major", &v1::CntReaderReflib::epochColumnMajor)
-      .def("epoch_compressed", &v1::CntReaderReflib::epochCompressed)
       .def("triggers", &v1::CntReaderReflib::triggers)
       .def_property_readonly("cnt_type", &v1::CntReaderReflib::cntType)
-      .def_property_readonly("time_signal", &v1::CntReaderReflib::description)
+      .def_property_readonly("time_series", &v1::CntReaderReflib::description)
       .def_property_readonly("history", &v1::CntReaderReflib::history)
       .def_property_readonly("recording_info", &v1::CntReaderReflib::information)
       .def_property_readonly("file_version", &v1::CntReaderReflib::fileVersion)
@@ -247,7 +246,7 @@ PYBIND11_MODULE(ctkpy, m) {
     rw.def(py::init<const std::string&, v1::RiffType>())
       .def("close", &v1::CntWriterReflib::close, "Constructs the output cnt file")
       .def_property("recording_info", nullptr, &v1::CntWriterReflib::recordingInfo)
-      .def_property("time_signal", nullptr, &v1::CntWriterReflib::addTimeSignal)
+      .def_property("time_series", nullptr, &v1::CntWriterReflib::addTimeSignal)
       .def("row_major", py::overload_cast<const std::vector<int32_t>&>(&v1::CntWriterReflib::rangeRowMajor))
       .def("column_major", py::overload_cast<const std::vector<int32_t>&>(&v1::CntWriterReflib::rangeColumnMajor))
       .def("add_trigger", &v1::CntWriterReflib::trigger)
