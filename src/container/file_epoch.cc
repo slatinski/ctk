@@ -24,6 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "container/file_epoch.h"
 #include "compress/matrix.h"
+#include "compress/leb128.h"
 #include "ctk_version.h"
 
 
@@ -940,14 +941,14 @@ namespace ctk { namespace impl {
 
     static
     auto write_string(FILE* f, const std::string& xs) -> void {
-        const int64_t size{ cast(xs.size(), int64_t{}, ok{}) }; // TODO: uleb128?
-        write(f, size);
+        const int64_t size{ cast(xs.size(), int64_t{}, ok{}) };
+        write_leb128(f, size);
         write(f, begin(xs), end(xs));
     }
 
     static
     auto read_string(FILE* f) -> std::string {
-        const int64_t size{ read(f, int64_t{}) }; // TODO: uleb128?
+        const int64_t size{ read_leb128(f, int64_t{}) };
         const size_t count{ cast(size, size_t{}, ok{}) };
 
         std::string xs;
@@ -984,7 +985,7 @@ namespace ctk { namespace impl {
     static
     auto write_electrodes(FILE* f, const std::vector<api::v1::Electrode>& xs) -> void {
         const int64_t size{ cast(xs.size(), int64_t{}, ok{}) };
-        write(f, size);
+        write_leb128(f, size);
 
         for (const auto& x : xs) {
             write_electrode(f, x);
@@ -993,7 +994,7 @@ namespace ctk { namespace impl {
 
     static
     auto read_electrodes(FILE* f) -> std::vector<api::v1::Electrode> {
-        const int64_t size{ read(f, int64_t{}) };
+        const int64_t size{ read_leb128(f, int64_t{}) };
         const size_t count{ cast(size, size_t{}, ok{}) };
 
         std::vector<api::v1::Electrode> xs;
