@@ -23,6 +23,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 
 #include "exception.h"
+#include "container/io.h"
 
 
 namespace ctk { namespace impl {
@@ -89,11 +90,63 @@ namespace ctk { namespace impl {
         };
 
 
+
         // based on the pseudo code presented in
         // DWARF Debugging Information Format, Version 4
         // Appendix C -- Variable Length Data: Encoding/Decoding (informative)
         // Figure 44. Algorithm to encode an unsigned integer
         // Figure 45. Algorithm to encode a signed integer
+        template<typename T, typename L>
+        // requirements:
+        // - L has an interface identical to sleb or uleb
+        auto encode_byte(T x, L leb) -> std::tuple<uint8_t, T, bool> {
+            static_assert(std::is_integral<T>::value);
+
+            T byte{ seven_bits(x) };
+            x >>= 7;
+
+            if (leb.is_last(x, byte)) {
+                return { static_cast<uint8_t>(byte & 0xff), x, false }; // no more
+            }
+
+            byte |= static_cast<T>(continuation_bit);
+            return { static_cast<uint8_t>(byte & 0xff), x, true }; // more
+        }
+
+
+        // based on the pseudo code presented in
+        // DWARF Debugging Information Format, Version 4
+        // Appendix C -- Variable Length Data: Encoding/Decoding (informative)
+        // Figure 46. Algorithm to decode an unsigned LEB128 number
+        // Figure 47. Algorithm to decode a signed LEB128 number
+        template<typename T, typename L>
+        // requirements:
+        // - L has an interface identical to sleb or uleb
+        auto decode_byte(uint8_t x, T acc, unsigned shift, L leb) -> std::tuple<T, unsigned, bool> {
+            static_assert(std::is_integral<T>::value);
+
+            constexpr unsigned size{ sizeof(T) * 8 };
+            if (size <= shift) {
+                throw api::v1::ctk_data{ "leb128::decode_byte: invalid encoding" };
+            }
+
+            const T byte{ static_cast<T>(x) };
+
+            acc |= static_cast<T>(seven_bits(byte) << shift);
+            shift += 7;
+
+            if (continuation_bit_set(byte)) {
+                return { acc, shift, true }; // more
+            }
+
+            if (leb.extend_sign(shift, size, byte)) {
+                acc |= static_cast<T>(-(1 << shift));
+            }
+
+            return { acc, shift, false }; // no more
+        }
+
+
         template<typename T, typename IByte, typename L>
         // requirements:
         // - L has an interface identical to sleb or uleb
@@ -103,22 +156,14 @@ namespace ctk { namespace impl {
             static_assert(std::is_unsigned<B>::value);
             static_assert(std::is_integral<T>::value);
 
-            bool more{ true };
-            T byte;
+            bool more{ first != last };
 
-             while (more && first != last) {
-                byte = seven_bits(x);
-                x >>= 7;
-
-                if (leb.is_last(x, byte)) {
-                    more = false;
-                }
-                else {
-                    byte |= static_cast<T>(continuation_bit);
+            for (/* empty */; first != last; ++first) {
+                if (!more) {
+                    break;
                 }
 
-                *first = static_cast<B>(byte);
-                ++first;
+                std::tie(*first, x, more) = encode_byte(x, leb);
             }
 
             if (more) {
@@ -129,161 +174,247 @@ namespace ctk { namespace impl {
         }
 
 
-        template<typename T>
-        struct lebstate
-        {
-            T x;
-            size_t shift;
 
-            lebstate()
-            : x{ 0 }
-            , shift{ 0 } {
-            }
-        };
-
-        // based on the pseudo code presented in
-        // DWARF Debugging Information Format, Version 4
-        // Appendix C -- Variable Length Data: Encoding/Decoding (informative)
-        // Figure 46. Algorithm to decode an unsigned LEB128 number
-        // Figure 47. Algorithm to decode a signed LEB128 number
-        template<typename T, typename L>
-        // requirements:
-        // - L has an interface identical to sleb or uleb
-        auto decode_byte(uint8_t input, lebstate<T>& state, L leb) -> bool {
-            static_assert(std::is_integral<T>::value);
-
-            constexpr const size_t size{ sizeof(T) * 8 };
-            if (size <= state.shift) {
-                throw api::v1::ctk_data{ "leb128::decode_byte: invalid encoding" };
-            }
-
-            const T byte{ static_cast<T>(input) };
-
-            state.x |= static_cast<T>(seven_bits(byte) << state.shift);
-            state.shift += 7;
-
-            if (continuation_bit_set(byte)) {
-                return true; // more
-            }
-
-            if (leb.extend_sign(state.shift, size, byte)) {
-                state.x |= static_cast<T>(-(1 << state.shift));
-            }
-
-            return false; // no more
-        }
-
-
-        // based on the pseudo code presented in
-        // DWARF Debugging Information Format, Version 4
-        // Appendix C -- Variable Length Data: Encoding/Decoding (informative)
-        // Figure 46. Algorithm to decode an unsigned LEB128 number
-        // Figure 47. Algorithm to decode a signed LEB128 number
         template<typename T, typename IByte, typename L>
         // requirements:
         // - L has an interface identical to sleb or uleb
-        auto decode(IByte first, IByte last, T/*type tag*/, L leb) -> std::pair<T, IByte> {
+        auto decode(IByte first, IByte last, T x, L leb) -> std::pair<T, IByte> {
             using B = typename std::iterator_traits<IByte>::value_type;
             static_assert(sizeof(B) == 1);
             static_assert(std::is_unsigned<B>::value);
             static_assert(std::is_integral<T>::value);
-            static_assert(sizeof(T) <= 8);
 
-            lebstate<T> state;
+            x = 0;
+            unsigned shift{ 0 };
             bool more{ first != last };
 
-            while(more && first != last) {
-                more = decode_byte(*first, state, leb);
-                ++first;
+            for (/* empty */; first != last; ++first) {
+                if (!more) {
+                    break;
+                }
+
+                std::tie(x, shift, more) = decode_byte(*first, x, shift, leb);
             }
 
             if (more) {
                 throw api::v1::ctk_data{ "leb128::decode: invalid encoding" };
             }
 
-            return { state.x, first };
+            return { x, first };
         }
 
+
+        template<typename T>
+        auto max_bytes(T/* type tag */) -> unsigned {
+            return static_cast<unsigned>(std::ceil((sizeof(T) * 8.0) / 7.0));
+        }
+
+
+        template<typename T, typename L>
+        // requirements:
+        // - L has an interface identical to sleb or uleb
+        auto to_file(FILE* f, T x, L leb) -> void {
+            bool more{ true };
+            uint8_t byte{ 0 };
+            const unsigned max_size{ max_bytes(T{}) };
+
+            for (unsigned i{ 0 }; i < max_size; ++i) {
+                std::tie(byte, x, more) = encode_byte(x, leb);
+                write(f, byte);
+                if (!more) {
+                    break;
+                }
+            }
+
+            assert(!more);
+        }
+
+
+        template<typename T, typename L>
+        // requirements:
+        // - L has an interface identical to sleb or uleb
+        auto from_file(FILE* f, T x, L leb) -> T {
+            x = 0;
+            unsigned shift{ 0 };
+            bool more{ true };
+            const unsigned max_size{ max_bytes(T{}) };
+
+            for (unsigned i{ 0 }; i < max_size; ++i) {
+                std::tie(x, shift, more) = decode_byte(read(f, uint8_t{}), x, shift, leb);
+                if (!more) {
+                    break;
+                }
+            }
+
+            if (more) {
+                throw api::v1::ctk_data{ "leb128::from_file: invalid encoding" };
+            }
+
+            return x;
+        }
+
+
+        // helper for calling encode() with the correct sleb/uleb argument
+        template<bool/* is signed? */>
+        struct encode_sequence;
+
+        template<>
+        struct encode_sequence<true/* signed */>
+        {
+            template<typename T, typename IByte>
+            static
+            auto write(T x, IByte first, IByte last) -> IByte {
+                static_assert(std::is_signed<T>::value);
+                return encode(x, first, last, sleb{});
+            }
+        };
+
+        template<>
+        struct encode_sequence<false/* unsigned */>
+        {
+            template<typename T, typename IByte>
+            static
+            auto write(T x, IByte first, IByte last) -> IByte {
+                static_assert(std::is_unsigned<T>::value);
+                return encode(x, first, last, uleb{});
+            }
+        };
+
+
+        // helper for calling decode() with the correct sleb/uleb argument
+        template<bool/* is signed? */>
+        struct decode_sequence;
+
+        template<>
+        struct decode_sequence<true/* signed */>
+        {
+            template<typename T, typename IByte>
+            static
+            auto read(IByte first, IByte last, T type_tag) -> std::pair<T, IByte> {
+                static_assert(std::is_signed<T>::value);
+                return decode(first, last, type_tag, sleb{});
+            }
+        };
+
+        template<>
+        struct decode_sequence<false/* unsigned */>
+        {
+            template<typename T, typename IByte>
+            static
+            auto read(IByte first, IByte last, T type_tag) -> std::pair<T, IByte> {
+                static_assert(std::is_unsigned<T>::value);
+                return decode(first, last, type_tag, uleb{});
+            }
+        };
+
+
+        // helper for calling to_file() with the correct sleb/uleb argument
+        template<bool/* is signed? */>
+        struct write_to_file;
+
+        template<>
+        struct write_to_file<true/* signed */>
+        {
+            template<typename T>
+            static
+            auto write(FILE* f, T x) -> void {
+                static_assert(std::is_signed<T>::value);
+                to_file(f, x, sleb{});
+            }
+        };
+
+        template<>
+        struct write_to_file<false/* unsigned */>
+        {
+            template<typename T>
+            static
+            auto write(FILE* f, T x) -> void {
+                static_assert(std::is_unsigned<T>::value);
+                to_file(f, x, uleb{});
+            }
+        };
+
+
+        // helper for calling from_file() with the correct sleb/uleb argument
+        template<bool/* is signed? */>
+        struct read_from_file;
+
+        template<>
+        struct read_from_file<true/* signed */>
+        {
+            template<typename T>
+            static
+            auto read(FILE* f, T type_tag) -> T {
+                static_assert(std::is_signed<T>::value);
+                return from_file(f, type_tag, sleb{});
+            }
+        };
+
+        template<>
+        struct read_from_file<false/* unsigned */>
+        {
+            template<typename T>
+            static
+            auto read(FILE* f, T type_tag) -> T {
+                static_assert(std::is_unsigned<T>::value);
+                return from_file(f, type_tag, uleb{});
+            }
+        };
 
     } // namespace leb128
 
 
-    template<typename T, typename IByte>
-    auto encode_uleb128(T x, IByte first, IByte last) -> IByte {
-        static_assert(std::is_unsigned<T>::value);
 
-        return leb128::encode(x, first, last, leb128::uleb{});
+    template<typename T, typename IByte>
+    auto encode_leb128(T x, IByte first, IByte last) -> IByte {
+        using op = leb128::encode_sequence<std::is_signed<T>::value>;
+        return op::write(x, first, last);
     }
 
-    template<typename T, typename IByte>
-    auto encode_sleb128(T x, IByte first, IByte last) -> IByte {
-        static_assert(std::is_signed<T>::value);
-
-        return leb128::encode(x, first, last, leb128::sleb{});
-    }
 
     template<typename T, typename IByte>
-    auto decode_uleb128(IByte first, IByte last, T type_tag) -> std::pair<T, IByte> {
-        static_assert(std::is_unsigned<T>::value);
-
-        return leb128::decode(first, last, type_tag, leb128::uleb{});
-    }
-
-    template<typename T, typename IByte>
-    auto decode_sleb128(IByte first, IByte last, T type_tag) -> std::pair<T, IByte> {
-        static_assert(std::is_signed<T>::value);
-
-        return leb128::decode(first, last, type_tag, leb128::sleb{});
+    auto decode_leb128(IByte first, IByte last, T type_tag) -> std::pair<T, IByte> {
+        using op = leb128::decode_sequence<std::is_signed<T>::value>;
+        return op::read(first, last, type_tag);
     }
 
 
     template<typename T>
-    auto encode_sleb128_v(T x) -> std::vector<uint8_t> {
+    auto encode_leb128_v(T x) -> std::vector<uint8_t> {
         static_assert(sizeof(T) <= 8);
 
-        std::vector<uint8_t> xs(sizeof(T) + 2 /* sizeof(T) <= 8 */);
+        const unsigned max_size{ leb128::max_bytes(x) };
+        std::vector<uint8_t> xs(max_size);
         const auto first{ begin(xs) };
         const auto last{ end(xs) };
-        const auto next{ encode_sleb128(x, first, last) };
+        const auto next{ encode_leb128(x, first, last) };
         xs.resize(static_cast<size_t>(std::distance(first, next)));
         return xs;
     }
 
     template<typename T>
-    auto decode_sleb128_v(const std::vector<uint8_t>& xs, T type_tag) -> T {
+    auto decode_leb128_v(const std::vector<uint8_t>& xs, T type_tag) -> T {
         const auto first{ begin(xs) };
         const auto last{ end(xs) };
-        const auto [x, next]{ decode_sleb128(first, last, type_tag) };
+        const auto [x, next]{ decode_leb128(first, last, type_tag) };
         if (next != last) {
-            throw api::v1::ctk_data{ "decode_sleb128_v: invalid encoding" };
+            throw api::v1::ctk_data{ "decode_leb128_v: invalid encoding" };
         }
         return x;
     }
 
 
     template<typename T>
-    auto encode_uleb128_v(T x) -> std::vector<uint8_t> {
-        static_assert(sizeof(T) <= 8);
-
-        std::vector<uint8_t> xs(sizeof(T) + 2 /* sizeof(T) <= 8 */);
-        const auto first{ begin(xs) };
-        const auto last{ end(xs) };
-        const auto next{ encode_uleb128(x, first, last) };
-        xs.resize(static_cast<size_t>(std::distance(first, next)));
-        return xs;
+    auto write_leb128(FILE* f, T x) -> void {
+        using op = leb128::write_to_file<std::is_signed<T>::value>;
+        op::write(f, x);
     }
 
     template<typename T>
-    auto decode_uleb128_v(const std::vector<uint8_t>& xs, T type_tag) -> T {
-        const auto first{ begin(xs) };
-        const auto last{ end(xs) };
-        const auto [x, next]{ decode_uleb128(first, last, type_tag) };
-        if (next != last) {
-            throw api::v1::ctk_data{ "decode_uleb128_v: invalid encoding" };
-        }
-        return x;
+    auto read_leb128(FILE* f, T type_tag) -> T {
+        using op = leb128::read_from_file<std::is_signed<T>::value>;
+        return op::read(f, type_tag);
     }
-
 
 } /* namespace impl */ } /* namespace ctk */
 
