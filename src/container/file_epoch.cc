@@ -982,7 +982,6 @@ namespace ctk { namespace impl {
     }
 
 
-    static
     auto write_electrodes(FILE* f, const std::vector<api::v1::Electrode>& xs) -> void {
         const int64_t size{ cast(xs.size(), int64_t{}, ok{}) };
         write_leb128(f, size);
@@ -992,7 +991,6 @@ namespace ctk { namespace impl {
         }
     }
 
-    static
     auto read_electrodes(FILE* f) -> std::vector<api::v1::Electrode> {
         const int64_t size{ read_leb128(f, int64_t{}) };
         const size_t count{ cast(size, size_t{}, ok{}) };

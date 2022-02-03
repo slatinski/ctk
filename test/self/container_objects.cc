@@ -28,6 +28,22 @@ namespace ctk { namespace impl { namespace test {
 
 using namespace ctk::api::v1;
 
+auto binary_file(const std::vector<api::v1::Electrode>& xs) -> void {
+    const std::filesystem::path temporary{ "container_objects.bin" };
+    {
+        file_ptr f{ open_w(temporary) };
+        write_electrodes(f.get(), xs);
+    }
+    {
+        file_ptr f{ open_r(temporary) };
+        const auto ys{ read_electrodes(f.get()) };
+        REQUIRE(xs == ys);
+    }
+    std::filesystem::remove(temporary);
+
+}
+
+
 TEST_CASE("electrodes round trip", "[consistency]") {
     std::vector<api::v1::Electrode> input;
 
@@ -80,9 +96,9 @@ TEST_CASE("electrodes round trip", "[consistency]") {
     input.push_back(e3);
 
     const auto s{ make_electrodes_content(input) };
-    const auto output{ parse_electrodes(s, false) };
-    REQUIRE(input == output);
-
+    const auto ascii_output{ parse_electrodes(s, false) };
+    REQUIRE(input == ascii_output);
+    binary_file(input);
 
     std::vector<api::v1::Electrode> compat;
     api::v1::Electrode e4{ e };
@@ -108,9 +124,17 @@ TEST_CASE("electrodes round trip", "[consistency]") {
     REQUIRE(sloppy[1].iscale == e.iscale);
     REQUIRE(sloppy[1].rscale == e.rscale);
     REQUIRE(sloppy[1].unit == e.unit);
+
 }
 
-
+TEST_CASE("binary file electrodes round trip", "[consistency]") {
+    const std::vector<api::v1::Electrode> xs{
+        { "active label 1", "reference label 1", "a unit", 1.0, 1.0 },
+        { "active label 2", "reference label 2", "another unit", 321.0, 0.12 },
+        { "active label 3", "reference label 3", "a unit", 1.0, 1.0 }
+    };
+    binary_file(xs);
+}
 
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */
