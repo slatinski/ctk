@@ -129,6 +129,7 @@ struct libeep_writer
         v1::TimeSeries ts;
         ts.sampling_frequency = sample_rate;
         ts.electrodes = channels2electrodes(channels);
+        ts.start_time = std::chrono::system_clock::now();
         writer.addTimeSignal(ts);
     }
     libeep_writer(libeep_writer&&) = default;

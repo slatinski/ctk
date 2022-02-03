@@ -200,8 +200,9 @@ namespace ctk { namespace api {
         }
 
         TimeSeries::TimeSeries()
-        : sampling_frequency{ 0 }
-        , epoch_length{ 256 } {
+        : start_time{ dcdate2timepoint({ 0, 0 }) }
+        , sampling_frequency{ 0 }
+        , epoch_length{ 1024 } {
         }
 
         auto operator==(const TimeSeries& x, const TimeSeries& y) -> bool {
