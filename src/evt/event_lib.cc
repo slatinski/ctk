@@ -1518,7 +1518,6 @@ namespace ctk { namespace impl {
             }
 
             if (class_tag == tags::null) {
-                assert(class_name.empty());
                 continue;
             }
 
