@@ -43,12 +43,12 @@ auto generate_input_file(const std::string& fname) -> void {
     description.sampling_frequency = 1024;
     description.start_time = ctk::api::dcdate2timepoint({ 0, 0 });
     description.electrodes.resize(height);
-    for (size_t i{ 0 }; i < height; ++i) {
-        description.electrodes[i].label = "fpx";
-        description.electrodes[i].reference = "ref";
-        description.electrodes[i].unit = "u";
-        description.electrodes[i].iscale = 1.0;
-        description.electrodes[i].rscale = 1.0;
+    for (size_t j{ 0 }; j < height; ++j) {
+        description.electrodes[j].label = "fpx";
+        description.electrodes[j].reference = "ref";
+        description.electrodes[j].unit = "u";
+        description.electrodes[j].iscale = 1.0;
+        description.electrodes[j].rscale = 1.0;
     }
 
     ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
