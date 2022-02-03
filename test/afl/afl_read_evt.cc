@@ -20,13 +20,14 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <numeric>
 #include <cassert>
+#include <cmath>
 #include "ctk.h"
 
 auto generate_input_file(const std::filesystem::path& fname) -> void {
     std::cerr << "writing " << fname << "\n";
 
     std::vector<float> impedances(3);
-    std::iota(begin(impedances), end(impedances), 12.0);
+    std::iota(begin(impedances), end(impedances), 12.0f);
     ctk::EventImpedance impedance{ std::chrono::system_clock::now(), impedances };
 
     ctk::EventVideo video{std::chrono::system_clock::now(), 1.0, 128 };
@@ -44,6 +45,83 @@ auto generate_input_file(const std::filesystem::path& fname) -> void {
     writer.close();
 }
 
+auto compare(std::chrono::system_clock::time_point x, std::chrono::system_clock::time_point y) -> bool {
+    using namespace std::chrono;
+
+    const nanoseconds diff{ duration_cast<nanoseconds>(x - y) };
+#ifdef _WIN32
+    return -500ns <= diff && diff <= 500ns;
+#else
+    return diff == 0ns;
+#endif
+}
+
+auto compare(const ctk::api::v1::EventImpedance& x, const ctk::api::v1::EventImpedance& y) -> bool {
+    const size_t xsize{ x.values.size() };
+    const size_t ysize{ y.values.size() };
+    if (xsize != ysize) {
+        return false;
+    }
+
+    for (size_t i{ 0 }; i < xsize; ++i) {
+        // ohm -> kohm -> ohm roundtrip might lead to loss of precision
+        if (1/* ohm */ <= std::fabs(x.values[i] - y.values[i])) {
+            return false;
+        }
+    }
+
+    return compare(x.stamp, y.stamp);
+}
+
+auto compare(const ctk::api::v1::EventVideo& x, const ctk::api::v1::EventVideo& y) -> bool {
+    if (std::isfinite(x.duration) && std::isfinite(y.duration)) {
+        if (x.duration != y.duration) {
+            return false;
+        }
+    }
+
+    if (x.trigger_code != y.trigger_code) {
+        return false;
+    }
+
+    if (x.condition_label != y.condition_label) {
+        return false;
+    }
+
+    if (x.description != y.description) {
+        return false;
+    }
+
+    if (x.video_file != y.video_file) {
+        return false;
+    }
+
+    return compare(x.stamp, y.stamp);
+}
+
+auto compare(const ctk::api::v1::EventEpoch& x, const ctk::api::v1::EventEpoch& y) -> bool {
+    if (std::isfinite(x.duration) && std::isfinite(y.duration)) {
+        if (x.duration != y.duration) {
+            return false;
+        }
+    }
+
+    if (std::isfinite(x.offset) && std::isfinite(y.offset)) {
+        if (x.offset != y.offset) {
+            return false;
+        }
+    }
+
+    if (x.trigger_code != y.trigger_code) {
+        return false;
+    }
+
+    if (x.condition_label != y.condition_label) {
+        return false;
+    }
+
+    return compare(x.stamp, y.stamp);
+}
 
 auto read(const std::filesystem::path& fname) -> void {
     ctk::EventReader reader{ fname };
@@ -59,15 +137,15 @@ auto read(const std::filesystem::path& fname) -> void {
     assert(e_count == epochs.size());
 
     for (size_t i{ 0 }; i < i_count; ++i) {
-        assert(impedances[i] == reader.impedanceEvent(i));
+        assert(compare(impedances[i], reader.impedanceEvent(i)));
     }
 
     for (size_t i{ 0 }; i < v_count; ++i) {
-        assert(videos[i] == reader.videoEvent(i));
+        assert(compare(videos[i], reader.videoEvent(i)));
     }
 
     for (size_t i{ 0 }; i < e_count; ++i) {
-        assert(epochs[i] == reader.epochEvent(i));
+        assert(compare(epochs[i], reader.epochEvent(i)));
     }
 }
 
