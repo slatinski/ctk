@@ -1222,6 +1222,11 @@ namespace ctk { namespace impl {
 
 
     static
+    auto is_valid(const ctk::api::v1::DcDate& x) -> bool {
+        return std::isfinite(x.date) && std::isfinite(x.fraction);
+    }
+
+    static
     auto is_valid(const api::v1::TimeSeries& x) -> bool {
         if (x.epoch_length < 1) {
             std::cerr << "is_valid(TimeSeries): epoch length " << x.epoch_length << "\n";
@@ -1233,12 +1238,12 @@ namespace ctk { namespace impl {
             return false;
         }
 
-        /*
         if (!is_valid(api::timepoint2dcdate(x.start_time))) {
-            std::cerr << "is_valid(TimeSeries): start time " << x.start_time << "\n";
+            std::cerr << "is_valid(TimeSeries): start time ";
+            api::print(std::cerr, x.start_time);
+            std::cerr << "\n";
             return false;
         }
-        */
 
         if (x.electrodes.empty()) {
             std::cerr << "is_valid(TimeSeries): no electrodes\n";
@@ -2276,11 +2281,6 @@ namespace ctk { namespace impl {
     auto operator<<(std::ostream& os, const amorph&) -> std::ostream& {
         return os;
     }
-
-    auto is_valid(const ctk::api::v1::DcDate& x) -> bool {
-        return std::isfinite(x.date) && std::isfinite(x.fraction);
-    }
-
 
     auto sex2ch(ctk::api::v1::Sex x) -> uint8_t {
         if (x == ctk::api::v1::Sex::male) {
