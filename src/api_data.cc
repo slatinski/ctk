@@ -388,6 +388,10 @@ namespace ctk { namespace api {
         const double days_since_epoch{ static_cast<double>(s.count()) / seconds_per_day };
         const double fraction{ static_cast<double>(subsecond.count()) / std::nano::den };
 
+        if (!std::isfinite(days_since_epoch) || !std::isfinite(fraction)) {
+            throw ctk::api::v1::ctk_limit{ "timespan2dcdate: infinite dcdate" };
+        }
+
         return { days_since_epoch, fraction };
     }
 
