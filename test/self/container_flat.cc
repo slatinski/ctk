@@ -21,7 +21,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "../catch.hpp"
 
 #include <string>
-#include "container/file_reflib.h"
+#include "file/cnt_reflib.h"
 #include "test/util.h"
 
 namespace ctk { namespace impl { namespace test {

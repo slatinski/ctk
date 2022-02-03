@@ -21,8 +21,8 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstring>
 
 #include "exception.h"
-#include "container/ctk_part.h"
-#include "container/io.h"
+#include "file/ctk_part.h"
+#include "file/io.h"
 
 namespace ctk { namespace impl {
 

@@ -24,7 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "test/util.h"
 #include "test/wrap_libeep.h"
 #include "test/wrap_thislib.h"
-#include "ctk/container/file_reflib.h"
+#include "ctk/file/cnt_reflib.h"
 
 #include <vector>
 #include <numeric>

@@ -23,7 +23,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <numeric>
 
-#include "container/leb128.h"
+#include "file/leb128.h"
 
 namespace ctk { namespace impl { namespace test {
 

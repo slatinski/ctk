@@ -21,7 +21,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <cassert>
 
-#include "container/io.h"
+#include "file/io.h"
 #include "arithmetic.h"
 
 namespace ctk { namespace impl {

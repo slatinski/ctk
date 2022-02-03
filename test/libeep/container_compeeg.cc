@@ -30,7 +30,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "test/util.h"
 #include "ctk/api_data.h"
-#include "ctk/container/file_reflib.h"
+#include "ctk/file/cnt_reflib.h"
 
 namespace libeep {
 extern "C" {

@@ -71,16 +71,16 @@ add_library(ctk_static
         ctk/compress/multiplex.h
         ctk/compress/matrix.h
         src/compress/matrix.cc
-        ctk/container/io.h
-        src/container/io.cc
-        ctk/container/ctk_part.h
-        src/container/ctk_part.cc
-        ctk/container/file_epoch.h
-        src/container/file_epoch.cc
-        ctk/container/file_reflib.h
-        src/container/file_reflib.cc
-        ctk/evt/event_lib.h
-        src/evt/event_lib.cc
+        ctk/file/io.h
+        src/file/io.cc
+        ctk/file/ctk_part.h
+        src/file/ctk_part.cc
+        ctk/file/cnt_epoch.h
+        src/file/cnt_epoch.cc
+        ctk/file/cnt_reflib.h
+        src/file/cnt_reflib.cc
+        ctk/file/evt.h
+        src/file/evt.cc
         ctk/api_compression.h
         src/api_compression.cc
         ctk/api_data.h
@@ -136,10 +136,10 @@ if(CTK_SELF_TEST)
     add_test(NAME multiplex COMMAND compress_multiplex)
     add_test(NAME histogram COMMAND compress_histogram)
     add_test(NAME matrix COMMAND compress_matrix)
-    add_test(NAME submatrix COMMAND container_submatrix)
-    add_test(NAME cnt_objects COMMAND container_objects)
+    add_test(NAME submatrix COMMAND file_submatrix)
+    add_test(NAME cnt_objects COMMAND file_objects)
     add_test(NAME api_data COMMAND api_data)
-    add_test(NAME leb128 COMMAND container_leb128)
+    add_test(NAME leb128 COMMAND file_leb128)
 endif()
 
 if(CTK_LIBEEP_TEST)
@@ -148,7 +148,7 @@ if(CTK_LIBEEP_TEST)
     include(CTest)
     add_subdirectory(test/libeep)
     add_test(NAME compress_epochmux COMMAND compress_epochmux)
-    add_test(NAME container_compeeg COMMAND container_compeeg)
+    add_test(NAME file_compeeg COMMAND file_compeeg)
 endif()
 
 if(CTK_AFL_TEST)

@@ -20,7 +20,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "../catch.hpp"
 
-#include "container/file_reflib.h"
+#include "file/cnt_reflib.h"
 
 #include <vector>
 

@@ -22,9 +22,9 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <numeric>
 #include <iomanip>
 
-#include "container/file_epoch.h"
+#include "file/cnt_epoch.h"
 #include "compress/matrix.h"
-#include "container/leb128.h"
+#include "file/leb128.h"
 #include "ctk_version.h"
 
 
