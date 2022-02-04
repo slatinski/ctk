@@ -21,6 +21,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <limits>
 #include <vector>
+#include <cmath>
 
 #include "exception.h"
 #include "file/io.h"
@@ -63,7 +64,7 @@ namespace ctk { namespace impl {
                 return x == 0;
             }
 
-            // used by decode() to decide if the result shall be sign extended
+            // used by decode to decide if the result shall be sign extended
             template<typename T>
             constexpr
             auto extend_sign(size_t /* shift */, size_t /* size */, T /* byte */) const -> bool {
@@ -81,7 +82,7 @@ namespace ctk { namespace impl {
                 return (x == 0 && !signum_bit_set(byte)) || (x == -1 && signum_bit_set(byte));
             }
 
-            // used by decode() to decide if the result shall be sign extended
+            // used by decode to decide if the result shall be sign extended
             template<typename T>
             constexpr
             auto extend_sign(size_t shift, size_t size, T byte) const -> bool {
