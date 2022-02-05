@@ -125,9 +125,12 @@ namespace v1 {
         std::string unit;
         std::string status;
         std::string type;
-        double iscale;
-        double rscale;
+        double iscale; // user customization point: instrument scaling. default 1
+        double rscale; // range scaling. default 1/256 (3.9nV LSB, 16.75V p2p for 32-bit signed integrals)
 
+        static auto default_scaling_factor() -> double { return 256; }
+
+        Electrode(const std::string& label, const std::string& reference, const std::string& unit);
         Electrode(const std::string& label, const std::string& reference, const std::string& unit, double iscale, double rscale);
         Electrode();
         Electrode(const Electrode&) = default;
@@ -159,12 +162,12 @@ namespace v1 {
     {
         std::chrono::system_clock::time_point start_time; // utc
         double sampling_frequency;
-        std::vector<v1::Electrode> electrodes;
+        std::vector<Electrode> electrodes;
         int64_t epoch_length;
         // compression level?
 
-        TimeSeries(std::chrono::system_clock::time_point, double, const std::vector<v1::Electrode>&, int64_t);
-        TimeSeries(const DcDate&, double, const std::vector<v1::Electrode>&, int64_t);
+        TimeSeries(std::chrono::system_clock::time_point, double, const std::vector<Electrode>&, int64_t);
+        TimeSeries(const DcDate&, double, const std::vector<Electrode>&, int64_t);
         TimeSeries();
         TimeSeries(const TimeSeries&) = default;
         TimeSeries(TimeSeries&&) = default;

@@ -161,17 +161,25 @@ namespace ctk { namespace api {
         }
 
 
+        Electrode::Electrode()
+        : iscale{ 1 }
+        , rscale{ 1 / default_scaling_factor() } {
+        }
+
+        Electrode::Electrode(const std::string& label, const std::string& reference, const std::string& unit)
+        : label{ label }
+        , reference{ reference }
+        , unit{ unit }
+        , iscale{ 1 }
+        , rscale{ 1 / default_scaling_factor() } {
+        }
+
         Electrode::Electrode(const std::string& label, const std::string& reference, const std::string& unit, double iscale, double rscale)
         : label{ label }
         , reference{ reference }
         , unit{ unit }
         , iscale{ iscale }
         , rscale{ rscale } {
-        }
-
-        Electrode::Electrode()
-        : iscale{ 1 } // multiplicative identity
-        , rscale{ 1 } {
         }
 
         auto operator<<(std::ostream& os, const Electrode& x) -> std::ostream& {
