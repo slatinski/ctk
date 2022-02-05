@@ -1224,77 +1224,117 @@ namespace ctk { namespace impl {
         return std::isfinite(x.date) && std::isfinite(x.fraction);
     }
 
+
+
+    enum class status_elc{ ok, label_empty, label_brace, label_semicolon, unit_empty, iscale, rscale };
+
     static
-    auto is_valid(const api::v1::TimeSeries& x) -> bool {
-        if (x.epoch_length < 1) {
-            std::cerr << "is_valid(TimeSeries): epoch length " << x.epoch_length << "\n";
-            return false;
-        }
-
-        if (!std::isfinite(x.sampling_frequency) || x.sampling_frequency <= 0) {
-            std::cerr << "is_valid(TimeSeries): sampling frequency " << x.sampling_frequency << "\n";
-            return false;
-        }
-
-        if (!is_valid(api::timepoint2dcdate(x.start_time))) {
-            std::cerr << "is_valid(TimeSeries): start time ";
-            api::print(std::cerr, x.start_time);
-            std::cerr << "\n";
-            return false;
-        }
-
-        if (x.electrodes.empty()) {
-            std::cerr << "is_valid(TimeSeries): no electrodes\n";
-            return false;
-        }
-
-        const auto valid_electrode = [](bool acc, const api::v1::Electrode& e) -> bool { return acc && is_valid(e); };
-
-        return std::accumulate(begin(x.electrodes), end(x.electrodes), true, valid_electrode);
+    auto valid_electrode(const ctk::api::v1::Electrode& x) -> status_elc {
+        if (x.label.empty()) { return status_elc::label_empty; }
+        if (x.label[0] == '[') { return status_elc::label_brace; }
+        if (x.label[0] == ';') { return status_elc::label_semicolon; }
+        if (x.unit.empty()) { return status_elc::unit_empty; }
+        if (!std::isfinite(x.iscale)) { return status_elc::iscale; }
+        if (!std::isfinite(x.rscale)) { return status_elc::rscale; }
+        return status_elc::ok;
     }
 
 
+    enum class status_ts{ ok, epochl, sfreq, stamp, no_elc, invalid_elc };
+
     static
-    auto is_valid(const amorph& x) -> bool {
-        if (x.sample_count < 1) {
-            std::cerr << "is_valid(amorph): sample count " << x.sample_count << "\n";
-            return false;
+    auto valid_time_series(const api::v1::TimeSeries& x) -> status_ts {
+        if (x.epoch_length < 1) {
+            return status_ts::epochl;
         }
 
-        if (!is_valid(x.header)) {
-            std::cerr << "is_valid(amorph): header count " << x.header << "\n";
-            return false;
+        if (!std::isfinite(x.sampling_frequency) || x.sampling_frequency <= 0) {
+            return status_ts::sfreq;
+        }
+
+        if (!is_valid(api::timepoint2dcdate(x.start_time))) {
+            return status_ts::stamp;
+        }
+
+        if (x.electrodes.empty()) {
+            return status_ts::no_elc;
+        }
+
+        const auto check_electrode = [](bool acc, const api::v1::Electrode& e) -> bool { return acc && is_valid(e); };
+
+        const auto all_valid{ std::accumulate(begin(x.electrodes), end(x.electrodes), true, check_electrode) };
+        return all_valid ? status_ts::ok : status_ts::invalid_elc;
+    }
+
+    auto validate(const api::v1::TimeSeries& x) -> void {
+        const status_ts status{ valid_time_series(x) };
+        switch (status) {
+            case status_ts::ok: return;
+            case status_ts::epochl: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid epoch length" };
+            case status_ts::sfreq: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid sampling frequency" };
+            case status_ts::stamp: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid start time" };
+            case status_ts::no_elc: throw api::v1::ctk_limit{ "validate(TimeSeries): no electrodes" };
+            case status_ts::invalid_elc: /* fall trough */;
+        }
+
+        for (const api::v1::Electrode& e : x.electrodes) {
+            const status_elc status{ valid_electrode(e) };
+            if (status == status_elc::ok) {
+                continue;
+            }
+
+            std::ostringstream oss;
+            oss << e << ": ";
+            switch (status) {
+            case status_elc::ok: assert(false);
+            case status_elc::label_empty: oss << "validate(TimeSeries): empty active label"; throw api::v1::ctk_limit{ oss.str() };
+            case status_elc::unit_empty: oss << "validate(TimeSeries): empty unit"; throw api::v1::ctk_limit{ oss.str() };
+            case status_elc::label_brace: oss << "validate(TimeSeries): active label starts with ["; throw api::v1::ctk_limit{ oss.str() };
+            case status_elc::label_semicolon: oss << "validate(TimeSeries): active label starts with ;"; throw api::v1::ctk_limit{ oss.str() };
+            case status_elc::iscale: oss << "validate(TimeSeries): infinite instrument scale"; throw api::v1::ctk_limit{ oss.str() };
+            case status_elc::rscale: oss << "validate(TimeSeries): infinite range scale"; throw api::v1::ctk_limit{ oss.str() };
+            }
+        }
+    }
+
+
+    enum class status_amorph{ ok, samples, ts, order, order_elc, ranges, fpos, increasing, content };
+
+    static
+    auto is_valid(const amorph& x) -> status_amorph {
+        if (x.sample_count < 1) {
+            return status_amorph::samples;
+        }
+
+        if (valid_time_series(x.header) != status_ts::ok) {
+            return status_amorph::ts;
         }
 
         if (!is_valid_row_order(x.order)) {
-            std::cerr << "is_valid(amorph): row order\n";
-            return false;
+            return status_amorph::order;
         }
 
         if (x.order.size() != x.header.electrodes.size()) {
-            std::cerr << "is_valid(amorph): electrodes " << x.header.electrodes.size() << ", channel order " << x.order.size() << "\n";
-            return false;
+            return status_amorph::order_elc;
         }
         
         if (x.epoch_ranges.empty()) {
-            std::cerr << "is_valid(amorph): no epochs\n";
-            return false;
+            return status_amorph::ranges;
         }
 
         if (x.epoch_ranges[0].fpos < 0) {
-            std::cerr << "is_valid(amorph): negative file offset\n";
-            return false;
+            return status_amorph::fpos;
         }
 
         const auto non_increasing = [](const file_range& x, const file_range& y) -> bool { return y.fpos <= x.fpos; };
         const auto sour{ std::adjacent_find(begin(x.epoch_ranges), end(x.epoch_ranges), non_increasing) };
         if (sour != end(x.epoch_ranges)) {
-            std::cerr << "is_valid(amorph): non increasing file position\n";
-            return false;
+            return status_amorph::increasing;
         }
 
         const auto has_content = [](bool acc, const file_range& r) -> bool { return acc && 0 < r.size; };
-        return std::accumulate(begin(x.epoch_ranges), end(x.epoch_ranges), true, has_content);
+        const bool non_empty{ std::accumulate(begin(x.epoch_ranges), end(x.epoch_ranges), true, has_content) };
+        return non_empty ? status_amorph::ok : status_amorph::content;
     }
 
 
@@ -1750,9 +1790,7 @@ namespace ctk { namespace impl {
     , riff{ make_cnt_field_size(s) }
     , fname{ cnt }
     , open_files{ 0 } {
-        if (!is_valid(x)) {
-            throw api::v1::ctk_limit{ "epoch_writer_flat: invalid description" };
-        }
+        validate(x);
 
         f_ep = add_file(fname_ep(fname), file_tag::ep, "raw3");
         f_data = add_file(fname_data(fname), file_tag::data, "raw3");
@@ -1773,6 +1811,7 @@ namespace ctk { namespace impl {
         write(f_info, begin(i), end(i));
         ::fflush(f_info);
 
+        // written only once
         const sensor_count c{ vsize(x.electrodes) };
         const auto o{ natural_row_order(c) };
         auto f_chan{ add_file(fname_chan(fname), file_tag::chan, "raw3") };
@@ -1886,8 +1925,20 @@ namespace ctk { namespace impl {
     , f_triggers{ ft }
     , data{ &d }
     , riff{ r } {
-        if (!is_valid(d)) {
-            throw api::v1::ctk_data{ "epoch_reader_common: inconsistent cnt data" };
+        const status_amorph status{ is_valid(d) };
+        if (status != status_amorph::ok) {
+            std::ostringstream oss;
+            switch (status) {
+                case status_amorph::ok: assert(false);
+                case status_amorph::samples: oss << "epoch_reader_common: invalid sample count " << d.sample_count; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::ts: validate(d.header); break;
+                case status_amorph::order: oss << "epoch_reader_common: invalid row order"; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::order_elc: oss << "epoch_reader_common: electrode count != channel count"; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::ranges: oss << "epoch_reader_common: no epoch data"; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::fpos: oss << "epoch_reader_common: invalid file position"; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::increasing: oss << "epoch_reader_common: non increasing epochs"; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::content: oss << "epoch_reader_common: epoch without content"; throw api::v1::ctk_data{ oss.str() };
+            }
         }
 
         seek(f_data, offset, SEEK_SET);
@@ -2331,13 +2382,9 @@ namespace ctk { namespace impl {
         return ctk::api::v1::Handedness::unknown;
     }
 
+
     auto is_valid(const ctk::api::v1::Electrode& x) -> bool {
-        return !x.label.empty()
-            && x.label[0] != '['
-            && x.label[0] != ';'
-            && !x.unit.empty()
-            && std::isfinite(x.iscale)
-            && std::isfinite(x.rscale);
+        return valid_electrode(x) == status_elc::ok;
     }
 
 } /* namespace impl */ } /* namespace ctk */
