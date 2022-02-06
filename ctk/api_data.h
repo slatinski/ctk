@@ -139,21 +139,8 @@ namespace v1 {
         auto operator=(Electrode&&) -> Electrode& = default;
         ~Electrode() = default;
 
-        friend
-        auto operator==(const Electrode& x, const Electrode& y) -> bool {
-            return x.label == y.label
-                && x.reference == y.reference
-                && x.unit == y.unit
-                && x.status == y.status
-                && x.type == y.type
-                && x.iscale == y.iscale
-                && x.rscale == y.rscale;
-        }
-
-        friend
-        auto operator!=(const Electrode& x, const Electrode& y) -> bool {
-            return !(x == y);
-        }
+        friend auto operator==(const Electrode&, const Electrode&) -> bool = default;
+        friend auto operator!=(const Electrode&, const Electrode&) -> bool = default;
     };
     auto operator<<(std::ostream&, const Electrode&) -> std::ostream&;
 
