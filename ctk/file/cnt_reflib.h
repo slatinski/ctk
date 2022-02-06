@@ -101,7 +101,8 @@ auto submatrix(measurement_count amount, const buf_win<I>& input, measurement_co
 }
 
 
-auto electrode_scaling(std::vector<api::v1::Electrode> electrodes) -> std::vector<double>;
+auto reader_scales(const std::vector<api::v1::Electrode>&) -> std::vector<double>;
+auto writer_scales(const std::vector<api::v1::Electrode>&) -> std::vector<double>;
 
 template<typename EpochReader>
 // EpochReader has interface identical to epoch_reader_riff and epoch_reader_flat
@@ -126,7 +127,7 @@ public:
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
-    , scales{ electrode_scaling(reader.data().description().electrodes)  } {
+    , scales{ reader_scales(reader.data().description().electrodes)  } {
         decode.row_order(reader.data().order()); // TODO?
     }
 
@@ -136,7 +137,7 @@ public:
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
-    , scales{ electrode_scaling(reader.data().description().electrodes)  } {
+    , scales{ reader_scales(reader.data().description().electrodes)  } {
         decode.row_order(reader.data().order());
     }
 

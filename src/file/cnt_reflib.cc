@@ -161,13 +161,23 @@ auto operator<<(std::ostream& os, const external_file& x) -> std::ostream& {
     return os;
 }
 
-auto electrode_scaling(std::vector<api::v1::Electrode> electrodes) -> std::vector<double> {
-    std::vector<double> scales(electrodes.size());
+auto reader_scales(const std::vector<api::v1::Electrode>& xs) -> std::vector<double> {
+    std::vector<double> ys(xs.size());
 
-    const auto scale = [](const auto& e) -> double { return e.iscale * e.rscale; };
-    std::transform(begin(electrodes), end(electrodes), begin(scales), scale);
+    const auto scale = [](const api::v1::Electrode& e) -> double { return e.iscale * e.rscale; };
+    std::transform(begin(xs), end(xs), begin(ys), scale);
 
-    return scales;
+    return ys;
+}
+
+auto writer_scales(const std::vector<api::v1::Electrode>& xs) -> std::vector<double> {
+    std::vector<double> ys(reader_scales(xs));
+
+    const auto inverse = [](double d) -> double { return 1.0 / d; };
+    std::transform(begin(ys), end(ys), begin(ys), inverse);
+
+    return ys;
+
 }
 
 
