@@ -102,7 +102,7 @@ namespace v1 {
         std::string subject_phone;
         Sex subject_sex;
         Handedness subject_handedness;
-        tm subject_dob;
+        std::chrono::system_clock::time_point subject_dob; // utc implied, stored as struct tm - truncated to seconds precision
         std::string comment;
 
         Info();
@@ -112,8 +112,8 @@ namespace v1 {
         auto operator=(Info&&) -> Info& = default;
         ~Info() = default;
 
-        friend auto operator==(const Info&, const Info&) -> bool;
-        friend auto operator!=(const Info&, const Info&) -> bool;
+        friend auto operator==(const Info&, const Info&) -> bool = default;
+        friend auto operator!=(const Info&, const Info&) -> bool = default;
     };
     auto operator<<(std::ostream&, const Info&) -> std::ostream&;
 
@@ -147,7 +147,7 @@ namespace v1 {
 
     struct TimeSeries
     {
-        std::chrono::system_clock::time_point start_time; // utc
+        std::chrono::system_clock::time_point start_time; // utc implied
         double sampling_frequency;
         std::vector<Electrode> electrodes;
         int64_t epoch_length;
@@ -228,7 +228,7 @@ namespace v1 {
 
     struct EventImpedance
     {
-        std::chrono::system_clock::time_point stamp;
+        std::chrono::system_clock::time_point stamp; // utc implied
         std::vector<float> values; // in Ohm
 
         EventImpedance();
@@ -245,7 +245,7 @@ namespace v1 {
 
     struct EventVideo
     {
-        std::chrono::system_clock::time_point stamp;
+        std::chrono::system_clock::time_point stamp; // utc implied
         double duration;
         int32_t trigger_code;
         std::wstring condition_label;
@@ -266,7 +266,7 @@ namespace v1 {
 
     struct EventEpoch
     {
-        std::chrono::system_clock::time_point stamp;
+        std::chrono::system_clock::time_point stamp; // utc implied
         double duration;
         double offset;
         int32_t trigger_code;

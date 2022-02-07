@@ -461,8 +461,9 @@ namespace ctk { namespace impl {
     auto hand2ch(ctk::api::v1::Handedness x) -> uint8_t;
     auto ch2hand(uint8_t x) -> ctk::api::v1::Handedness;
 
-    auto make_dob() -> tm;
-    auto is_equal(const tm&, const tm&) -> bool;
+    auto make_tm() -> tm; // compatibility: returns 1970-01-01 if not set (instead of 1899-12-30)
+    auto timepoint2tm(std::chrono::system_clock::time_point) -> tm;
+    auto tm2timepoint(tm) -> std::chrono::system_clock::time_point;
 
     auto is_root(const chunk& x) -> bool;
     auto is_root_or_list(const chunk& x) -> bool;

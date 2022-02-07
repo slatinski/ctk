@@ -110,30 +110,7 @@ namespace ctk { namespace api {
         Info::Info()
         : subject_sex{ Sex::unknown }
         , subject_handedness{ Handedness::unknown }
-        , subject_dob{ ctk::impl::make_dob() } {
-        }
-
-        auto operator==(const Info& x, const Info& y) -> bool {
-            return x.hospital == y.hospital
-                && x.test_name == y.test_name
-                && x.test_serial == y.test_serial
-                && x.physician == y.physician
-                && x.technician == y.technician
-                && x.machine_make == y.machine_make
-                && x.machine_model == y.machine_model
-                && x.machine_sn == y.machine_sn
-                && x.subject_name == y.subject_name
-                && x.subject_id == y.subject_id
-                && x.subject_address == y.subject_address
-                && x.subject_phone == y.subject_phone
-                && x.subject_sex == y.subject_sex
-                && x.subject_handedness == y.subject_handedness
-                && ctk::impl::is_equal(x.subject_dob, y.subject_dob)
-                && x.comment == y.comment;
-        }
-
-        auto operator!=(const Info& x, const Info& y) -> bool {
-            return !(x == y);
+        , subject_dob{ ctk::impl::tm2timepoint(ctk::impl::make_tm()) } {
         }
 
         auto operator<<(std::ostream& os, const Info& x) -> std::ostream& {
@@ -151,11 +128,7 @@ namespace ctk { namespace api {
             if (!x.subject_phone.empty()) { os << "subject phone " << x.subject_phone; os << " "; }
             if (x.subject_sex != Sex::unknown) { os << "subject sex " << x.subject_sex; os << " "; }
             if (x.subject_handedness != Handedness ::unknown) { os << "subject handedness " << x.subject_handedness; os << " "; }
-            if (x.subject_dob.tm_sec != 0 || x.subject_dob.tm_min != 0 || x.subject_dob.tm_hour != 0 ||
-                x.subject_dob.tm_mday != 0 || x.subject_dob.tm_mon != 0 || x.subject_dob.tm_year != 0 ||
-                x.subject_dob.tm_yday != 0 || x.subject_dob.tm_isdst != 0) {
-                os << std::asctime(&x.subject_dob);
-            }
+            if (x.subject_dob != ctk::impl::tm2timepoint(ctk::impl::make_tm())) { os << "subject date of birth "; print(os, x.subject_dob); os << " "; }
             if (!x.comment.empty()) { os << "comment [" << x.comment; os << "] "; }
             return os;
         }

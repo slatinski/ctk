@@ -21,6 +21,8 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cmath>
 #include <numeric>
 #include <iomanip>
+#include <chrono>
+#include "date/date.h"
 
 #include "file/cnt_epoch.h"
 #include "compress/matrix.h"
@@ -705,43 +707,145 @@ namespace ctk { namespace impl {
         return result;
     }
 
-    auto make_dob() -> tm {
-#ifdef WIN32
-        return{ 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-#else
-        return{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-#endif
+
+    enum class status_tm{ ok, year, month, day, hour, min, sec };
+
+    static
+    auto is_valid(const tm& x) -> status_tm {
+#if !defined(_WIN32)
+        if (x.tm_year < 0) {
+            return status_tm::year;
+        }
+#endif // !defined(_WIN32)
+
+        if (x.tm_mon < 0 || 11 < x.tm_mon) {
+            return status_tm::month;
+        }
+
+        if (x.tm_mday < 1 || 31 < x.tm_mday) {
+            return status_tm::day;
+        }
+
+        if (x.tm_hour < 0 || 23 < x.tm_hour) {
+            return status_tm::hour;
+        }
+
+        if (x.tm_min < 0 || 59 < x.tm_min) {
+            return status_tm::min;
+        }
+
+        if (x.tm_sec < 0 || 60 < x.tm_sec) {
+            return status_tm::sec;
+        }
+
+        return status_tm::ok;
     }
 
-    auto is_equal(const tm& x, const tm& y) -> bool {
-        return x.tm_sec == y.tm_sec
-            && x.tm_min == y.tm_min
-            && x.tm_hour == y.tm_hour
-            && x.tm_mday == y.tm_mday
-            && x.tm_mon == y.tm_mon
-            && x.tm_year == y.tm_year
-            && x.tm_yday == y.tm_yday
-            && x.tm_isdst == y.tm_isdst;
+    static
+    auto validate(const tm& x) -> void {
+        const status_tm status{ is_valid(x) };
+        switch (status) {
+            case status_tm::ok: return;
+            case status_tm::year: throw api::v1::ctk_data{ "validate(struct tm): negative year" };
+            case status_tm::month: throw api::v1::ctk_data{ "validate(struct tm): invalid month" };
+            case status_tm::day: throw api::v1::ctk_data{ "validate(struct tm): invalid day" };
+            case status_tm::hour: throw api::v1::ctk_data{ "validate(struct tm): invalid hour" };
+            case status_tm::min: throw api::v1::ctk_data{ "validate(struct tm): invalid minute" };
+            case status_tm::sec: throw api::v1::ctk_data{ "validate(struct tm): invalid seconds" };
+        }
+    }
+
+
+    auto make_tm() -> tm {
+        constexpr const time_t t{ 0 };
+        const tm* x{ gmtime(&t) };
+        if (!x) {
+            throw api::v1::ctk_limit{ "make_tm: can not invoke gmtime(0)" };
+        }
+        tm y{ *x };
+
+        y.tm_isdst = -1;
+        validate(y);
+        return y;
+    }
+
+
+    auto timepoint2tm(std::chrono::system_clock::time_point x) -> tm {
+        using namespace std::chrono;
+
+        const seconds x_s{ duration_cast<seconds>(x.time_since_epoch()) };
+        const days x_days{ floor<days>(x_s) };
+        const date::year_month_day ymd{ date::sys_days{ x_days } };
+        if (!ymd.year().ok() || !ymd.month().ok() || !ymd.day().ok()) {
+            throw api::v1::ctk_data{ "timepoint2tm: invalid date" };
+        }
+
+        seconds reminder{ x_s - x_days };
+        const hours h{ floor<hours>(reminder) };
+        reminder -= h;
+
+        const minutes m{ floor<minutes>(reminder) };
+        reminder -= m;
+
+        const seconds s{ floor<seconds>(reminder) };
+        if (h < 0h || 23h < h || m < 0min || 59min < m || s < 0s || 59s < s) {
+            throw api::v1::ctk_data{ "timepoint2tm: invalid time" };
+        }
+
+        tm y{ make_tm() };
+        y.tm_year = minus(static_cast<int>(ymd.year()), 1900, ok{});
+        y.tm_mon = static_cast<int>(static_cast<unsigned>(ymd.month()) - 1U);
+        y.tm_mday = static_cast<int>(static_cast<unsigned>(ymd.day()));
+        y.tm_hour = static_cast<int>(h.count());
+        y.tm_min = static_cast<int>(m.count());
+        y.tm_sec = static_cast<int>(s.count());
+        validate(y);
+        return y;
+    }
+
+    auto tm2timepoint(tm x) -> std::chrono::system_clock::time_point {
+        using namespace std::chrono;
+
+        if (is_valid(x) != status_tm::ok) {
+            // compatibility: allows processing of cnt files with invalid subject dob.
+            // incompatibility: the comparison of libeep::eep_get_recording_info().m_DOB and timepoint2tm(subject_dob) will be false.
+            // TODO: log warning
+            x = make_tm();
+        }
+
+        const int sy{ plus(x.tm_year, 1900, ok{}) };
+        const int sm{ plus(x.tm_mon, 1, ok{}) };
+        const auto yyyy{ date::year{ sy } };
+        const auto mm{ date::month{ cast(sm, unsigned{}, ok{}) } };
+        const auto dd{ date::day{ cast(x.tm_mday, unsigned{}, ok{}) } };
+        if (!yyyy.ok() || !mm.ok() || !dd.ok()) {
+            throw api::v1::ctk_data{ "tm2timepoint: invalid time" };
+        }
+
+        system_clock::time_point days{ date::sys_days{ yyyy/mm/dd } };
+        const hours h{ x.tm_hour };
+        const minutes m{ x.tm_min };
+        const seconds s{ x.tm_sec };
+
+        return days + h + m + s;
     }
 
 
     static
-    auto parse_info_dob(const std::string &line) -> tm {
-        tm t{ make_dob() };
+    auto parse_info_dob(const std::string &line) -> std::chrono::system_clock::time_point {
+        tm x{ make_tm() };
         if (line.empty()) {
-            return t;
+            return tm2timepoint(x);
         }
 
         std::istringstream iss{ line };
-        iss >> t.tm_sec >> t.tm_min >> t.tm_hour >> t.tm_mday >> t.tm_mon >> t.tm_year >> t.tm_wday >> t.tm_yday >> t.tm_isdst;
+        iss >> x.tm_sec >> x.tm_min >> x.tm_hour >> x.tm_mday >> x.tm_mon >> x.tm_year >> x.tm_wday >> x.tm_yday >> x.tm_isdst;
 
         if (iss.fail()) {
             throw api::v1::ctk_data{ "parse_info_dob: invalid date" };
         }
-
-        return t;
+        return tm2timepoint(x);
     }
-
 
     auto parse_info(const std::string& input) -> std::tuple<api::v1::DcDate, api::v1::Info, bool> {
         api::v1::DcDate start_time;
@@ -1068,11 +1172,8 @@ namespace ctk { namespace impl {
         if (!i.subject_address.empty()) { oss << "[SubjectAddress]\n" << truncate(i.subject_address, length) << "\n"; }
         if (!i.subject_phone.empty()) { oss << "[SubjectPhone]\n" << truncate(i.subject_phone, length) << "\n"; }
         if (i.subject_sex != api::v1::Sex::unknown) { oss << "[SubjectSex]\n" << sex2ch(i.subject_sex) << "\n"; }
-
-        const tm &dob{ i.subject_dob };
-        if (dob.tm_sec != 0 || dob.tm_min != 0 || dob.tm_hour != 0 ||
-            dob.tm_mday != 0 || dob.tm_mon != 0 || dob.tm_year != 0 ||
-            dob.tm_yday != 0 || dob.tm_isdst != 0) {
+        if (i.subject_dob != tm2timepoint(make_tm())) {
+            const tm dob{ timepoint2tm(i.subject_dob) };
 
             oss << "[SubjectDateOfBirth]\n" << dob.tm_sec << " " << dob.tm_min << " " << dob.tm_hour << " " << dob.tm_mday << " " << dob.tm_mon << " " << dob.tm_year << " " << dob.tm_wday << " " << dob.tm_yday << " " << dob.tm_isdst << "\n";
 
@@ -1958,7 +2059,6 @@ namespace ctk { namespace impl {
             return epoch(i);
         }
         catch (const api::v1::ctk_data& e) {
-            std::cerr << e.what() << "\n";
             return compressed_epoch{};
         }
     }
