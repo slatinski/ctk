@@ -1368,8 +1368,8 @@ namespace ctk { namespace impl {
     }
 
     auto validate(const api::v1::TimeSeries& x) -> void {
-        const status_ts status{ valid_time_series(x) };
-        switch (status) {
+        const status_ts time_series_status{ valid_time_series(x) };
+        switch (time_series_status) {
             case status_ts::ok: return;
             case status_ts::epochl: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid epoch length" };
             case status_ts::sfreq: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid sampling frequency" };
@@ -1379,15 +1379,15 @@ namespace ctk { namespace impl {
         }
 
         for (const api::v1::Electrode& e : x.electrodes) {
-            const status_elc status{ valid_electrode(e) };
-            if (status == status_elc::ok) {
+            const status_elc elcectrode_status{ valid_electrode(e) };
+            if (elcectrode_status == status_elc::ok) {
                 continue;
             }
 
             std::ostringstream oss;
             oss << e << ": ";
-            switch (status) {
-            case status_elc::ok: assert(false);
+            switch (elcectrode_status) {
+            case status_elc::ok: assert(false); break;
             case status_elc::label_empty: oss << "validate(TimeSeries): empty active label"; throw api::v1::ctk_limit{ oss.str() };
             case status_elc::unit_empty: oss << "validate(TimeSeries): empty unit"; throw api::v1::ctk_limit{ oss.str() };
             case status_elc::label_brace: oss << "validate(TimeSeries): active label starts with ["; throw api::v1::ctk_limit{ oss.str() };
@@ -2058,7 +2058,7 @@ namespace ctk { namespace impl {
         try {
             return epoch(i);
         }
-        catch (const api::v1::ctk_data& e) {
+        catch (const api::v1::ctk_data&) {
             return compressed_epoch{};
         }
     }

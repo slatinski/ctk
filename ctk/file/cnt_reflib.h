@@ -114,7 +114,6 @@ struct double2int
     : factor{ f } {
     }
 
-    constexpr
     auto operator()(double x) const -> int32_t {
         return static_cast<int32_t>(std::round(x * factor));
     }
@@ -130,7 +129,6 @@ struct int2double
     : factor{ f } {
     }
 
-    constexpr
     auto operator()(int32_t x) const -> double {
         return x * factor;
     }
