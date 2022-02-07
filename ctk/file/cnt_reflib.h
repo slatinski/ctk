@@ -104,6 +104,60 @@ auto submatrix(measurement_count amount, const buf_win<I>& input, measurement_co
 auto reader_scales(const std::vector<api::v1::Electrode>&) -> std::vector<double>;
 auto writer_scales(const std::vector<api::v1::Electrode>&) -> std::vector<double>;
 
+
+struct double2int
+{
+    double factor;
+    using result = int32_t;
+
+    explicit double2int(double f)
+    : factor{ f } {
+    }
+
+    constexpr
+    auto operator()(double x) const -> int32_t {
+        return static_cast<int32_t>(std::round(x * factor));
+    }
+};
+
+
+struct int2double
+{
+    double factor;
+    using result = double;
+
+    explicit int2double(double f)
+    : factor{ f } {
+    }
+
+    constexpr
+    auto operator()(int32_t x) const -> double {
+        return x * factor;
+    }
+};
+
+template<typename T, typename Op>
+// Op is int2double or double2int
+auto apply_scaling(const std::vector<T>& xs, const std::vector<double>& scales, ptrdiff_t length, Op) -> std::vector<typename Op::result> {
+    std::vector<typename Op::result> ys(xs.size());
+    auto first_in{ begin(xs) };
+    auto first_out{ begin(ys) };
+    for (double factor : scales) {
+        Op convert{ factor };
+
+        const auto last_in{ first_in + length };
+        const auto last_out{ std::transform(first_in, last_in, first_out, convert) };
+        assert(std::distance(first_in, last_in) == std::distance(first_out, last_out));
+        assert(std::distance(first_in, last_in) == length);
+
+        first_in = last_in;
+        first_out = last_out;
+    }
+
+    return ys;
+}
+
+
 template<typename EpochReader>
 // EpochReader has interface identical to epoch_reader_riff and epoch_reader_flat
 class reflib_reader_common
@@ -155,8 +209,28 @@ public:
         31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
     } */
     auto range_row_major(measurement_count i, measurement_count amount) -> std::vector<int32_t> {
+        if (!populate_buffer(i, amount)) {
+            return {};
+        }
+
+        std::vector<int32_t> xs(buffer.size());
         constexpr const row_major2row_major copy;
-        return get(i, amount, copy);
+        copy.to_client(begin(buffer), begin(xs), reader.data().order(), amount);
+        return xs;
+    }
+
+    auto range_row_major_scaled(measurement_count i, measurement_count amount) -> std::vector<double> {
+        if (!populate_buffer(i, amount)) {
+            return {};
+        }
+
+        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(amount) };
+        const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
+
+        std::vector<double> ys(buffer.size());
+        constexpr const row_major2row_major copy;
+        copy.to_client(begin(xs), begin(ys), reader.data().order(), amount);
+        return ys;
     }
 
     /*
@@ -169,17 +243,30 @@ public:
         14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
     } */
     auto range_column_major(measurement_count i, measurement_count amount) -> std::vector<int32_t> {
+        if (!populate_buffer(i, amount)) {
+            return {};
+        }
+
+        std::vector<int32_t> xs(buffer.size());
         constexpr const column_major2row_major transpose;
-        return get(i, amount, transpose);
+        transpose.to_client(begin(buffer), begin(xs), reader.data().order(), amount); // multiplex
+        return xs;
     }
 
-    auto range_scaled(measurement_count i, measurement_count amount) -> std::vector<double> {
-        const auto scale = [](int32_t x, double y) -> double { return x * y; };
+    auto range_column_major_scaled(measurement_count i, measurement_count amount) -> std::vector<double> {
+        if (!populate_buffer(i, amount)) {
+            return {};
+        }
 
-        const auto ints{ range_column_major(i, amount) };
-        std::vector<double> doubles(ints.size());
-        std::transform(begin(ints), end(ints), begin(scales), begin(doubles), scale);
-        return doubles;
+        // apply scaling to the row major buffer
+        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(amount) };
+        const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
+
+        // transpose to column major
+        std::vector<double> ys(xs.size());
+        constexpr const column_major2row_major transpose;
+        transpose.to_client(begin(xs), begin(ys), reader.data().order(), amount); // multiplex
+        return ys;
     }
 
 
@@ -187,10 +274,10 @@ public:
     auto range_scaled_libeep(measurement_count i, measurement_count amount) -> std::vector<float> {
         const auto double2float = [](double x) -> float { return static_cast<float>(x); };
 
-        const auto doubles{ range_scaled(i, amount) };
-        std::vector<float> floats(doubles.size());
-        std::transform(begin(doubles), end(doubles), begin(floats), double2float);
-        return floats;
+        const auto xs{ range_column_major_scaled(i, amount) };
+        std::vector<float> ys(xs.size());
+        std::transform(begin(xs), end(xs), begin(ys), double2float);
+        return ys;
     }
 
 
@@ -319,15 +406,13 @@ private:
         return load_epoch(epoch_count{ cast(quot, sint{}, guarded{}) });
     }
 
-    template<typename Multiplex>
-    // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (buffer_transfer.h)
-    auto get(measurement_count i, measurement_count amount, Multiplex multiplex) -> std::vector<int32_t> {
+    auto populate_buffer(measurement_count i, measurement_count amount) -> bool {
         const sint si{ i };
         const sint size{ amount };
         const sint requested{ plus(si, size, ok{}) };
         const sint total{ sample_count() };
         if (i < 0 || sample_count() <= i || amount < 1 || total < requested) {
-            return {};
+            return false;
         }
 
         const sensor_count height{ reader.data().channel_count() };
@@ -350,14 +435,7 @@ private:
             output_index += stride;
         }
 
-        if (due != 0) {
-            return {}; // can not load all requested data
-        }
-
-        std::vector<int32_t> result(buffer.size());
-        multiplex.to_client(begin(buffer), begin(result), reader.data().order(), amount);
-
-        return result;
+        return due == 0; // is all requested data loaded in the buffer?
     }
 };
 
@@ -393,6 +471,7 @@ class cnt_writer_flat
     std::vector<T> buffer;
     measurement_count cache_index;
     sensor_count height;
+    std::vector<double> scales;
     bool closed;
 
 public:
@@ -401,6 +480,7 @@ public:
     : epoch_writer{ fname, description, riff }
     , cache_index{ 0 }
     , height{ vsize(description.electrodes) }
+    , scales{ writer_scales(description.electrodes) }
     , closed{ false } {
         const auto order{ natural_row_order(height) }; // TODO?
         encode.row_order(order);
@@ -420,9 +500,34 @@ public:
         21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
         31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
     } */
-    auto range_row_major(const std::vector<T>& client) -> void {
+    auto range_row_major(const std::vector<T>& xs) -> void {
+        if (closed) {
+            throw api::v1::ctk_bug{ "cnt_writer_flat::range_row_major: already closed" };
+        }
+
         constexpr const row_major2row_major copy;
-        append_range(client, copy);
+        const auto length{ signal_length(xs, height) };
+
+        buffer.resize(xs.size());
+        copy.from_client(begin(xs), begin(buffer), encode.row_order(), length); // demultiplex
+
+        append_buffer(length);
+    }
+
+    auto range_row_major_scaled(const std::vector<double>& xs) -> void {
+        if (closed) {
+            throw api::v1::ctk_bug{ "cnt_writer_flat::range_row_major: already closed" };
+        }
+
+        constexpr const row_major2row_major copy;
+        const auto length{ signal_length(xs, height) };
+        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(length) };
+
+        std::vector<double> ys(xs.size());
+        copy.from_client(begin(xs), begin(ys), encode.row_order(), length); // demultiplex
+
+        buffer = apply_scaling(ys, scales, epoch_length, double2int{ 0 });
+        append_buffer(length);
     }
 
     /*
@@ -434,9 +539,36 @@ public:
         13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
         14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
     } */
-    auto range_column_major(const std::vector<T>& client) -> void {
+    auto range_column_major(const std::vector<T>& xs) -> void {
+        if (closed) {
+            throw api::v1::ctk_bug{ "cnt_writer_flat::range_column_major: already closed" };
+        }
+
         constexpr const column_major2row_major transpose;
-        append_range(client, transpose);
+        const auto length{ signal_length(xs, height) };
+
+        buffer.resize(xs.size());
+        transpose.from_client(begin(xs), begin(buffer), encode.row_order(), length); // demultiplex
+
+        append_buffer(length);
+    }
+
+    auto range_column_major_scaled(const std::vector<double>& xs) -> void {
+        if (closed) {
+            throw api::v1::ctk_bug{ "cnt_writer_flat::range_column_major: already closed" };
+        }
+
+        const auto length{ signal_length(xs, height) };
+        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(length) };
+
+        // transpose from column major
+        std::vector<double> ys(xs.size());
+        constexpr const column_major2row_major transpose;
+        transpose.from_client(begin(xs), begin(ys), encode.row_order(), length); // demultiplex
+
+        // apply scaling to the row major temporary ys
+        buffer = apply_scaling(ys, scales, epoch_length, double2int{ 0 });
+        append_buffer(length);
     }
 
 
@@ -541,17 +673,8 @@ public:
 
 private:
 
-    template<typename Multiplex>
-    // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (buffer_transfer.h)
-    auto append_range(const std::vector<T>& client, Multiplex multiplex) -> void {
-        if (closed) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::append_range: already closed" };
-        }
-
-        const auto length{ signal_length(client, height) };
-
-        buffer.resize(client.size());
-        multiplex.from_client(begin(client), begin(buffer), encode.row_order(), length); // demultiplex
+    auto append_buffer(measurement_count length) -> void {
+        assert(!closed);
 
         const auto epoch_length{ epoch_writer.epoch_length() };
 

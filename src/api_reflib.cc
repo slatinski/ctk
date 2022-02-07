@@ -83,14 +83,19 @@ namespace ctk { namespace api {
             return p->reader.range_row_major(measurement_count{ i }, measurement_count{ samples });
         }
 
+        auto CntReaderReflib::rangeRowMajorScaled(int64_t i, int64_t samples) -> std::vector<double> {
+            assert(p);
+            return p->reader.range_row_major_scaled(measurement_count{ i }, measurement_count{ samples });
+        }
+
         auto CntReaderReflib::rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             return p->reader.range_column_major(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeScaled(int64_t i, int64_t samples) -> std::vector<double> {
+        auto CntReaderReflib::rangeColumnMajorScaled(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
-            return p->reader.range_scaled(measurement_count{ i }, measurement_count{ samples });
+            return p->reader.range_column_major_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
         auto CntReaderReflib::rangeScaledLibeep(int64_t i, int64_t samples) -> std::vector<float> {
@@ -236,6 +241,24 @@ namespace ctk { namespace api {
             }
 
             p->raw3->range_row_major(client);
+        }
+
+        auto CntWriterReflib::rangeColumnMajorScaled(const std::vector<double>& client) -> void {
+            assert(p);
+            if (!p->raw3) {
+                throw ctk_limit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
+            }
+
+            p->raw3->range_column_major_scaled(client);
+        }
+
+        auto CntWriterReflib::rangeRowMajorScaled(const std::vector<double>& client) -> void {
+            assert(p);
+            if (!p->raw3) {
+                throw ctk_limit{ "CntWriterReflib::rangeRowMajorScaled: addTimeSignal not invoked or close already invoked" };
+            }
+
+            p->raw3->range_row_major_scaled(client);
         }
 
         auto CntWriterReflib::trigger(const Trigger& x) -> void {

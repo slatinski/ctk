@@ -52,6 +52,7 @@ namespace ctk { namespace api {
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
             auto rangeRowMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto rangeRowMajorScaled(int64_t i, int64_t samples) -> std::vector<double>;
 
             /*
             the output is in column major format.
@@ -63,8 +64,7 @@ namespace ctk { namespace api {
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
             auto rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
-
-            auto rangeScaled(int64_t i, int64_t samples) -> std::vector<double>;
+            auto rangeColumnMajorScaled(int64_t i, int64_t samples) -> std::vector<double>;
 
             // libeep v4 interface: column major, applied electrode scaling
             auto rangeScaledLibeep(int64_t i, int64_t samples) -> std::vector<float>;
@@ -131,6 +131,7 @@ namespace ctk { namespace api {
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
             auto rangeColumnMajor(const std::vector<int32_t>&) -> void;
+            auto rangeColumnMajorScaled(const std::vector<double>&) -> void;
 
             /*
             the input is in row major format.
@@ -141,6 +142,7 @@ namespace ctk { namespace api {
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
             auto rangeRowMajor(const std::vector<int32_t>&) -> void;
+            auto rangeRowMajorScaled(const std::vector<double>&) -> void;
 
             auto trigger(const Trigger&) -> void;
             auto triggers(const std::vector<Trigger>&) -> void;
