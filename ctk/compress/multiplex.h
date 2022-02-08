@@ -64,7 +64,7 @@ namespace ctk { namespace impl {
     //     - AssignOp has an interface identical to the interface of storage2client or client2storage
     auto transpose(I1 client, I2 storage, const std::vector<int16_t>& row_order, measurement_count length, AssignOp assign) -> void {
         const measurement_count::value_type l{ length };
-	const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
+        const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
         const ptrdiff_t i_heigth{ cast(row_order.size(), ptrdiff_t{}, ok{}) };
         ptrdiff_t column{ 0 };
 
