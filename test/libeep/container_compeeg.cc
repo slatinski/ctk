@@ -109,6 +109,21 @@ auto recordinfo2info(const libeep::record_info_t& x) -> Info {
     }
     else {
         y.subject_dob = tm2timepoint(x.m_DOB);
+
+        const auto& a{ x.m_DOB };
+        const tm b{ timepoint2tm(y.subject_dob) };
+        if (a.tm_year != b.tm_year ||
+            a.tm_mon != b.tm_mon ||
+            a.tm_mday != b.tm_mday ||
+            a.tm_hour != b.tm_hour ||
+            a.tm_min != b.tm_min ||
+            a.tm_sec != b.tm_sec) {
+            std::cerr << "[!dob "
+            << a.tm_year << "/" << a.tm_mon << "/" << a.tm_mday << " " << a.tm_hour << ":" << a.tm_min << ":" << a.tm_sec
+            << " != "
+            << b.tm_year << "/" << b.tm_mon << "/" << b.tm_mday << " " << b.tm_hour << ":" << b.tm_min << ":" << b.tm_sec
+            << "]";
+        }
     }
 
     return y;
@@ -510,7 +525,7 @@ auto compare_history(const std::string& x, const std::string& y) -> bool {
         return true;
     }
 
-    // my implementation sometimes adds a traling new line.
+    // this implementation sometimes adds a traling new line.
     // no sure if the issue is significant since the file is readable by libeep.
     if ((x.size() - y.size()) == 1) {
         return x.back() == '\n';
@@ -531,7 +546,6 @@ auto compare_readers(EegReader1& r1, EegReader2& r2) -> void {
     REQUIRE(r1.triggers() == r2.triggers());
     REQUIRE(r1.description() == r2.description());
     REQUIRE(compare_history(r1.history(), r2.history()));
-    //std::cerr << "[@ " << r1.information().subject_dob.time_since_epoch().count() << " : " << r2.information().subject_dob.time_since_epoch().count() << " @]\n";
     REQUIRE(r1.information() == r2.information());
     const FileVersion u0{ r1.file_version() };
     const FileVersion u1{ r2.file_version() };
@@ -618,7 +632,6 @@ auto is_constructable(const std::string& fname) -> bool {
     const auto sampling_frequency{ eeplib.sampling_frequency() };
     return 0 < samples && 0.00001 < sampling_frequency && !order.empty() && !channels.empty();
 }
-
 
 
 /*
@@ -769,8 +782,7 @@ auto compare_libeep_reflib_readers(const std::string& fname) -> void {
     cnt_reader_reflib_riff reflib{ fname };
     cnt_reader_libeep_riff eeplib{ fname };
     //cnt_reader_reflib_riff eeplib{ fname };
-    const bool ignore_trailing_ws{ false };
-    compare_readers(eeplib, reflib, ignore_trailing_ws);
+    compare_readers(eeplib, reflib);
 
     const auto samples{ eeplib.sample_count() };
     const auto length{ eeplib.epoch_length() };
@@ -937,14 +949,12 @@ auto writer_consistency_compatibility(const std::string& fname, measurement_coun
 
         output.close();
 
-        bool ignore_trailing_ws{ false };
         cnt_reader_reflib_riff reflib{ temp_name };
-        compare_readers(input, reflib, ignore_trailing_ws); // consistency
+        compare_readers(input, reflib); // consistency
         REQUIRE(compare_user_chunks(temp_name, reflib, has_user, fname));
 
-        ignore_trailing_ws = true;
         cnt_reader_libeep_riff eeplib{ temp_name };
-        compare_readers(eeplib, reflib, ignore_trailing_ws); // compatibility
+        compare_readers(eeplib, reflib); // compatibility
     }
 
     if (!std::filesystem::remove(temp_name)) {
@@ -993,7 +1003,7 @@ TEST_CASE("test writer", "[consistency] [compatibility] [write]") {
 
 
 template<typename Reader, typename Writer>
-auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname, bool ignore_trailing_ws) -> Precision {
+auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname) -> Precision {
     const auto s{ std::chrono::steady_clock::now() };
 
     // REMEMBER MISSING: reader.channel_order()
@@ -1018,7 +1028,7 @@ auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count
     const auto e{ std::chrono::steady_clock::now() };
 
     cnt_reader_reflib_riff control{ fname };
-    compare_readers(reader, control, ignore_trailing_ws);
+    compare_readers(reader, control);
 
     return std::chrono::duration_cast<Precision>(e - s);
 }
@@ -1035,13 +1045,11 @@ auto test_writer_speed(const std::string& fname) -> void {
     execution_times.reserve(sizes.size());
 
     for (auto chunk : sizes) {
-        bool ignore_trailing_ws{ false };
         cnt_writer_reflib_riff writer_reflib{ "reflib.cnt", RiffType::riff64 };
-        const auto r_time{ writer_speed(reader, writer_reflib, count, chunk, "reflib.cnt", ignore_trailing_ws) };
+        const auto r_time{ writer_speed(reader, writer_reflib, count, chunk, "reflib.cnt") };
 
-        ignore_trailing_ws = true;
         cnt_writer_libeep_riff writer_libeep{ "libeep.cnt", RiffType::riff64, reader.history() };
-        const auto l_time{ writer_speed(reader, writer_libeep, count, chunk, "libeep.cnt", ignore_trailing_ws) };
+        const auto l_time{ writer_speed(reader, writer_libeep, count, chunk, "libeep.cnt") };
 
         const double ref_eep{ 100.0 * r_time.count() / l_time.count() };
         execution_times.emplace_back(ref_eep, chunk);

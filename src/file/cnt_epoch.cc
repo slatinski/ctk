@@ -951,11 +951,7 @@ namespace ctk { namespace impl {
         auto[line, i]{ load_line(input, 0, length) };
 
         while (i < input.size() && line != "EOH") {
-            oss << line;
-            if (!line.empty() && !iscntrl(line.back())) {
-                oss << '\n';
-            }
-
+            oss << line << '\n';
             std::tie(line, i) = load_line(input, i, length);
         }
         return oss.str();
