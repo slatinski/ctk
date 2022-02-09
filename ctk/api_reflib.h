@@ -92,7 +92,7 @@ namespace ctk { namespace api {
             auto fileVersion() const -> FileVersion;
 
             auto embeddedFiles() const -> std::vector<UserFile>;
-            auto extractEmbeddedFile(const UserFile&) const -> void;
+            auto extractEmbeddedFile(const UserFile&) const -> bool;
 
         private:
             struct impl;

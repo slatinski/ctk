@@ -1323,17 +1323,46 @@ namespace ctk { namespace impl {
 
 
 
-    enum class status_elc{ ok, label_empty, label_brace, label_semicolon, unit_empty, iscale, rscale };
+    enum class status_elc{ ok, label_empty, unit_empty, label_trunc, ref_trunc, unit_trunc, stat_trunc, type_trunc, label_brace, label_semicolon, iscale, rscale };
 
     static
     auto valid_electrode(const ctk::api::v1::Electrode& x) -> status_elc {
         if (x.label.empty()) { return status_elc::label_empty; }
+        if (x.unit.empty()) { return status_elc::unit_empty; }
+        if (10 < x.label.size()) { return status_elc::label_trunc; }
+        if (10 < x.reference.size()) { return status_elc::ref_trunc; }
+        if (9 < x.unit.size()) { return status_elc::unit_trunc; }
+        if (10 < x.status.size()) { return status_elc::stat_trunc; }
+        if (10 < x.type.size()) { return status_elc::type_trunc; }
         if (x.label[0] == '[') { return status_elc::label_brace; }
         if (x.label[0] == ';') { return status_elc::label_semicolon; }
-        if (x.unit.empty()) { return status_elc::unit_empty; }
         if (!std::isfinite(x.iscale)) { return status_elc::iscale; }
         if (!std::isfinite(x.rscale)) { return status_elc::rscale; }
         return status_elc::ok;
+    }
+
+    auto validate(const api::v1::Electrode& x) -> void {
+        const status_elc elcectrode_status{ valid_electrode(x) };
+        if (elcectrode_status == status_elc::ok) {
+            return;
+        }
+
+        std::ostringstream oss;
+        oss << x << ": ";
+        switch (elcectrode_status) {
+        case status_elc::ok: assert(false); break;
+        case status_elc::label_empty: oss << "validate(Electrode): empty active label"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::unit_empty: oss << "validate(Electrode): empty unit"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::label_trunc: oss << "validate(Electrode): active label longer than 9"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::ref_trunc: oss << "validate(Electrode): reference label longer than 9"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::unit_trunc: oss << "validate(Electrode): unit longer than 8"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::stat_trunc: oss << "validate(Electrode): status longer than 9"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::type_trunc: oss << "validate(Electrode): type longer than 9"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::label_brace: oss << "validate(Electrode): active label starts with ["; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::label_semicolon: oss << "validate(Electrode): active label starts with ;"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::iscale: oss << "validate(Electrode): infinite instrument scale"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::rscale: oss << "validate(Electrode): infinite range scale"; throw api::v1::ctk_limit{ oss.str() };
+        }
     }
 
 
@@ -1375,22 +1404,7 @@ namespace ctk { namespace impl {
         }
 
         for (const api::v1::Electrode& e : x.electrodes) {
-            const status_elc elcectrode_status{ valid_electrode(e) };
-            if (elcectrode_status == status_elc::ok) {
-                continue;
-            }
-
-            std::ostringstream oss;
-            oss << e << ": ";
-            switch (elcectrode_status) {
-            case status_elc::ok: assert(false); break;
-            case status_elc::label_empty: oss << "validate(TimeSeries): empty active label"; throw api::v1::ctk_limit{ oss.str() };
-            case status_elc::unit_empty: oss << "validate(TimeSeries): empty unit"; throw api::v1::ctk_limit{ oss.str() };
-            case status_elc::label_brace: oss << "validate(TimeSeries): active label starts with ["; throw api::v1::ctk_limit{ oss.str() };
-            case status_elc::label_semicolon: oss << "validate(TimeSeries): active label starts with ;"; throw api::v1::ctk_limit{ oss.str() };
-            case status_elc::iscale: oss << "validate(TimeSeries): infinite instrument scale"; throw api::v1::ctk_limit{ oss.str() };
-            case status_elc::rscale: oss << "validate(TimeSeries): infinite range scale"; throw api::v1::ctk_limit{ oss.str() };
-            }
+            validate(e);
         }
     }
 
@@ -2251,25 +2265,6 @@ namespace ctk { namespace impl {
         }
 
         return root;
-    }
-    
-    auto epoch_reader_flat::writer_map_extended() const -> riff_list {
-        const api::v1::RiffType t{ common.cnt_type() };
-        const int64_t offset{ part_header_size };
-
-        riff_list segment{ list_chunk(t, "s000") }; // TODO
-        //segment.push_back(riff_node{ riff_file{ data_chunk(t, "desc"), segment_header_file_name(), offset } });
-        // sample count + time signal + encoding properties
-        segment.push_back(riff_node{ riff_file{ data_chunk(t, "offs"), ep_file_name(), offset } });
-        segment.push_back(riff_node{ riff_file{ data_chunk(t, "data"), data_file_name(), offset } });
-        if (common.has_triggers()) {
-            segment.push_back(riff_node{ riff_file{ data_chunk(t, "trig"), trigger_file_name(), offset } });
-        }
-        //segment.push_back(riff_node{ riff_file{ data_chunk(t, "evts"), extended_trigger_file_name(), offset } });
-
-        // user files
-
-        return segment;
     }
     
     auto epoch_reader_flat::data_file_name() const -> std::filesystem::path {

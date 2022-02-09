@@ -225,7 +225,7 @@ public:
         const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(amount) };
         const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
 
-        std::vector<double> ys(buffer.size());
+        std::vector<double> ys(xs.size());
         constexpr const row_major2row_major copy;
         copy.to_client(begin(xs), begin(ys), reader.data().order(), amount);
         return ys;

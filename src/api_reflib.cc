@@ -162,9 +162,9 @@ namespace ctk { namespace api {
             return result;
         }
 
-        auto CntReaderReflib::extractEmbeddedFile(const UserFile& x) const -> void {
+        auto CntReaderReflib::extractEmbeddedFile(const UserFile& x) const -> bool {
             assert(p);
-            p->reader.extract_embedded_file(x.label, x.file_name);
+            return p->reader.extract_embedded_file(x.label, x.file_name);
         }
 
 

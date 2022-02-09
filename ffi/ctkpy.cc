@@ -1,163 +1,547 @@
+/*
+Copyright 2015-2021 Velko Hristov
+This file is part of CntToolKit.
+SPDX-License-Identifier: LGPL-3.0+
+
+CntToolKit is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+CntToolKit is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+#include <sstream>
+
 #include "pybind11/pybind11.h"
+#include "pybind11/operators.h"
 #include "pybind11/stl.h"
 #include "pybind11/stl_bind.h"
 #include "pybind11/chrono.h"
-//#include <pybind11/numpy.h>
+#include <pybind11/numpy.h>
+
 #include "ctk.h"
-#include <sstream>
+#include "arithmetic.h"
+#include "file/cnt_epoch.h"
 
-namespace py = pybind11;
-namespace v1 = ctk::api::v1;
+namespace {
 
-//PYBIND11_MAKE_OPAQUE(std::vector<int32_t>);
-//PYBIND11_MAKE_OPAQUE(std::vector<uint8_t>);
+    namespace py = pybind11;
+    namespace v1 = ctk::api::v1;
 
-template<typename T>
-auto print(T x, const char* classname) -> std::string {
-    std::ostringstream oss;
-    oss << "<" << classname << ": " << x << ">";
-    return oss.str();
-}
-
-
-using trigger_v4 = std::tuple<std::string, int64_t, int64_t, std::string, std::string, std::string>;
-using channel_v4 = std::tuple<std::string, std::string, std::string>;
-
-struct libeep_reader
-{
-    v1::CntReaderReflib reader;
-    std::vector<v1::Trigger> triggers;
-    v1::TimeSeries header;
-
-    explicit
-    libeep_reader(const std::string& fname)
-    : reader{ fname }
-    , triggers{ reader.triggers() }
-    , header{ reader.description() } {
+    template<typename T>
+    static
+    auto print(T x) -> std::string {
+        std::ostringstream oss;
+        oss << "(" << x << ")";
+        return oss.str();
     }
 
-    auto get_sample_count() const -> int64_t {
-        return reader.sampleCount();
-    }
 
-    auto get_channel_count() const -> size_t {
-      return header.electrodes.size();
-    }
+    using trigger_v4_tuple = std::tuple<std::string, int64_t, int64_t, std::string, std::string, std::string>;
+    using channel_v4_tuple = std::tuple<std::string, std::string, std::string>; // active label, ref label, unit
+    using active_ref_tuple = std::tuple<std::string, std::string>;              // active label, ref label
+    using trigger_tuple = std::tuple<int64_t, std::string>;
 
-    auto get_channel(size_t i) const -> channel_v4 {
-        if (header.electrodes.size() <= i) {
-            std::ostringstream oss;
-            oss << "get_channel: invalid index " << i << "/" << (header.electrodes.size() - 1);
-            throw std::runtime_error(oss.str());
+
+    struct ctkpy_trigger
+    {
+        int64_t sample;
+        std::string code;
+
+        ctkpy_trigger() : sample{ 0 } {}
+        ctkpy_trigger(int64_t s, const std::string& c) : sample{ s }, code{ c } {}
+        ctkpy_trigger(const ctkpy_trigger&) = default;
+        ctkpy_trigger(ctkpy_trigger&&) = default;
+        auto operator=(const ctkpy_trigger&) -> ctkpy_trigger& = default;
+        auto operator=(ctkpy_trigger&&) -> ctkpy_trigger& = default;
+        ~ctkpy_trigger() = default;
+
+        friend auto operator==(const ctkpy_trigger&, const ctkpy_trigger&) -> bool = default;
+        friend auto operator!=(const ctkpy_trigger&, const ctkpy_trigger&) -> bool = default;
+
+        auto get_code() const -> std::string {
+            return code;
         }
 
-        auto e{ header.electrodes[i] };
+        auto set_code(const std::string& x) -> void {
+            if (v1::evt_label_size < x.size()) {
+                std::ostringstream oss;
+                oss << "the maximum trigger code label size is " << v1::evt_label_size << ", '" << x << "' is " << x.size();
+                throw std::runtime_error(oss.str());
+            }
 
-        // uV is stored sometimes as µV so that the first character is not valid utf8
-        if (e.unit[0] == -75) {
-            e.unit[0] = 'u';
+            code = x;
         }
-        return { e.label, e.reference, e.unit };
+    };
+
+    static
+    auto ctkpytrigger2v1trigger(const ctkpy_trigger& x) -> v1::Trigger {
+        return { x.sample, x.code };
     }
 
-    auto get_sample_frequency() const -> double {
-        return header.sampling_frequency;
+    static
+    auto v1trigger2ctkpytrigger(const v1::Trigger& x) -> ctkpy_trigger {
+        return { x.sample, ctk::impl::as_string(x.code) };
     }
 
-    auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
-        return reader.rangeScaledLibeep(i, amount);
+    static
+    auto triggers_to_api(const std::vector<ctkpy_trigger>& xs) -> std::vector<v1::Trigger> {
+        std::vector<v1::Trigger> ys(xs.size());
+        std::transform(begin(xs), end(xs), begin(ys), ctkpytrigger2v1trigger);
+        return ys;
     }
 
-    auto get_trigger_count() const -> size_t {
-        return triggers.size();
+    static
+    auto triggers_from_api(const std::vector<v1::Trigger>& xs) -> std::vector<ctkpy_trigger> {
+        std::vector<ctkpy_trigger> ys(xs.size());
+        std::transform(begin(xs), end(xs), begin(ys), v1trigger2ctkpytrigger);
+        return ys;
     }
 
-    auto get_trigger(size_t i) const -> trigger_v4 {
-        if (triggers.size() <= i) {
-            std::ostringstream oss;
-            oss << "get_trigger: invalid index " << i << "/" << (triggers.size() - 1);
-            throw std::runtime_error(oss.str());
+    static
+    auto triggertuple2v1trigger(const trigger_tuple& x) -> v1::Trigger {
+        const auto[s, c]{ x };
+        return { s, c };
+    }
+
+
+    struct libeep_reader
+    {
+        v1::CntReaderReflib reader;
+        std::vector<ctkpy_trigger> triggers;
+        v1::TimeSeries header;
+
+        explicit
+        libeep_reader(const std::string& fname)
+        : reader{ fname }
+        , triggers{ triggers_from_api(reader.triggers()) }
+        , header{ reader.description() } {
         }
 
-        const auto code{ ctk::trigger_label(triggers[i].code) };
-        const auto sample{ triggers[i].sample };
-        const int64_t duration{ 0 };
-        const std::string condition, descr, impedances;
-        return { code, sample, duration, condition, descr, impedances };
+        auto get_sample_count() const -> int64_t {
+            return reader.sampleCount();
+        }
+
+        auto get_channel_count() const -> size_t {
+          return header.electrodes.size();
+        }
+
+        auto get_channel(size_t i) const -> channel_v4_tuple {
+            const auto size{ header.electrodes.size() };
+            if (size <= i) {
+                std::ostringstream oss;
+                oss << "get_channel: invalid index " << i << ", available channels " << size;
+                throw std::runtime_error(oss.str());
+            }
+
+            auto e{ header.electrodes[i] };
+
+            // compatibility: uV is stored in some files as µV so that the first character is not valid utf8
+            if (e.unit[0] == -75) {
+                e.unit[0] = 'u';
+            }
+            return { e.label, e.reference, e.unit };
+        }
+
+        auto get_sample_frequency() const -> double {
+            return header.sampling_frequency;
+        }
+
+        auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
+            return reader.rangeScaledLibeep(i, amount);
+        }
+
+        auto get_trigger_count() const -> size_t {
+            return triggers.size();
+        }
+
+        auto get_trigger(size_t i) const -> trigger_v4_tuple {
+            const auto size{ triggers.size() };
+            if (size <= i) {
+                std::ostringstream oss;
+                oss << "get_trigger: invalid index " << i << ", available triggers " << size;
+                throw std::runtime_error(oss.str());
+            }
+
+            const auto code{ triggers[i].code };
+            const auto sample{ triggers[i].sample };
+            const int64_t duration{ 0 };
+            const std::string condition, descr, impedances;
+            return { code, sample, duration, condition, descr, impedances };
+        }
+    };
+
+    static
+    auto read_cnt(const std::string& fname) -> libeep_reader {
+        return libeep_reader{ fname };
     }
-};
-
-auto read_cnt(const std::string& fname) -> libeep_reader {
-    return libeep_reader{ fname };
-}
 
 
-constexpr const double scaling_factor{ 128 };
 
-struct channel2electrode
-{
-    auto operator()(const channel_v4& x) const -> v1::Electrode {
+    static
+    auto ar2elc(const active_ref_tuple& x) -> v1::Electrode {
+        const auto[label, reference]{ x };
+        const v1::Electrode y{ label, reference, "uV" };
+        ctk::impl::validate(y);
+        return y;
+    }
+
+    static
+    auto ch2elc(const channel_v4_tuple& x) -> v1::Electrode {
         const auto[label, reference, unit]{ x };
-        v1::Electrode e;
-        e.label = label;
-        e.unit = unit;
-        e.reference = reference;
-        e.iscale = 1;
-        e.rscale = 1 / scaling_factor;
-        return e;
-    }
-};
-
-auto channels2electrodes(const std::vector<channel_v4>& xs) -> std::vector<v1::Electrode> {
-    std::vector<v1::Electrode> ys(xs.size());
-    std::transform(begin(xs), end(xs), begin(ys), channel2electrode{});
-    return ys;
-}
-
-
-auto int2riff(int x) -> v1::RiffType {
-    return x == 0 ? v1::RiffType::riff32 : v1::RiffType::riff64;
-}
-
-
-struct libeep_writer
-{
-    v1::CntWriterReflib writer;
-
-    libeep_writer(const std::string& fname, double sample_rate, const std::vector<channel_v4>& channels, int cnt64)
-    : writer{ fname, int2riff(cnt64) } {
-        v1::TimeSeries ts;
-        ts.sampling_frequency = sample_rate;
-        ts.electrodes = channels2electrodes(channels);
-        ts.start_time = std::chrono::system_clock::now();
-        writer.addTimeSignal(ts);
-    }
-    libeep_writer(libeep_writer&&) = default;
-
-    auto add_samples(const std::vector<float>& xs) -> void {
-        const auto float2int = [](float x) -> int32_t { return static_cast<int32_t>(std::round(x * scaling_factor)); };
-
-        std::vector<int32_t> ys(xs.size());
-        std::transform(begin(xs), end(xs), begin(ys), float2int);
-        writer.rangeColumnMajor(ys);
+        const v1::Electrode y{ label, reference, unit };
+        ctk::impl::validate(y);
+        return y;
     }
 
-    auto close() -> void {
-        writer.close();
+    static
+    auto ar2elcs(const std::vector<active_ref_tuple>& xs) -> std::vector<v1::Electrode> {
+        std::vector<v1::Electrode> ys(xs.size());
+        std::transform(begin(xs), end(xs), begin(ys), ar2elc);
+        return ys;
     }
-};
 
-auto write_cnt(const std::string& fname, double sample_rate, const std::vector<channel_v4>& channels, int rf64 = 0) -> libeep_writer {
-    return libeep_writer{ fname, sample_rate, channels, rf64 };
-}
+    static
+    auto ch2elcs(const std::vector<channel_v4_tuple>& xs) -> std::vector<v1::Electrode> {
+        std::vector<v1::Electrode> ys(xs.size());
+        std::transform(begin(xs), end(xs), begin(ys), ch2elc);
+        return ys;
+    }
 
+
+    static
+    auto int2riff(int x) -> v1::RiffType {
+        return x == 0 ? v1::RiffType::riff32 : v1::RiffType::riff64;
+    }
+
+
+    struct libeep_writer
+    {
+        v1::CntWriterReflib writer;
+
+        libeep_writer(const std::string& fname, double sample_rate, const std::vector<channel_v4_tuple>& channels, int cnt64)
+        : writer{ fname, int2riff(cnt64) } {
+            v1::TimeSeries ts;
+            ts.sampling_frequency = sample_rate;
+            ts.electrodes = ch2elcs(channels);
+            ts.start_time = std::chrono::system_clock::now();
+            writer.addTimeSignal(ts);
+        }
+        libeep_writer(libeep_writer&&) = default;
+
+        auto add_samples(const std::vector<float>& xs) -> void {
+            const auto float2double = [](float x) -> double { return x; };
+
+            std::vector<double> ys(xs.size());
+            std::transform(begin(xs), end(xs), begin(ys), float2double);
+            writer.rangeColumnMajorScaled(ys);
+        }
+
+        auto close() -> void {
+            writer.close();
+        }
+    };
+
+    static
+    auto write_cnt(const std::string& fname, double sample_rate, const std::vector<channel_v4_tuple>& channels, int rf64 = 0) -> libeep_writer {
+        return libeep_writer{ fname, sample_rate, channels, rf64 };
+    }
+
+
+    static
+    auto from_row_major(const py::array_t<double>& xs) -> std::vector<double> {
+        if (xs.ndim() != 2) {
+            std::ostringstream oss;
+            oss << "invalid input array dimensions: expected 2, got " << xs.ndim();
+            throw std::runtime_error(oss.str());
+        }
+
+        ssize_t o{ 0 };
+        const ssize_t rows{ xs.shape()[0] };
+        const ssize_t cols{ xs.shape()[1] };
+        std::vector<double> ys(rows * cols);
+
+        for (ssize_t i{ 0 }; i < rows; ++i) {
+            for (ssize_t j{ 0 }; j < cols; ++j) {
+                ys[o] = xs.at(i, j);
+                ++o;
+            }
+        }
+        return ys;
+    }
+
+    static
+    auto from_column_major(const py::array_t<double>& xs) -> std::vector<double> {
+        if (xs.ndim() != 2) {
+            return {};
+        }
+
+        ssize_t o{ 0 };
+        const ssize_t cols{ xs.shape()[0] };
+        const ssize_t rows{ xs.shape()[1] };
+        std::vector<double> ys(rows * cols);
+
+        for (ssize_t i{ 0 }; i < rows; ++i) {
+            for (ssize_t j{ 0 }; j < cols; ++j) {
+                ys[o] = xs.at(j, i);
+                ++o;
+            }
+        }
+        return ys;
+    }
+
+
+
+    struct ctkpy_writer
+    {
+        std::filesystem::path file_name;
+        v1::RiffType type;
+        v1::TimeSeries header;
+        v1::Info recording_info;
+
+        std::unique_ptr<v1::CntWriterReflib> writer;
+        v1::EventWriter events;
+
+        explicit ctkpy_writer(const std::string& fname, v1::RiffType cnt = v1::RiffType::riff64)
+        : file_name{ fname }
+        , type{ cnt }
+        , events{ std::filesystem::path{ fname }.replace_extension("evt") } {
+        }
+
+        ctkpy_writer(ctkpy_writer&&) = default;
+
+        auto initialize() -> void {
+            if (header.start_time == ctk::api::dcdate2timepoint({ 0, 0 })) {
+                header.start_time = std::chrono::system_clock::now();
+            }
+            ctk::impl::validate(header);
+
+            writer.reset(new v1::CntWriterReflib{ file_name, type });
+            assert(writer);
+
+            writer->addTimeSignal(header);
+            writer->recordingInfo(recording_info);
+        }
+
+        auto column_major(const py::array_t<double>& xs) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            writer->rangeRowMajorScaled(from_column_major(xs));
+        }
+
+        auto row_major(const py::array_t<double>& xs) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            writer->rangeRowMajorScaled(from_row_major(xs));
+        }
+
+        auto close() -> void {
+            if (!writer) {
+                return;
+            }
+
+            events.close();
+            writer->recordingInfo(recording_info);
+            writer->close();
+            writer.reset(nullptr);
+        }
+
+        auto add_ar_electrode(const active_ref_tuple& x) -> void {
+            header.electrodes.push_back(ar2elc(x));
+        }
+
+        auto add_v4_electrode(const channel_v4_tuple& x) -> void {
+            header.electrodes.push_back(ch2elc(x));
+        }
+
+        auto add_electrode(const v1::Electrode& x) -> void {
+            header.electrodes.push_back(x);
+        }
+
+        auto add_trigger(const ctkpy_trigger& x) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            writer->trigger(ctkpytrigger2v1trigger(x));
+        }
+
+        auto add_trigger_ctkpy(const trigger_tuple& x) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            writer->trigger(triggertuple2v1trigger(x));
+        }
+
+        auto add_triggers(const std::vector<ctkpy_trigger>& xs) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            std::vector<v1::Trigger> ys(xs.size());
+            std::transform(begin(xs), end(xs), begin(ys), ctkpytrigger2v1trigger);
+            writer->triggers(ys);
+        }
+
+        auto add_triggers_ctkpy(const std::vector<trigger_tuple>& xs) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            std::vector<v1::Trigger> ys(xs.size());
+            std::transform(begin(xs), end(xs), begin(ys), triggertuple2v1trigger);
+            writer->triggers(ys);
+        }
+
+        auto add_impedance(const v1::EventImpedance& x) -> void {
+            events.addImpedance(x);
+        }
+
+        auto add_impedances(const std::vector<v1::EventImpedance>& xs) -> void {
+            events.addImpedances(xs);
+        }
+
+        auto add_video(const v1::EventVideo& x) -> void {
+            events.addVideo(x);
+        }
+
+        auto add_videos(const std::vector<v1::EventVideo>& xs) -> void {
+            events.addVideos(xs);
+        }
+
+        auto add_epoch(const v1::EventEpoch& x) -> void {
+            events.addEpoch(x);
+        }
+
+        auto add_epochs(const std::vector<v1::EventEpoch>& xs) -> void {
+            events.addEpochs(xs);
+        }
+
+        auto embed(const v1::UserFile& x) -> void {
+            if (!writer) {
+                initialize();
+            }
+
+            writer->embed(x);
+        }
+    };
+
+
+    struct ctkpy_reader
+    {
+        std::unique_ptr<v1::CntReaderReflib> reader;
+
+        std::filesystem::path file_name;
+        v1::RiffType type;
+        v1::TimeSeries header;
+        v1::Info recording_info;
+        std::vector<ctkpy_trigger> triggers;
+        std::vector<v1::EventImpedance> impedances;
+        std::vector<v1::EventVideo> videos;
+        std::vector<v1::EventEpoch> epochs;
+        std::vector<v1::UserFile> embedded;
+
+        ctkpy_reader(const std::string& fname)
+        : reader{ new v1::CntReaderReflib{ fname } }
+        , file_name{ fname } {
+            type = reader->cntType();
+            header = reader->description();
+            recording_info = reader->information();
+            triggers = triggers_from_api(reader->triggers());
+            embedded = reader->embeddedFiles();
+
+            const auto evt_fname{ file_name.replace_extension("evt") };
+            if (!std::filesystem::exists(evt_fname)) {
+                return;
+            }
+
+            v1::EventReader events{ evt_fname };
+            impedances = events.impedanceEvents();
+            videos = events.videoEvents();
+            epochs = events.epochEvents();
+        }
+
+        auto sample_count() -> int64_t {
+            assert(reader);
+            return reader->sampleCount();
+        }
+
+
+        auto column_major(int64_t i, int64_t length) -> py::array_t<double> {
+            assert(reader);
+            std::vector<double> xs{ reader->rangeColumnMajorScaled(i, length) };
+
+            if (xs.empty()) {
+                xs.push_back(0);
+                constexpr const auto itemsize{ sizeof(double) };
+                const std::vector<ssize_t> shape{ };
+                const std::vector<ssize_t> strides{ };
+                return py::array_t<double>(
+                    py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), 0, shape, strides)
+                );
+            }
+
+            const ssize_t height{ ctk::impl::vsize(xs) / length };
+            constexpr const auto itemsize{ sizeof(double) };
+            constexpr const int ndim{ 2 };
+            const ssize_t shape[]{ length, height };
+            const ssize_t strides[]{ height * static_cast<int>(sizeof(double)), sizeof(double) };
+            return py::array_t<double>(
+                py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), ndim, shape, strides)
+            );
+        }
+
+        auto row_major(int64_t i, int64_t length) -> py::array_t<double> {
+            assert(reader);
+            auto xs{ reader->rangeRowMajorScaled(i, length) };
+
+            if (xs.empty()) {
+                xs.push_back(0);
+                constexpr const auto itemsize{ sizeof(double) };
+                const std::vector<ssize_t> shape{ };
+                const std::vector<ssize_t> strides{ };
+                return py::array_t<double>(
+                    py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), 0, shape, strides)
+                );
+            }
+
+            const ssize_t height{ ctk::impl::vsize(xs) / length };
+            constexpr const auto itemsize{ sizeof(double) };
+            constexpr const int ndim{ 2 };
+            const ssize_t shape[]{ height, length };
+            const ssize_t strides[]{ length * static_cast<int>(sizeof(double)), sizeof(double) };
+            return py::array_t<double>(
+                py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), ndim, shape, strides)
+            );
+        }
+
+        auto extract_embedded_file(const v1::UserFile& x) -> bool {
+            assert(reader);
+            if (x.file_name.empty()) {
+                throw std::runtime_error("no output file name is provided in the field file_name");
+            }
+
+            return reader->extractEmbeddedFile(x);
+        }
+    };
+
+} // anonymous namespace
 
 
 PYBIND11_MODULE(ctkpy, m) {
-    //py::bind_vector<std::vector<int32_t>>(m, "VectorInt32", py::buffer_protocol());
-    //py::bind_vector<std::vector<uint8_t>>(m, "VectorUInt8", py::buffer_protocol());
 
-    // 1) cnt files
     py::enum_<v1::RiffType>(m, "cnt_type", py::module_local())
         .value("cnt32", v1::RiffType::riff32)
         .value("cnt64", v1::RiffType::riff64);
@@ -173,35 +557,116 @@ PYBIND11_MODULE(ctkpy, m) {
         .value("right", v1::Handedness::right)
         .value("mixed", v1::Handedness::mixed);
 
-    py::class_<v1::FileVersion> fv(m, "file_version", py::module_local()/*, py::dynamic_attr()*/);
-    fv.def_readwrite("major", &v1::FileVersion::major)
+    py::class_<v1::FileVersion> fv(m, "file_version", py::module_local());
+    fv.def(py::init<uint32_t, uint32_t>())
+      .def_readwrite("major", &v1::FileVersion::major)
       .def_readwrite("minor", &v1::FileVersion::minor)
-      .def("__repr__", [](const v1::FileVersion& x) { return print(x, "file_version"); });
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::FileVersion& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.major, x.minor);
+        },
+        [](py::tuple xs) -> v1::FileVersion { // __setstate__
+            if (xs.size() != 2) {
+                throw std::runtime_error("file_version pickle: invalid state");
+            }
+            return v1::FileVersion{ xs[0].cast<uint32_t>(), xs[1].cast<uint32_t>() };
+        }
+      ))
+      .def("__copy__", [](const v1::FileVersion& x){ return v1::FileVersion(x); })
+      .def("__deepcopy__", [](const v1::FileVersion& x, py::dict){ return v1::FileVersion(x); })
+      .def("__repr__", [](const v1::FileVersion& x) { return print(x); });
 
-    py::class_<v1::Trigger> t(m, "trigger", py::module_local()/*, py::dynamic_attr()*/);
-    t.def_readwrite("sample", &v1::Trigger::sample)
-     .def_readwrite("code", &v1::Trigger::code)
-     .def("__repr__", [](const v1::Trigger& x) { return print(x, "trigger"); });
+    py::class_<ctkpy_trigger> t(m, "trigger", py::module_local());
+    t.def(py::init<int64_t, const std::string&>())
+     .def_readwrite("sample", &ctkpy_trigger::sample)
+     .def_property("code", &ctkpy_trigger::get_code, &ctkpy_trigger::set_code)
+     .def(py::self == py::self) // __eq__
+     .def(py::self != py::self) // __ne__
+     .def(py::pickle(
+        [](const ctkpy_trigger& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.sample, x.code);
+        },
+        [](py::tuple xs) -> ctkpy_trigger { // __setstate__
+            if (xs.size() != 2) {
+                throw std::runtime_error("trigger pickle: invalid state");
+            }
+            return ctkpy_trigger { xs[0].cast<int64_t>(), xs[1].cast<std::string>() };
+        }
+      ))
+     .def("__copy__", [](const ctkpy_trigger& x){ return ctkpy_trigger(x); })
+     .def("__deepcopy__", [](const ctkpy_trigger& x, py::dict){ return ctkpy_trigger(x); })
+     .def("__repr__", [](const ctkpy_trigger& x) { return print(ctkpytrigger2v1trigger(x)); });
 
-    py::class_<v1::Electrode> e(m, "electrode", py::module_local()/*, py::dynamic_attr()*/);
-    e.def_readwrite("label", &v1::Electrode::label)
+    py::class_<v1::Electrode> e(m, "electrode", py::module_local());
+    e.def(py::init<const std::string&, const std::string&, const std::string&, double, double>())
+     .def_readwrite("label", &v1::Electrode::label)
      .def_readwrite("reference", &v1::Electrode::reference)
      .def_readwrite("unit", &v1::Electrode::unit)
      .def_readwrite("status", &v1::Electrode::status)
      .def_readwrite("type", &v1::Electrode::type)
      .def_readwrite("iscale", &v1::Electrode::iscale)
      .def_readwrite("rscale", &v1::Electrode::rscale)
-     .def("__repr__", [](const v1::Electrode& x) { return print(x, "electrode"); });
+     .def(py::self == py::self) // __eq__
+     .def(py::self != py::self) // __ne__
+     .def(py::pickle(
+        [](const v1::Electrode& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.label, x.reference, x.unit, x.status, x.type, x.iscale, x.rscale);
+        },
+        [](py::tuple xs) -> v1::Electrode { // __setstate__
+            if (xs.size() != 7) {
+                throw std::runtime_error("electrode pickle: invalid state");
+            }
 
-    py::class_<v1::TimeSeries> ts(m, "time_series", py::module_local()/*, py::dynamic_attr()*/);
-    ts.def_readwrite("epoch_length", &v1::TimeSeries::epoch_length)
+            v1::Electrode y;
+            y.label = xs[0].cast<std::string>();
+            y.reference = xs[1].cast<std::string>();
+            y.unit = xs[2].cast<std::string>();
+            y.status = xs[3].cast<std::string>();
+            y.type = xs[4].cast<std::string>();
+            y.iscale = xs[0].cast<double>();
+            y.rscale = xs[0].cast<double>();
+            return y;
+
+        }
+      ))
+     .def("__copy__", [](const v1::Electrode& x){ return v1::Electrode(x); })
+     .def("__deepcopy__", [](const v1::Electrode& x, py::dict){ return v1::Electrode(x); })
+     .def("__repr__", [](const v1::Electrode& x) { return print(x); });
+
+    m.def("electrodes", &ar2elcs, "Converts [('active', 'reference', 'unit')] to [ctk.electrode]; default: range scale 1/256");
+    m.def("electrodes", &ch2elcs, "Converts [('active', 'reference')] to [ctk.electrode]; unit uV, range scale 1/256");
+
+    py::class_<v1::TimeSeries> ts(m, "time_series", py::module_local());
+    ts.def(py::init<std::chrono::system_clock::time_point, double, const std::vector<v1::Electrode>&, int64_t>())
+      .def_readwrite("epoch_length", &v1::TimeSeries::epoch_length)
       .def_readwrite("sampling_frequency", &v1::TimeSeries::sampling_frequency)
       .def_readwrite("start_time", &v1::TimeSeries::start_time)
       .def_readwrite("electrodes", &v1::TimeSeries::electrodes)
-      .def("__repr__", [](const v1::TimeSeries& x) { return print(x, "time_series"); });
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::TimeSeries& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.start_time, x.sampling_frequency, x.electrodes, x.epoch_length);
+        },
+        [](py::tuple xs) -> v1::TimeSeries { // __setstate__
+            if (xs.size() != 4) {
+                throw std::runtime_error("time_series pickle: invalid state");
+            }
+            return v1::TimeSeries{ xs[0].cast<std::chrono::system_clock::time_point>(),
+                                   xs[1].cast<double>(),
+                                   xs[2].cast<std::vector<v1::Electrode>>(),
+                                   xs[3].cast<int64_t>() };
+        }
+      ))
+      .def("__copy__", [](const v1::TimeSeries& x){ return v1::TimeSeries(x); })
+      .def("__deepcopy__", [](const v1::TimeSeries& x, py::dict){ return v1::TimeSeries(x); })
+      .def("__repr__", [](const v1::TimeSeries& x) { return print(x); });
 
-    py::class_<v1::Info> i(m, "information", py::module_local()/*, py::dynamic_attr()*/);
-    i.def_readwrite("hospital", &v1::Info::hospital)
+    py::class_<v1::Info> i(m, "information", py::module_local());
+    i.def(py::init<>())
+     .def_readwrite("hospital", &v1::Info::hospital)
      .def_readwrite("test_name", &v1::Info::test_name)
      .def_readwrite("test_serial", &v1::Info::test_serial)
      .def_readwrite("physician", &v1::Info::physician)
@@ -217,92 +682,239 @@ PYBIND11_MODULE(ctkpy, m) {
      .def_readwrite("subject_handedness", &v1::Info::subject_handedness)
      .def_readwrite("subject_dob", &v1::Info::subject_dob)
      .def_readwrite("comment", &v1::Info::comment)
-     .def("__repr__", [](const v1::Info& x) { return print(x, "information"); });
+     .def(py::self == py::self) // __eq__
+     .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::Info& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.hospital,
+                                  x.test_name,
+                                  x.test_serial,
+                                  x.physician,
+                                  x.technician,
+                                  x.machine_make,
+                                  x.machine_model,
+                                  x.machine_sn,
+                                  x.subject_name,
+                                  x.subject_id,
+                                  x.subject_address,
+                                  x.subject_phone,
+                                  x.subject_sex,
+                                  x.subject_handedness,
+                                  x.subject_dob,
+                                  x.comment);
+        },
+        [](py::tuple xs) -> v1::Info { // __setstate__
+            if (xs.size() != 16) {
+                throw std::runtime_error("info pickle: invalid state");
+            }
+            v1::Info y;
+            y.hospital = xs[0].cast<std::string>();
+            y.test_name = xs[1].cast<std::string>();
+            y.test_serial = xs[2].cast<std::string>();
+            y.physician = xs[3].cast<std::string>();
+            y.technician = xs[4].cast<std::string>();
+            y.machine_make = xs[5].cast<std::string>();
+            y.machine_model = xs[6].cast<std::string>();
+            y.machine_sn = xs[7].cast<std::string>();
+            y.subject_name = xs[8].cast<std::string>();
+            y.subject_id = xs[9].cast<std::string>();
+            y.subject_address = xs[10].cast<std::string>();
+            y.subject_phone = xs[11].cast<std::string>();
+            y.subject_sex = xs[12].cast<v1::Sex>();
+            y.subject_handedness = xs[13].cast<v1::Handedness>();
+            y.subject_dob = xs[14].cast<std::chrono::system_clock::time_point>();
+            y.comment = xs[15].cast<std::string>();
+            return y;
+        }
+      ))
+     .def("__copy__", [](const v1::Info& x){ return v1::Info(x); })
+     .def("__deepcopy__", [](const v1::Info& x, py::dict){ return v1::Info(x); })
+     .def("__repr__", [](const v1::Info& x) { return print(x); });
 
-    py::class_<v1::UserFile> uf(m, "user_file", py::module_local()/*, py::dynamic_attr()*/);
-    uf.def_readwrite("label", &v1::UserFile::label)
+    py::class_<v1::UserFile> uf(m, "user_file", py::module_local());
+    uf.def(py::init<const std::string&, const std::string&>())
+      .def_readwrite("label", &v1::UserFile::label)
       .def_readwrite("file_name", &v1::UserFile::file_name)
-      .def("__repr__", [](const v1::UserFile& x) { return print(x, "user_file"); });
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::UserFile& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.label, x.file_name);
+        },
+        [](py::tuple xs) -> v1::UserFile { // __setstate__
+            if (xs.size() != 2) {
+                throw std::runtime_error("trigger pickle: invalid state");
+            }
+            return v1::UserFile{ xs[0].cast<std::string>(), xs[1].cast<std::string>() };
+        }
+      ))
+      .def("__copy__", [](const v1::UserFile& x){ return v1::UserFile(x); })
+      .def("__deepcopy__", [](const v1::UserFile& x, py::dict){ return v1::UserFile(x); })
+      .def("__repr__", [](const v1::UserFile& x) { return print(x); });
 
-    py::class_<v1::CntReaderReflib> rr(m, "reflib_reader", py::module_local()/*, py::dynamic_attr()*/);
-    rr.def(py::init<const std::string&>())
-      .def_property_readonly("sample_count", &v1::CntReaderReflib::sampleCount, "Amount of measurements. Each measurement consists of 'channel count' data points (integer values each representing a single measurement from a single sensor at a particular point in time).")
-      .def("row_major", &v1::CntReaderReflib::rangeRowMajor, py::arg("i"), py::arg("amount"), "Returns 'amount' measurements starting at position 'i'. The samples in the output buffer are arranged in row major order.")
-      .def("column_major", &v1::CntReaderReflib::rangeColumnMajor)
-      .def_property_readonly("epoch_count", &v1::CntReaderReflib::epochs)
-      .def("epoch_row_major", &v1::CntReaderReflib::epochRowMajor)
-      .def("epoch_column_major", &v1::CntReaderReflib::epochColumnMajor)
-      .def("triggers", &v1::CntReaderReflib::triggers)
-      .def_property_readonly("cnt_type", &v1::CntReaderReflib::cntType)
-      .def_property_readonly("time_series", &v1::CntReaderReflib::description)
-      .def_property_readonly("history", &v1::CntReaderReflib::history)
-      .def_property_readonly("recording_info", &v1::CntReaderReflib::information)
-      .def_property_readonly("file_version", &v1::CntReaderReflib::fileVersion)
-      .def_property_readonly("embedded", &v1::CntReaderReflib::embeddedFiles)
-      .def_property_readonly("extract_embedded", &v1::CntReaderReflib::extractEmbeddedFile)
-      .def("__repr__", [](const v1::CntReaderReflib& x) { return print(x.description(), "reflib_reader"); });
 
-    py::class_<v1::CntWriterReflib> rw(m, "reflib_writer", py::module_local()/*, py::dynamic_attr()*/);
-    rw.def(py::init<const std::string&, v1::RiffType>())
-      .def("close", &v1::CntWriterReflib::close, "Constructs the output cnt file")
-      .def_property("recording_info", nullptr, &v1::CntWriterReflib::recordingInfo)
-      .def_property("time_series", nullptr, &v1::CntWriterReflib::addTimeSignal)
-      .def("row_major", py::overload_cast<const std::vector<int32_t>&>(&v1::CntWriterReflib::rangeRowMajor))
-      .def("column_major", py::overload_cast<const std::vector<int32_t>&>(&v1::CntWriterReflib::rangeColumnMajor))
-      .def("add_trigger", &v1::CntWriterReflib::trigger)
-      .def("add_triggers", &v1::CntWriterReflib::triggers)
-      //.def("flush", &v1::CntWriterReflib::flush)
-      .def("embed", &v1::CntWriterReflib::embed);
-      // reader functionality
-      //.def_property_readonly("commited", &v1::CntWriterReflib::commited)
-      //.def("read_row_major", py::overload_cast<int64_t, int64_t>(&v1::CntWriterReflib::rangeRowMajor))
-      //.def("read_column_major", py::overload_cast<int64_t, int64_t>(&v1::CntWriterReflib::rangeColumnMajor));
+    py::class_<v1::EventImpedance> ei(m, "event_impedance", py::module_local());
+    ei.def(py::init<std::chrono::system_clock::time_point, const std::vector<float>&>())
+      .def_readwrite("stamp", &v1::EventImpedance::stamp)
+      .def_readwrite("values", &v1::EventImpedance::values)
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::EventImpedance& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.stamp, x.values);
+        },
+        [](py::tuple xs) -> v1::EventImpedance { // __setstate__
+            if (xs.size() != 2) {
+                throw std::runtime_error("trigger pickle: invalid state");
+            }
+            return v1::EventImpedance{ xs[0].cast<std::chrono::system_clock::time_point>(), xs[1].cast<std::vector<float>>() };
+        }
+      ))
+      .def("__copy__", [](const v1::EventImpedance& x){ return v1::EventImpedance(x); })
+      .def("__deepcopy__", [](const v1::EventImpedance& x, py::dict){ return v1::EventImpedance(x); })
+      .def("__repr__", [](const v1::EventImpedance& x) {
+          std::ostringstream oss;
+          oss << "(" << x.values.size() << " items)";
+          return oss.str();
+      });
 
-    // 2) evt files
-    py::class_<v1::EventImpedance> ei(m, "event_impedance", py::module_local()/*, py::dynamic_attr()*/);
-    ei.def_readwrite("stamp", &v1::EventImpedance::stamp)
-      .def_readwrite("values", &v1::EventImpedance::values);
-
-    py::class_<v1::EventVideo> ev(m, "event_video", py::module_local()/*, py::dynamic_attr()*/);
-    ev.def_readwrite("stamp", &v1::EventVideo::stamp)
+    py::class_<v1::EventVideo> ev(m, "event_video", py::module_local());
+    ev.def(py::init<std::chrono::system_clock::time_point, double, int32_t>())
+      .def_readwrite("stamp", &v1::EventVideo::stamp)
       .def_readwrite("duration", &v1::EventVideo::duration)
       .def_readwrite("trigger_code", &v1::EventVideo::trigger_code)
       .def_readwrite("condition_label", &v1::EventVideo::condition_label)
       .def_readwrite("description", &v1::EventVideo::description)
-      .def_readwrite("video_file", &v1::EventVideo::video_file);
+      .def_readwrite("video_file", &v1::EventVideo::video_file)
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::EventVideo& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.stamp, x.duration, x.trigger_code, x.condition_label, x.description, x.video_file);
+        },
+        [](py::tuple xs) -> v1::EventVideo { // __setstate__
+            if (xs.size() != 6) {
+                throw std::runtime_error("trigger pickle: invalid state");
+            }
+            v1::EventVideo y;
+            y.stamp = xs[0].cast<std::chrono::system_clock::time_point>();
+            y.duration = xs[1].cast<double>();
+            y.trigger_code = xs[2].cast<int32_t>();
+            y.condition_label = xs[3].cast<std::wstring>();
+            y.description = xs[4].cast<std::string>();
+            y.video_file = xs[5].cast<std::wstring>();
+            return y;
+        }
+      ))
+      .def("__copy__", [](const v1::EventVideo& x){ return v1::EventVideo(x); })
+      .def("__deepcopy__", [](const v1::EventVideo& x, py::dict){ return v1::EventVideo(x); })
+      .def("__repr__", [](const v1::EventVideo& x) {
+          std::ostringstream oss;
+          oss << "(" << x.duration << " " << x.trigger_code << ")";
+          return oss.str();
+      });
 
-    py::class_<v1::EventEpoch> ee(m, "event_epoch", py::module_local()/*, py::dynamic_attr()*/);
-    ee.def_readwrite("stamp", &v1::EventEpoch::stamp)
+    py::class_<v1::EventEpoch> ee(m, "event_epoch", py::module_local());
+    ee.def(py::init<std::chrono::system_clock::time_point, double, double, int32_t>())
+      .def_readwrite("stamp", &v1::EventEpoch::stamp)
       .def_readwrite("duration", &v1::EventEpoch::duration)
       .def_readwrite("offset", &v1::EventEpoch::offset)
       .def_readwrite("trigger_code", &v1::EventEpoch::trigger_code)
-      .def_readwrite("condition_label", &v1::EventEpoch::condition_label);
+      .def_readwrite("condition_label", &v1::EventEpoch::condition_label)
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::EventEpoch& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.stamp, x.duration, x.offset, x.trigger_code, x.condition_label);
+        },
+        [](py::tuple xs) -> v1::EventEpoch { // __setstate__
+            if (xs.size() != 5) {
+                throw std::runtime_error("trigger pickle: invalid state");
+            }
+            v1::EventEpoch y;
+            y.stamp = xs[0].cast<std::chrono::system_clock::time_point>();
+            y.duration = xs[1].cast<double>();
+            y.offset = xs[2].cast<double>();
+            y.trigger_code = xs[3].cast<int32_t>();
+            y.condition_label = xs[4].cast<std::wstring>();
+            return y;
+        }
+      ))
+      .def("__copy__", [](const v1::EventEpoch& x){ return v1::EventEpoch(x); })
+      .def("__deepcopy__", [](const v1::EventEpoch& x, py::dict){ return v1::EventEpoch(x); })
+      .def("__repr__", [](const v1::EventEpoch& x) {
+          std::ostringstream oss;
+          oss << "(" << x.duration << " " << x.offset << " " << x.trigger_code << ")";
+          return oss.str();
+      });
 
-    py::class_<v1::EventReader> er(m, "event_reader", py::module_local()/*, py::dynamic_attr()*/);
+
+    // 1) cnt + evt file
+    py::class_<ctkpy_writer> rw(m, "writer_reflib", py::module_local());
+    rw.def(py::init<const std::string&, v1::RiffType>(), py::arg("fname"), py::arg("type") = v1::RiffType::riff64 )
+      .def_readwrite("param", &ctkpy_writer::header)
+      .def_readwrite("info", &ctkpy_writer::recording_info)
+      .def("add_electrode", &ctkpy_writer::add_ar_electrode)
+      .def("add_electrode", &ctkpy_writer::add_v4_electrode)
+      .def("add_electrode", &ctkpy_writer::add_electrode)
+      .def("row_major", &ctkpy_writer::row_major)
+      .def("column_major", &ctkpy_writer::column_major)
+      .def("close", &ctkpy_writer::close, "Constructs the output cnt file")
+      .def("trigger", &ctkpy_writer::add_trigger)
+      .def("trigger", &ctkpy_writer::add_trigger_ctkpy)
+      .def("triggers", &ctkpy_writer::add_triggers)
+      .def("triggers", &ctkpy_writer::add_triggers_ctkpy)
+      .def("impedance", &ctkpy_writer::add_impedance)
+      .def("impedances", &ctkpy_writer::add_impedances)
+      .def("video", &ctkpy_writer::add_video)
+      .def("videos", &ctkpy_writer::add_videos)
+      .def("epoch", &ctkpy_writer::add_epoch)
+      .def("epochs", &ctkpy_writer::add_epochs)
+      .def("embed", &ctkpy_writer::embed)
+      .def("__repr__", [](const ctkpy_writer& x) { return print(x.header); });
+
+    py::class_<ctkpy_reader> rr(m, "reader_reflib", py::module_local());
+    rr.def(py::init<const std::string&>())
+      .def_readwrite("param", &ctkpy_reader::header)
+      .def_readwrite("info", &ctkpy_reader::recording_info)
+      .def_readwrite("triggers", &ctkpy_reader::triggers)
+      .def_readwrite("impedances", &ctkpy_reader::impedances)
+      .def_readwrite("videos", &ctkpy_reader::videos)
+      .def_readwrite("epochs", &ctkpy_reader::epochs)
+      .def_readonly("embedded", &ctkpy_reader::embedded)
+      .def_property_readonly("sample_count", &ctkpy_reader::sample_count)
+      .def("row_major", &ctkpy_reader::row_major)
+      .def("column_major", &ctkpy_reader::column_major)
+      .def("extract_embedded", &ctkpy_reader::extract_embedded_file)
+      .def("__repr__", [](const ctkpy_reader& x) { return print(x.header); });
+
+
+    // 2) evt file only
+    py::class_<v1::EventReader> er(m, "event_reader", py::module_local());
     er.def(py::init<const std::string&>())
-      .def_property_readonly("count_impedances", &v1::EventReader::impedanceCount, "Amount of impedance events")
-      .def_property_readonly("count_videos", &v1::EventReader::videoCount, "Amount of video events")
-      .def_property_readonly("count_epochs", &v1::EventReader::epochCount, "Amount of epoch events")
-      .def("impedance", &v1::EventReader::impedanceEvent, "Returns the impedance event at position n")
-      .def("video", &v1::EventReader::videoEvent, "Returns the video event at position n")
-      .def("epoch", &v1::EventReader::epochEvent, "Returns the epoch event at position n")
-      .def_property_readonly("impedances", &v1::EventReader::impedanceEvents, "All impedance events")
-      .def_property_readonly("videos", &v1::EventReader::videoEvents, "All video events")
-      .def_property_readonly("epochs", &v1::EventReader::epochEvents, "All epoch events");
+      .def_property_readonly("count_impedances", &v1::EventReader::impedanceCount)
+      .def_property_readonly("count_videos", &v1::EventReader::videoCount)
+      .def_property_readonly("count_epochs", &v1::EventReader::epochCount)
+      .def("impedance", &v1::EventReader::impedanceEvent)
+      .def("video", &v1::EventReader::videoEvent)
+      .def("epoch", &v1::EventReader::epochEvent)
+      .def_property_readonly("impedances", &v1::EventReader::impedanceEvents)
+      .def_property_readonly("videos", &v1::EventReader::videoEvents)
+      .def_property_readonly("epochs", &v1::EventReader::epochEvents);
 
-    py::class_<v1::EventWriter> ew(m, "event_writer", py::module_local()/*, py::dynamic_attr()*/);
+    py::class_<v1::EventWriter> ew(m, "event_writer", py::module_local());
     ew.def(py::init<const std::string&>())
-      .def("add_impedance", &v1::EventWriter::addImpedance)
-      .def("add_video", &v1::EventWriter::addVideo)
-      .def("add_epoch", &v1::EventWriter::addEpoch)
-      .def("add_impedances", &v1::EventWriter::addImpedances)
-      .def("add_videos", &v1::EventWriter::addVideos)
-      .def("add_epochs", &v1::EventWriter::addEpochs)
+      .def("impedance", &v1::EventWriter::addImpedance)
+      .def("video", &v1::EventWriter::addVideo)
+      .def("epoch", &v1::EventWriter::addEpoch)
+      .def("impedances", &v1::EventWriter::addImpedances)
+      .def("videos", &v1::EventWriter::addVideos)
+      .def("epochs", &v1::EventWriter::addEpochs)
       .def("close", &v1::EventWriter::close, "Constructs the output evt file");
 
 
     // 3) pyeep interface
-    py::class_<libeep_reader> lr(m, "cnt_in", py::module_local()/*, py::dynamic_attr()*/);
+    py::class_<libeep_reader> lr(m, "cnt_in", py::module_local());
     lr.def(py::init<const std::string&>())
       .def("get_channel_count", &libeep_reader::get_channel_count)
       .def("get_channel", &libeep_reader::get_channel)
@@ -314,10 +926,10 @@ PYBIND11_MODULE(ctkpy, m) {
 
     m.def("read_cnt", &read_cnt, "Opens a CNT file for reading");
 
-    py::class_<libeep_writer> lw(m, "cnt_out", py::module_local()/*, py::dynamic_attr()*/);
-    lw.def(py::init<const std::string&, int, const std::vector<channel_v4>&, int>())
+    py::class_<libeep_writer> lw(m, "cnt_out", py::module_local());
+    lw.def(py::init<const std::string&, int, const std::vector<channel_v4_tuple>&, int>())
       .def("add_samples", &libeep_writer::add_samples)
-      .def("close", &libeep_writer::close);
+      .def("close", &libeep_writer::close, "Constructs the output cnt file");
 
     m.def("write_cnt", &write_cnt, "Opens a CNT file for writing");
 }

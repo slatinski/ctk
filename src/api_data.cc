@@ -57,7 +57,7 @@ namespace ctk { namespace api {
         }
 
         auto operator<<(std::ostream& os, const Trigger& x) -> std::ostream& {
-            os << "sample " << x.sample << ", code " << ctk::impl::as_string(x.code);
+            os << x.sample << ", " << ctk::impl::as_string(x.code);
             return os;
         }
 
@@ -240,7 +240,7 @@ namespace ctk { namespace api {
         }
 
         auto operator<<(std::ostream& os, const UserFile& x) -> std::ostream& {
-            os << x.label << "." << x.file_name;
+            os << x.label << ": " << x.file_name;
             return os;
         }
 

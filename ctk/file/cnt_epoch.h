@@ -500,6 +500,7 @@ namespace ctk { namespace impl {
     auto read_electrodes(FILE*) -> std::vector<api::v1::Electrode>;
 
     auto validate(const api::v1::TimeSeries&) -> void;
+    auto validate(const api::v1::Electrode&) -> void;
 
 
 } /* namespace impl */ } /* namespace ctk */
