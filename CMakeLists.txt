@@ -139,6 +139,7 @@ if(CTK_SELF_TEST)
     add_test(NAME submatrix COMMAND file_submatrix)
     add_test(NAME cnt_objects COMMAND file_objects)
     add_test(NAME api_data COMMAND api_data)
+    add_test(NAME api_reflib COMMAND api_reflib)
     add_test(NAME leb128 COMMAND file_leb128)
 endif()
 
