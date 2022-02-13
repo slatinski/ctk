@@ -52,7 +52,6 @@ namespace v1 {
     };
     auto operator<<(std::ostream&, const Trigger&) -> std::ostream&;
 
-    auto trigger_label(const std::array<char, evt_label_size + 2>&) -> std::string;
 
 
     struct DcDate

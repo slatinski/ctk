@@ -57,12 +57,8 @@ namespace ctk { namespace api {
         }
 
         auto operator<<(std::ostream& os, const Trigger& x) -> std::ostream& {
-            os << x.sample << ", " << ctk::impl::as_string(x.code);
+            os << x.sample << " " << ctk::impl::as_string(x.code);
             return os;
-        }
-
-        auto trigger_label(const std::array<char, evt_label_size + 2>& x) -> std::string {
-            return ctk::impl::as_string(x);
         }
 
         DcDate::DcDate()
@@ -157,11 +153,17 @@ namespace ctk { namespace api {
 
         auto operator<<(std::ostream& os, const Electrode& x) -> std::ostream& {
             os << x.label << "-" << x.reference
-               << " [" << x.unit << "]"
-               << ", iscale " << ctk::impl::d2s(x.iscale, 13)
-               << ", rscale " << ctk::impl::d2s(x.rscale, 13)
-               << ", type " << x.type
-               << ", status " << x.status;
+               << " " << x.unit
+               << " " << ctk::impl::d2s(x.iscale, 13)
+               << " " << ctk::impl::d2s(x.rscale, 13);
+
+            if (!x.type.empty()) {
+               os << ", " << x.type;
+            }
+
+            if (!x.status.empty()) {
+               os << ", " << x.status;
+            }
             return os;
         }
 
