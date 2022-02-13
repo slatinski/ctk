@@ -135,20 +135,30 @@ namespace ctk { namespace api {
         , rscale{ 1 / default_scaling_factor() } {
         }
 
-        Electrode::Electrode(const std::string& label, const std::string& reference, const std::string& unit)
-        : label{ label }
-        , reference{ reference }
-        , unit{ unit }
+        Electrode::Electrode(const std::string& l, const std::string& r, const std::string& u)
+        : label{ l }
+        , reference{ r }
+        , unit{ u }
         , iscale{ 1 }
         , rscale{ 1 / default_scaling_factor() } {
+            // compatibility: uV is stored in some files as µV so that the first character is not valid utf8
+            if (!unit.empty() && unit[0] == -75) {
+                // TODO: log
+                unit[0] = 'u';
+            }
         }
 
-        Electrode::Electrode(const std::string& label, const std::string& reference, const std::string& unit, double iscale, double rscale)
-        : label{ label }
-        , reference{ reference }
-        , unit{ unit }
+        Electrode::Electrode(const std::string& l, const std::string& r, const std::string& u, double iscale, double rscale)
+        : label{ l }
+        , reference{ r }
+        , unit{ u }
         , iscale{ iscale }
         , rscale{ rscale } {
+            // compatibility: uV is stored in some files as µV so that the first character is not valid utf8
+            if (!unit.empty() && unit[0] == -75) {
+                // TODO: log
+                unit[0] = 'u';
+            }
         }
 
         auto operator<<(std::ostream& os, const Electrode& x) -> std::ostream& {

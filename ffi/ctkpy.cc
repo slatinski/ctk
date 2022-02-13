@@ -141,13 +141,8 @@ namespace {
                 throw std::runtime_error(oss.str());
             }
 
-            auto e{ header.electrodes[i] };
-
-            // compatibility: uV is stored in some files as µV so that the first character is not valid utf8
-            if (e.unit[0] == -75) {
-                e.unit[0] = 'u';
-            }
-            return { e.label, e.reference, e.unit };
+            const v1::Electrode& x{ header.electrodes[i] };
+            return { x.label, x.reference, x.unit };
         }
 
         auto get_sample_frequency() const -> double {
