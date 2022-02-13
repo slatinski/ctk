@@ -504,7 +504,7 @@ namespace ctk { namespace impl {
         }
 
         const uint64_t qword{ read(f, uint64_t{}) };
-        length = qword;
+        length = cast(qword, size_t{}, ok{});
         return { length, character_width };
     }
 

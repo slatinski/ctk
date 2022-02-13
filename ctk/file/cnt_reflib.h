@@ -222,7 +222,7 @@ public:
             return {};
         }
 
-        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(amount) };
+        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(amount), ptrdiff_t{}, ok{}) };
         const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
 
         std::vector<double> ys(xs.size());
@@ -257,7 +257,7 @@ public:
         }
 
         // apply scaling to the row major buffer
-        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(amount) };
+        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(amount), ptrdiff_t{}, ok{}) };
         const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
 
         // transpose to column major
@@ -519,7 +519,7 @@ public:
 
         constexpr const row_major2row_major copy;
         const auto length{ signal_length(xs, height) };
-        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(length) };
+        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(length), ptrdiff_t{}, ok{}) };
 
         std::vector<double> ys(xs.size());
         copy.from_client(begin(xs), begin(ys), encode.row_order(), length); // demultiplex
@@ -557,7 +557,7 @@ public:
         }
 
         const auto length{ signal_length(xs, height) };
-        const ptrdiff_t epoch_length{ static_cast<measurement_count::value_type>(length) };
+        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(length), ptrdiff_t{}, ok{}) };
 
         // transpose from column major
         std::vector<double> ys(xs.size());

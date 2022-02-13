@@ -488,10 +488,11 @@ namespace {
                 );
             }
 
-            const ssize_t height{ ctk::impl::vsize(xs) / length };
+            const ssize_t height{ ctk::impl::cast(ctk::impl::vsize(xs) / length, ssize_t{}, ctk::impl::ok{}) };
+	    const ssize_t len{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
             constexpr const auto itemsize{ sizeof(double) };
             constexpr const int ndim{ 2 };
-            const ssize_t shape[]{ length, height };
+            const ssize_t shape[]{ len, height };
             const ssize_t strides[]{ height * static_cast<int>(sizeof(double)), sizeof(double) };
             return py::array_t<double>(
                 py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), ndim, shape, strides)
@@ -512,11 +513,12 @@ namespace {
                 );
             }
 
-            const ssize_t height{ ctk::impl::vsize(xs) / length };
+            const ssize_t height{ ctk::impl::cast(ctk::impl::vsize(xs) / length, ssize_t{}, ctk::impl::ok{}) };
+	    const ssize_t len{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
             constexpr const auto itemsize{ sizeof(double) };
             constexpr const int ndim{ 2 };
-            const ssize_t shape[]{ height, length };
-            const ssize_t strides[]{ length * static_cast<int>(sizeof(double)), sizeof(double) };
+            const ssize_t shape[]{ height, len };
+            const ssize_t strides[]{ len * static_cast<int>(sizeof(double)), sizeof(double) };
             return py::array_t<double>(
                 py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), ndim, shape, strides)
             );
