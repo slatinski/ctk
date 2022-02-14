@@ -221,6 +221,8 @@ namespace v1 {
         auto operator=(const Version&) -> Version& = default;
         auto operator=(Version&&) -> Version& = default;
         ~Version() = default;
+        friend auto operator==(const Version&, const Version&) -> bool = default;
+        friend auto operator!=(const Version&, const Version&) -> bool = default;
     };
     auto operator<<(std::ostream&, const Version&) -> std::ostream&;
 

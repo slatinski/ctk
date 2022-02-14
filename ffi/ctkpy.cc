@@ -846,6 +846,35 @@ PYBIND11_MODULE(ctkpy, m) {
       });
 
 
+    py::class_<v1::Version> lv(m, "lib_version", py::module_local());
+    lv.def(py::init<>())
+      .def_readonly("major", &v1::Version::major)
+      .def_readonly("minor", &v1::Version::minor)
+      .def_readonly("patch", &v1::Version::patch)
+      .def_readonly("build", &v1::Version::build)
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const v1::Version& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.major, x.minor, x.patch, x.build);
+        },
+        [](py::tuple xs) -> v1::Version { // __setstate__
+            if (xs.size() != 4) {
+                throw std::runtime_error("file_version pickle: invalid state");
+            }
+            v1::Version x;
+            x.major = xs[0].cast<uint32_t>();
+            x.minor = xs[1].cast<uint32_t>();
+            x.patch = xs[2].cast<uint32_t>();
+            x.build = xs[3].cast<uint32_t>();
+            return x;
+        }
+      ))
+      .def("__copy__", [](const v1::Version& x){ return v1::Version(x); })
+      .def("__deepcopy__", [](const v1::Version& x, py::dict){ return v1::Version(x); })
+      .def("__repr__", [](const v1::Version& x) { return print(x); });
+
+
     // 1) cnt + evt file
     py::class_<ctkpy_writer> rw(m, "writer_reflib", py::module_local());
     rw.def(py::init<const std::string&, v1::RiffType>(), py::arg("fname"), py::arg("type") = v1::RiffType::riff64 )

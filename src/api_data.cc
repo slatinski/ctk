@@ -264,7 +264,7 @@ namespace ctk { namespace api {
         }
 
         auto operator<<(std::ostream& os, const Version& x) -> std::ostream& {
-            os << x.major << "." << x.minor << x.patch << "." << x.build;
+            os << x.major << "." << x.minor << "." << x.patch << "." << x.build;
             return os;
         }
 
