@@ -849,7 +849,9 @@ namespace ctk { namespace impl {
         iss >> x.tm_sec >> x.tm_min >> x.tm_hour >> x.tm_mday >> x.tm_mon >> x.tm_year >> x.tm_wday >> x.tm_yday >> x.tm_isdst;
 
         if (iss.fail()) {
-            throw api::v1::ctk_data{ "parse_info_dob: invalid date" };
+            // TODO log
+            //throw api::v1::ctk_data{ "parse_info_dob: invalid birth date" };
+            return tm2timepoint(make_tm());
         }
         return tm2timepoint(x);
     }
