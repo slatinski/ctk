@@ -250,8 +250,8 @@ namespace {
     }
 
 
-    static
-    auto from_row_major(const py::array_t<double>& xs) -> std::vector<double> {
+    template<typename T>
+    auto from_row_major(const py::array_t<T>& xs) -> std::vector<T> {
         if (xs.ndim() != 2) {
             std::ostringstream oss;
             oss << "invalid input array dimensions: expected 2, got " << xs.ndim();
@@ -261,7 +261,7 @@ namespace {
         ssize_t o{ 0 };
         const ssize_t rows{ xs.shape()[0] };
         const ssize_t cols{ xs.shape()[1] };
-        std::vector<double> ys(rows * cols);
+        std::vector<T> ys(rows * cols);
 
         for (ssize_t i{ 0 }; i < rows; ++i) {
             for (ssize_t j{ 0 }; j < cols; ++j) {
@@ -272,16 +272,18 @@ namespace {
         return ys;
     }
 
-    static
-    auto from_column_major(const py::array_t<double>& xs) -> std::vector<double> {
+    template<typename T>
+    auto from_column_major(const py::array_t<T>& xs) -> std::vector<T> {
         if (xs.ndim() != 2) {
-            return {};
+            std::ostringstream oss;
+            oss << "invalid input array dimensions: expected 2, got " << xs.ndim();
+            throw std::runtime_error(oss.str());
         }
 
         ssize_t o{ 0 };
         const ssize_t cols{ xs.shape()[0] };
         const ssize_t rows{ xs.shape()[1] };
-        std::vector<double> ys(rows * cols);
+        std::vector<T> ys(rows * cols);
 
         for (ssize_t i{ 0 }; i < rows; ++i) {
             for (ssize_t j{ 0 }; j < cols; ++j) {
@@ -290,6 +292,35 @@ namespace {
             }
         }
         return ys;
+    }
+
+
+    template<typename T>
+    auto to_column_major(std::vector<T> xs, ssize_t length, ssize_t height) -> py::array_t<T> {
+        assert(!xs.empty());
+        assert(xs.size() == static_cast<size_t>(length * height));
+
+        constexpr const auto itemsize{ sizeof(T) };
+        constexpr const int ndim{ 2 };
+        const ssize_t shape[]{ length, height };
+        const ssize_t strides[]{ height * static_cast<ssize_t>(sizeof(T)), sizeof(T) };
+        return py::array_t<T>(
+            py::buffer_info(xs.data(), itemsize, py::format_descriptor<T>::format(), ndim, shape, strides)
+        );
+    }
+
+    template<typename T>
+    auto to_row_major(std::vector<T> xs, ssize_t length, ssize_t height) -> py::array_t<T> {
+        assert(!xs.empty());
+        assert(xs.size() == static_cast<size_t>(length * height));
+
+        constexpr const auto itemsize{ sizeof(T) };
+        constexpr const int ndim{ 2 };
+        const ssize_t shape[]{ height, length };
+        const ssize_t strides[]{ length * static_cast<int>(sizeof(T)), sizeof(T) };
+        return py::array_t<T>(
+            py::buffer_info(xs.data(), itemsize, py::format_descriptor<T>::format(), ndim, shape, strides)
+        );
     }
 
 
@@ -476,53 +507,29 @@ namespace {
 
         auto column_major(int64_t i, int64_t length) -> py::array_t<double> {
             assert(reader);
-            std::vector<double> xs{ reader->rangeColumnMajorScaled(i, length) };
-
-            if (xs.empty()) {
-                xs.push_back(0);
-                constexpr const auto itemsize{ sizeof(double) };
-                const std::vector<ssize_t> shape{ };
-                const std::vector<ssize_t> strides{ };
-                return py::array_t<double>(
-                    py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), 0, shape, strides)
-                );
+            if (length <= 0) {
+                throw std::runtime_error("invalid length");
             }
 
-            const ssize_t height{ ctk::impl::cast(ctk::impl::vsize(xs) / length, ssize_t{}, ctk::impl::ok{}) };
-	    const ssize_t len{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            constexpr const auto itemsize{ sizeof(double) };
-            constexpr const int ndim{ 2 };
-            const ssize_t shape[]{ len, height };
-            const ssize_t strides[]{ height * static_cast<int>(sizeof(double)), sizeof(double) };
-            return py::array_t<double>(
-                py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), ndim, shape, strides)
-            );
+            const size_t channels{ header.electrodes.size() };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(reader->rangeColumnMajorScaled(i, length), l, h);
         }
+
 
         auto row_major(int64_t i, int64_t length) -> py::array_t<double> {
             assert(reader);
-            auto xs{ reader->rangeRowMajorScaled(i, length) };
-
-            if (xs.empty()) {
-                xs.push_back(0);
-                constexpr const auto itemsize{ sizeof(double) };
-                const std::vector<ssize_t> shape{ };
-                const std::vector<ssize_t> strides{ };
-                return py::array_t<double>(
-                    py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), 0, shape, strides)
-                );
+            if (length <= 0) {
+                throw std::runtime_error("invalid length");
             }
 
-            const ssize_t height{ ctk::impl::cast(ctk::impl::vsize(xs) / length, ssize_t{}, ctk::impl::ok{}) };
-	    const ssize_t len{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            constexpr const auto itemsize{ sizeof(double) };
-            constexpr const int ndim{ 2 };
-            const ssize_t shape[]{ height, len };
-            const ssize_t strides[]{ len * static_cast<int>(sizeof(double)), sizeof(double) };
-            return py::array_t<double>(
-                py::buffer_info(xs.data(), itemsize, py::format_descriptor<double>::format(), ndim, shape, strides)
-            );
+            const size_t channels{ header.electrodes.size() };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(reader->rangeRowMajorScaled(i, length), l, h);
         }
+
 
         auto extract_embedded_file(const v1::UserFile& x) -> bool {
             assert(reader);
@@ -531,6 +538,95 @@ namespace {
             }
 
             return reader->extractEmbeddedFile(x);
+        }
+    };
+
+
+    template<typename Compressor>
+    // Compressor has interface compatible with CompressReflib, CompressInt16, CompressInt32, CompressInt64, CompressUInt16, CompressUInt32, CompressUInt64
+    struct enc_matrix
+    {
+        Compressor compress;
+        using T = typename Compressor::value_type;
+
+        enc_matrix() = default;
+        enc_matrix(const enc_matrix&) = default;
+        enc_matrix(enc_matrix&&) = default;
+        auto operator=(const enc_matrix&) -> enc_matrix& = default;
+        auto operator=(enc_matrix&&) -> enc_matrix& = default;
+        ~enc_matrix() = default;
+
+        auto sensors(int64_t height) -> bool {
+            return compress.sensors(height);
+        }
+
+        auto order(const std::vector<int16_t>& xs) -> bool {
+            return compress.sensors(xs);
+        }
+
+        auto reserve(int64_t length) -> void {
+            compress.reserve(length);
+        }
+
+        auto column_major(const py::array_t<T>& xs) -> std::vector<uint8_t> {
+            const int64_t length{ xs.shape()[0] };
+            return compress.row_major(from_column_major(xs), length);
+        }
+
+        auto row_major(const py::array_t<T>& xs) -> std::vector<uint8_t> {
+            const int64_t length{ xs.shape()[1] };
+            return compress.row_major(from_row_major(xs), length);
+        }
+    };
+
+    template<typename Decompressor>
+    // Decompressor has interface compatible with DecompressReflib, DecompressInt16, DecompressInt32, DecompressInt64, DecompressUInt16, DecompressUInt32, DecompressUInt64
+    struct dec_matrix
+    {
+        Decompressor decompress;
+        using T = typename Decompressor::value_type;
+
+        dec_matrix() = default;
+        dec_matrix(const dec_matrix&) = default;
+        dec_matrix(dec_matrix&&) = default;
+        auto operator=(const dec_matrix&) -> dec_matrix& = default;
+        auto operator=(dec_matrix&&) -> dec_matrix& = default;
+        ~dec_matrix() = default;
+
+        auto sensors(int64_t height) -> bool {
+            return decompress.sensors(height);
+        }
+
+        auto order(const std::vector<int16_t>& xs) -> bool {
+            return decompress.sensors(xs);
+        }
+
+        auto reserve(int64_t length) -> void {
+            decompress.reserve(length);
+        }
+
+        auto column_major(const std::vector<uint8_t>& xs, int64_t length) -> py::array_t<T> {
+            if (length <= 0) {
+                throw std::runtime_error("invalid length");
+            }
+
+            // TODO: add height getter to the matrix interface and pass temporary to to_column_major
+            const auto ys{ decompress.column_major(xs, length) };
+            const ssize_t h{ ctk::impl::cast(ctk::impl::vsize(ys) / length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(ys, l, h);
+        }
+
+        auto row_major(const std::vector<uint8_t>& xs, int64_t length) -> py::array_t<T> {
+            if (length <= 0) {
+                throw std::runtime_error("invalid length");
+            }
+
+            // TODO: add height getter to the matrix interface and pass temporary to to_row_major
+            const auto ys{ decompress.row_major(xs, length) };
+            const ssize_t h{ ctk::impl::cast(ctk::impl::vsize(ys) / length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(ys, l, h);
         }
     };
 
@@ -958,5 +1054,119 @@ PYBIND11_MODULE(ctkpy, m) {
       .def("close", &libeep_writer::close, "Constructs the output cnt file");
 
     m.def("write_cnt", &write_cnt, "Opens a CNT file for writing");
+
+    // 4) compression
+    py::class_<enc_matrix<v1::CompressReflib>> cr(m, "compress_reflib", py::module_local());
+    cr.def(py::init<>())
+      .def_property("sensors", nullptr, &enc_matrix<v1::CompressReflib>::sensors)
+      .def_property("order", nullptr, &enc_matrix<v1::CompressReflib>::order)
+      .def("reserve", &enc_matrix<v1::CompressReflib>::reserve)
+      .def("column_major", &enc_matrix<v1::CompressReflib>::column_major)
+      .def("row_major", &enc_matrix<v1::CompressReflib>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressReflib>> dr(m, "decompress_reflib", py::module_local());
+    dr.def(py::init<>())
+      .def_property("sensors", nullptr, &dec_matrix<v1::DecompressReflib>::sensors)
+      .def_property("order", nullptr, &dec_matrix<v1::DecompressReflib>::sensors)
+      .def("reserve", &dec_matrix<v1::DecompressReflib>::reserve)
+      .def("column_major", &dec_matrix<v1::DecompressReflib>::column_major)
+      .def("row_major", &dec_matrix<v1::DecompressReflib>::row_major);
+
+    py::class_<enc_matrix<v1::CompressInt16>> ci16(m, "compress_i16", py::module_local());
+    ci16.def(py::init<>())
+        .def_property("sensors", nullptr, &enc_matrix<v1::CompressInt16>::sensors)
+        .def_property("order", nullptr, &enc_matrix<v1::CompressInt16>::order)
+        .def("reserve", &enc_matrix<v1::CompressInt16>::reserve)
+        .def("column_major", &enc_matrix<v1::CompressInt16>::column_major)
+        .def("row_major", &enc_matrix<v1::CompressInt16>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressInt16>> di16(m, "decompress_i16", py::module_local());
+    di16.def(py::init<>())
+        .def_property("sensors", nullptr, &dec_matrix<v1::DecompressInt16>::sensors)
+        .def_property("order", nullptr, &dec_matrix<v1::DecompressInt16>::sensors)
+        .def("reserve", &dec_matrix<v1::DecompressInt16>::reserve)
+        .def("column_major", &dec_matrix<v1::DecompressInt16>::column_major)
+        .def("row_major", &dec_matrix<v1::DecompressInt16>::row_major);
+
+    py::class_<enc_matrix<v1::CompressInt32>> ci32(m, "compress_i32", py::module_local());
+    ci32.def(py::init<>())
+        .def_property("sensors", nullptr, &enc_matrix<v1::CompressInt32>::sensors)
+        .def_property("order", nullptr, &enc_matrix<v1::CompressInt32>::order)
+        .def("reserve", &enc_matrix<v1::CompressInt32>::reserve)
+        .def("column_major", &enc_matrix<v1::CompressInt32>::column_major)
+        .def("row_major", &enc_matrix<v1::CompressInt32>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressInt32>> di32(m, "decompress_i32", py::module_local());
+    di32.def(py::init<>())
+        .def_property("sensors", nullptr, &dec_matrix<v1::DecompressInt32>::sensors)
+        .def_property("order", nullptr, &dec_matrix<v1::DecompressInt32>::sensors)
+        .def("reserve", &dec_matrix<v1::DecompressInt32>::reserve)
+        .def("column_major", &dec_matrix<v1::DecompressInt32>::column_major)
+        .def("row_major", &dec_matrix<v1::DecompressInt32>::row_major);
+
+    py::class_<enc_matrix<v1::CompressInt64>> ci64(m, "compress_i64", py::module_local());
+    ci64.def(py::init<>())
+        .def_property("sensors", nullptr, &enc_matrix<v1::CompressInt64>::sensors)
+        .def_property("order", nullptr, &enc_matrix<v1::CompressInt64>::order)
+        .def("reserve", &enc_matrix<v1::CompressInt64>::reserve)
+        .def("column_major", &enc_matrix<v1::CompressInt64>::column_major)
+        .def("row_major", &enc_matrix<v1::CompressInt64>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressInt64>> di64(m, "decompress_i64", py::module_local());
+    di64.def(py::init<>())
+        .def_property("sensors", nullptr, &dec_matrix<v1::DecompressInt64>::sensors)
+        .def_property("order", nullptr, &dec_matrix<v1::DecompressInt64>::sensors)
+        .def("reserve", &dec_matrix<v1::DecompressInt64>::reserve)
+        .def("column_major", &dec_matrix<v1::DecompressInt64>::column_major)
+        .def("row_major", &dec_matrix<v1::DecompressInt64>::row_major);
+
+
+    py::class_<enc_matrix<v1::CompressUInt16>> cu16(m, "compress_u16", py::module_local());
+    cu16.def(py::init<>())
+        .def_property("sensors", nullptr, &enc_matrix<v1::CompressUInt16>::sensors)
+        .def_property("order", nullptr, &enc_matrix<v1::CompressUInt16>::order)
+        .def("reserve", &enc_matrix<v1::CompressUInt16>::reserve)
+        .def("column_major", &enc_matrix<v1::CompressUInt16>::column_major)
+        .def("row_major", &enc_matrix<v1::CompressUInt16>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressUInt16>> du16(m, "decompress_u16", py::module_local());
+    du16.def(py::init<>())
+        .def_property("sensors", nullptr, &dec_matrix<v1::DecompressUInt16>::sensors)
+        .def_property("order", nullptr, &dec_matrix<v1::DecompressUInt16>::sensors)
+        .def("reserve", &dec_matrix<v1::DecompressUInt16>::reserve)
+        .def("column_major", &dec_matrix<v1::DecompressUInt16>::column_major)
+        .def("row_major", &dec_matrix<v1::DecompressUInt16>::row_major);
+
+    py::class_<enc_matrix<v1::CompressUInt32>> cu32(m, "compress_u32", py::module_local());
+    cu32.def(py::init<>())
+        .def_property("sensors", nullptr, &enc_matrix<v1::CompressUInt32>::sensors)
+        .def_property("order", nullptr, &enc_matrix<v1::CompressUInt32>::order)
+        .def("reserve", &enc_matrix<v1::CompressUInt32>::reserve)
+        .def("column_major", &enc_matrix<v1::CompressUInt32>::column_major)
+        .def("row_major", &enc_matrix<v1::CompressUInt32>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressUInt32>> du32(m, "decompress_u32", py::module_local());
+    du32.def(py::init<>())
+        .def_property("sensors", nullptr, &dec_matrix<v1::DecompressUInt32>::sensors)
+        .def_property("order", nullptr, &dec_matrix<v1::DecompressUInt32>::sensors)
+        .def("reserve", &dec_matrix<v1::DecompressUInt32>::reserve)
+        .def("column_major", &dec_matrix<v1::DecompressUInt32>::column_major)
+        .def("row_major", &dec_matrix<v1::DecompressUInt32>::row_major);
+
+    py::class_<enc_matrix<v1::CompressUInt64>> cu64(m, "compress_u64", py::module_local());
+    cu64.def(py::init<>())
+        .def_property("sensors", nullptr, &enc_matrix<v1::CompressUInt64>::sensors)
+        .def_property("order", nullptr, &enc_matrix<v1::CompressUInt64>::order)
+        .def("reserve", &enc_matrix<v1::CompressUInt64>::reserve)
+        .def("column_major", &enc_matrix<v1::CompressUInt64>::column_major)
+        .def("row_major", &enc_matrix<v1::CompressUInt64>::row_major);
+
+    py::class_<dec_matrix<v1::DecompressUInt64>> du64(m, "decompress_u64", py::module_local());
+    du64.def(py::init<>())
+        .def_property("sensors", nullptr, &dec_matrix<v1::DecompressUInt64>::sensors)
+        .def_property("order", nullptr, &dec_matrix<v1::DecompressUInt64>::sensors)
+        .def("reserve", &dec_matrix<v1::DecompressUInt64>::reserve)
+        .def("column_major", &dec_matrix<v1::DecompressUInt64>::column_major)
+        .def("row_major", &dec_matrix<v1::DecompressUInt64>::row_major);
 }
 

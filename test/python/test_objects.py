@@ -342,3 +342,65 @@ def test_event_epoch():
     assert y != x
     assert y.condition_label != x.condition_label
 
+
+def test_compression_reflib():
+    comp = lib.compress_reflib()
+    decomp = lib.decompress_reflib()
+    comp.sensors = 4
+    decomp.sensors = 4
+    samples = 2
+
+    xs = np.array([[11, 21, 31, 41], [12, 22, 32, 42]])
+    ys = comp.column_major(xs)
+
+    cxs = decomp.column_major(ys, samples)
+    assert cxs[0][0] == 11
+    assert cxs[0][1] == 21
+    assert cxs[0][2] == 31
+    assert cxs[0][3] == 41
+    assert cxs[1][0] == 12
+    assert cxs[1][1] == 22
+    assert cxs[1][2] == 32
+    assert cxs[1][3] == 42
+
+    rxs = decomp.row_major(ys, samples)
+    assert rxs[0][0] == 11
+    assert rxs[0][1] == 12
+    assert rxs[1][0] == 21
+    assert rxs[1][1] == 22
+    assert rxs[2][0] == 31
+    assert rxs[2][1] == 32
+    assert rxs[3][0] == 41
+    assert rxs[3][1] == 42
+
+    xs = np.array([[13, 14], [23, 24], [33, 34], [43, 44]])
+    ys = comp.row_major(xs)
+
+    cxs = decomp.column_major(ys, samples)
+    assert cxs[0][0] == 13
+    assert cxs[0][1] == 23
+    assert cxs[0][2] == 33
+    assert cxs[0][3] == 43
+    assert cxs[1][0] == 14
+    assert cxs[1][1] == 24
+    assert cxs[1][2] == 34
+    assert cxs[1][3] == 44
+
+    rxs = decomp.row_major(ys, samples)
+    assert rxs[0][0] == 13
+    assert rxs[0][1] == 14
+    assert rxs[1][0] == 23
+    assert rxs[1][1] == 24
+    assert rxs[2][0] == 33
+    assert rxs[2][1] == 34
+    assert rxs[3][0] == 43
+    assert rxs[3][1] == 44
+
+    # write only attributes
+    with pytest.raises(AttributeError):
+        print(comp.sensors)
+
+    with pytest.raises(AttributeError):
+        print(comp.order)
+
+
