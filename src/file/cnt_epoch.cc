@@ -718,6 +718,13 @@ namespace ctk { namespace impl {
         }
 #endif // !defined(_WIN32)
 
+        // class year { short y_; };
+        constexpr const int min_year{ std::numeric_limits<short>::min() };
+        constexpr const int max_year{ std::numeric_limits<short>::max() };
+        if (x.tm_year < min_year  || max_year < x.tm_year) {
+            return status_tm::year;
+        }
+
         if (x.tm_mon < 0 || 11 < x.tm_mon) {
             return status_tm::month;
         }
