@@ -32,6 +32,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressReflib can be decoded ONLY by DecompressReflib
         struct CompressReflib
         {
+            using value_type = int32_t;
+
             CompressReflib();
             CompressReflib(const CompressReflib&);
             CompressReflib(CompressReflib&&) = default;
@@ -46,10 +48,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -61,6 +63,8 @@ namespace ctk { namespace api {
 
         struct DecompressReflib
         {
+            using value_type = int32_t;
+
             DecompressReflib();
             DecompressReflib(const DecompressReflib&);
             DecompressReflib(DecompressReflib&&) = default;
@@ -75,10 +79,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int32_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int32_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int32_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int32_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;
@@ -93,6 +97,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressInt16 can be decoded ONLY by DecompressInt16
         struct CompressInt16
         {
+            using value_type = int16_t;
+
             CompressInt16();
             CompressInt16(const CompressInt16&);
             CompressInt16(CompressInt16&&) = default;
@@ -107,10 +113,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<int16_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<int16_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int16_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int16_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -122,6 +128,8 @@ namespace ctk { namespace api {
 
         struct DecompressInt16
         {
+            using value_type = int16_t;
+
             DecompressInt16();
             DecompressInt16(const DecompressInt16&);
             DecompressInt16(DecompressInt16&&) = default;
@@ -136,10 +144,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int16_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int16_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int16_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int16_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;
@@ -154,6 +162,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressInt32 can be decoded ONLY by DecompressInt32
         struct CompressInt32
         {
+            using value_type = int32_t;
+
             CompressInt32();
             CompressInt32(const CompressInt32&);
             CompressInt32(CompressInt32&&) = default;
@@ -168,10 +178,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -183,6 +193,8 @@ namespace ctk { namespace api {
 
         struct DecompressInt32
         {
+            using value_type = int32_t;
+
             DecompressInt32();
             DecompressInt32(const DecompressInt32&);
             DecompressInt32(DecompressInt32&&) = default;
@@ -197,10 +209,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int32_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int32_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int32_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int32_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;
@@ -215,6 +227,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressInt64 can be decoded ONLY by DecompressInt64
         struct CompressInt64
         {
+            using value_type = int64_t;
+
             CompressInt64();
             CompressInt64(const CompressInt64&);
             CompressInt64(CompressInt64&&) = default;
@@ -229,10 +243,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<int64_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<int64_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int64_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<int64_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -244,6 +258,8 @@ namespace ctk { namespace api {
 
         struct DecompressInt64
         {
+            using value_type = int64_t;
+
             DecompressInt64();
             DecompressInt64(const DecompressInt64&);
             DecompressInt64(DecompressInt64&&) = default;
@@ -258,10 +274,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int64_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int64_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<int64_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<int64_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;
@@ -276,6 +292,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressUInt16 can be decoded ONLY by DecompressUInt16
         struct CompressUInt16
         {
+            using value_type = uint16_t;
+
             CompressUInt16();
             CompressUInt16(const CompressUInt16&);
             CompressUInt16(CompressUInt16&&) = default;
@@ -290,10 +308,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint16_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<uint16_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<uint16_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<uint16_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -305,6 +323,8 @@ namespace ctk { namespace api {
 
         struct DecompressUInt16
         {
+            using value_type = uint16_t;
+
             DecompressUInt16();
             DecompressUInt16(const DecompressUInt16&);
             DecompressUInt16(DecompressUInt16&&) = default;
@@ -319,10 +339,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<uint16_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<uint16_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<uint16_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<uint16_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;
@@ -337,6 +357,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressUInt32 can be decoded ONLY by DecompressUInt32
         struct CompressUInt32
         {
+            using value_type = uint32_t;
+
             CompressUInt32();
             CompressUInt32(const CompressUInt32&);
             CompressUInt32(CompressUInt32&&) = default;
@@ -351,10 +373,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint32_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<uint32_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<uint32_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<uint32_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -366,6 +388,8 @@ namespace ctk { namespace api {
 
         struct DecompressUInt32
         {
+            using value_type = uint32_t;
+
             DecompressUInt32();
             DecompressUInt32(const DecompressUInt32&);
             DecompressUInt32(DecompressUInt32&&) = default;
@@ -380,10 +404,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<uint32_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<uint32_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<uint32_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<uint32_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;
@@ -398,6 +422,8 @@ namespace ctk { namespace api {
         // NB: the encoded byte stream created by CompressUInt64 can be decoded ONLY by DecompressUInt64
         struct CompressUInt64
         {
+            using value_type = uint64_t;
+
             CompressUInt64();
             CompressUInt64(const CompressUInt64&);
             CompressUInt64(CompressUInt64&&) = default;
@@ -412,10 +438,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint64_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<uint64_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<uint64_t>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<uint64_t>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -427,6 +453,8 @@ namespace ctk { namespace api {
 
         struct DecompressUInt64
         {
+            using value_type = uint64_t;
+
             DecompressUInt64();
             DecompressUInt64(const DecompressUInt64&);
             DecompressUInt64(DecompressUInt64&&) = default;
@@ -441,10 +469,10 @@ namespace ctk { namespace api {
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<uint64_t>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<uint64_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<uint64_t>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<uint64_t>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;

@@ -1,6 +1,8 @@
         // NB: the encoded byte stream created by CompressCLASS can be decoded ONLY by DecompressCLASS
         struct CompressCLASS
         {
+            using value_type = DATATYPE;
+
             CompressCLASS();
             CompressCLASS(const CompressCLASS&);
             CompressCLASS(CompressCLASS&&) = default;
@@ -15,10 +17,10 @@
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
 
         private:
             struct impl;
@@ -30,6 +32,8 @@
 
         struct DecompressCLASS
         {
+            using value_type = DATATYPE;
+
             DecompressCLASS();
             DecompressCLASS(const DecompressCLASS&);
             DecompressCLASS(DecompressCLASS&&) = default;
@@ -44,10 +48,10 @@
 
             auto reserve(int64_t length) -> void;
             auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<DATATYPE>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<DATATYPE>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<DATATYPE>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<DATATYPE>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
 
         private:
             struct impl;

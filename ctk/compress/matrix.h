@@ -898,7 +898,7 @@ public:
         }
 
         const measurement_count::value_type l{ epoch_length };
-	const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
+        const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
         auto previous{ common.data.previous() };
         auto first{ common.data.matrix() };
         auto next{ first + length };
