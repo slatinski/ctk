@@ -113,8 +113,8 @@ namespace ctk { namespace impl {
             using U = typename std::iterator_traits<IConst>::value_type;
             static_assert(sizeof(T) == sizeof(U));
 
-	    const measurement_count::value_type l{ length };
-	    const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
+            const measurement_count::value_type l{ length };
+            const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
 
             for (ptrdiff_t row : row_order) {
                 const auto row_begin{ row * i_length };
@@ -133,7 +133,7 @@ namespace ctk { namespace impl {
 
             ptrdiff_t row_begin{ 0 };
             const measurement_count::value_type l{ length };
-	    const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
+            const ptrdiff_t i_length{ cast(l, ptrdiff_t{}, ok{}) };
 
             for (ptrdiff_t row : row_order) {
                 static_assert(sizeof(int16_t) <= sizeof(ptrdiff_t));
