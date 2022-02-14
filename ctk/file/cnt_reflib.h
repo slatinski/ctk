@@ -211,10 +211,8 @@ public:
             return {};
         }
 
-        std::vector<int32_t> xs(buffer.size());
         constexpr const row_major2row_major copy;
-        copy.to_client(begin(buffer), begin(xs), reader.data().order(), amount);
-        return xs;
+        return multiplex(buffer, amount, copy);
     }
 
     auto range_row_major_scaled(measurement_count i, measurement_count amount) -> std::vector<double> {
@@ -222,13 +220,8 @@ public:
             return {};
         }
 
-        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(amount), ptrdiff_t{}, ok{}) };
-        const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
-
-        std::vector<double> ys(xs.size());
         constexpr const row_major2row_major copy;
-        copy.to_client(begin(xs), begin(ys), reader.data().order(), amount);
-        return ys;
+        return scale_multiplex(buffer, amount, copy);
     }
 
     /*
@@ -245,10 +238,8 @@ public:
             return {};
         }
 
-        std::vector<int32_t> xs(buffer.size());
         constexpr const column_major2row_major transpose;
-        transpose.to_client(begin(buffer), begin(xs), reader.data().order(), amount); // multiplex
-        return xs;
+        return multiplex(buffer, amount, transpose);
     }
 
     auto range_column_major_scaled(measurement_count i, measurement_count amount) -> std::vector<double> {
@@ -256,15 +247,8 @@ public:
             return {};
         }
 
-        // apply scaling to the row major buffer
-        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(amount), ptrdiff_t{}, ok{}) };
-        const std::vector<double> xs{ apply_scaling(buffer, scales, epoch_length, int2double{ 0 }) };
-
-        // transpose to column major
-        std::vector<double> ys(xs.size());
         constexpr const column_major2row_major transpose;
-        transpose.to_client(begin(xs), begin(ys), reader.data().order(), amount); // multiplex
-        return ys;
+        return scale_multiplex(buffer, amount, transpose);
     }
 
 
@@ -295,7 +279,18 @@ public:
         if (!load_epoch(i)) {
             return {};
         }
-        return cache;
+
+        constexpr const row_major2row_major copy;
+        return multiplex(cache, cached_epoch_length, copy);
+    }
+
+    auto epoch_row_major_scaled(epoch_count i) -> std::vector<double> {
+        if (!load_epoch(i)) {
+            return {};
+        }
+
+        constexpr const row_major2row_major copy;
+        return scale_multiplex(cache, cached_epoch_length, copy);
     }
 
     auto epoch_column_major(epoch_count i) -> std::vector<int32_t> {
@@ -303,10 +298,17 @@ public:
             return {};
         }
 
-        std::vector<int32_t> result(cache.size());
         constexpr const column_major2row_major transpose;
-        transpose.to_client(begin(cache), begin(cache), reader.data().order(), cached_epoch_length);
-        return result;
+        return multiplex(cache, cached_epoch_length, transpose);
+    }
+
+    auto epoch_column_major_scaled(epoch_count i) -> std::vector<double> {
+        if (!load_epoch(i)) {
+            return {};
+        }
+
+        constexpr const column_major2row_major transpose;
+        return scale_multiplex(cache, cached_epoch_length, transpose);
     }
 
     auto epoch_compressed(epoch_count i) -> std::vector<uint8_t> {
@@ -396,8 +398,8 @@ private:
             return false;
         }
 
-        const sint i{ n };
-        const sint el{ epoch_length() };
+        const measurement_count::value_type i{ n };
+        const measurement_count::value_type el{ epoch_length() };
         const auto[quot, rem]{ std::div(i, el) };
 
         cache_index = measurement_count{ cast(rem, sint{}, guarded{}) };
@@ -405,10 +407,10 @@ private:
     }
 
     auto populate_buffer(measurement_count i, measurement_count amount) -> bool {
-        const sint si{ i };
-        const sint size{ amount };
-        const sint requested{ plus(si, size, ok{}) };
-        const sint total{ sample_count() };
+        const measurement_count::value_type si{ i };
+        const measurement_count::value_type size{ amount };
+        const measurement_count::value_type requested{ plus(si, size, ok{}) };
+        const measurement_count::value_type total{ sample_count() };
         if (i < 0 || sample_count() <= i || amount < 1 || total < requested) {
             return false;
         }
@@ -434,6 +436,25 @@ private:
         }
 
         return due == 0; // is all requested data loaded in the buffer?
+    }
+
+
+    template<typename Transformation>
+    auto multiplex(const std::vector<int32_t>& xs, measurement_count amount, Transformation transform) -> std::vector<int32_t> {
+        std::vector<int32_t> ys(xs.size());
+        transform.to_client(begin(xs), begin(ys), reader.data().order(), amount);
+        return ys;
+    }
+
+
+    template<typename Transformation>
+    auto scale_multiplex(const std::vector<int32_t>& xs, measurement_count amount, Transformation transform) -> std::vector<double> {
+        const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(amount), ptrdiff_t{}, ok{}) };
+        const std::vector<double> ys{ apply_scaling(xs, scales, epoch_length, int2double{ 0 }) };
+
+        std::vector<double> zs(ys.size());
+        transform.to_client(begin(ys), begin(zs), reader.data().order(), amount);
+        return zs;
     }
 };
 
@@ -559,12 +580,12 @@ public:
         const auto length{ signal_length(xs, height) };
         const ptrdiff_t epoch_length{ cast(static_cast<measurement_count::value_type>(length), ptrdiff_t{}, ok{}) };
 
-        // transpose from column major
+        // transposes from column major
         std::vector<double> ys(xs.size());
         constexpr const column_major2row_major transpose;
         transpose.from_client(begin(xs), begin(ys), encode.row_order(), length); // demultiplex
 
-        // apply scaling to the row major temporary ys
+        // applies scaling to the row major temporary ys
         buffer = apply_scaling(ys, scales, epoch_length, double2int{ 0 });
         append_buffer(length);
     }

@@ -80,7 +80,9 @@ namespace ctk { namespace api {
             */
             auto epochs() const -> int64_t;
             auto epochRowMajor(int64_t i) -> std::vector<int32_t>;
+            auto epochRowMajorScaled(int64_t i) -> std::vector<double>;
             auto epochColumnMajor(int64_t i) -> std::vector<int32_t>;
+            auto epochColumnMajorScaled(int64_t i) -> std::vector<double>;
             auto epochCompressed(int64_t i) -> std::vector<uint8_t>;
 
             auto description() const -> TimeSeries;

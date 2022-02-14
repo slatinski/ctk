@@ -114,9 +114,19 @@ namespace ctk { namespace api {
             return p->reader.epoch_row_major(epoch_count{ i });
         }
 
+        auto CntReaderReflib::epochRowMajorScaled(int64_t i) -> std::vector<double> {
+            assert(p);
+            return p->reader.epoch_row_major_scaled(epoch_count{ i });
+        }
+
         auto CntReaderReflib::epochColumnMajor(int64_t i) -> std::vector<int32_t> {
             assert(p);
             return p->reader.epoch_column_major(epoch_count{ i });
+        }
+
+        auto CntReaderReflib::epochColumnMajorScaled(int64_t i) -> std::vector<double> {
+            assert(p);
+            return p->reader.epoch_column_major_scaled(epoch_count{ i });
         }
 
         auto CntReaderReflib::epochCompressed(int64_t i) -> std::vector<uint8_t> {
