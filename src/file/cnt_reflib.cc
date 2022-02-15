@@ -39,6 +39,19 @@ auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::p
         root.push_back(riff_node{ riff_file{ data_chunk(t, x.label), x.file_name, no_offset } });
     }
 
+    const std::vector<std::pair<std::string, std::string>> satelites{
+        {"evt", "xevt" }, // file extension, top-level chunk name
+        {"seg", "xseg" },
+        {"sen", "xsen"},
+        {"trg", "xtrg"}};
+    for (const auto& satelite : satelites) {
+        const std::filesystem::path satelite_name{ std::filesystem::path{ output_name }.replace_extension(satelite.first) };
+        if (!std::filesystem::exists(satelite_name)) {
+            continue;
+        }
+        root.push_back(riff_node{ riff_file{ data_chunk(t, satelite.second), satelite_name, no_offset } });
+    }
+
     auto f{ open_w(output_name) };
 
     riff_list phony{ list_chunk(api::v1::RiffType::riff32, "xxxx") };
