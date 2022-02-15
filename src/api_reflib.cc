@@ -78,27 +78,27 @@ namespace ctk { namespace api {
             return result;
         }
 
-        auto CntReaderReflib::rangeRowMajor(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntReaderReflib::rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             return p->reader.range_row_major(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeRowMajorScaled(int64_t i, int64_t samples) -> std::vector<double> {
+        auto CntReaderReflib::rangeRowMajor(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
             return p->reader.range_row_major_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntReaderReflib::rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             return p->reader.range_column_major(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeColumnMajorScaled(int64_t i, int64_t samples) -> std::vector<double> {
+        auto CntReaderReflib::rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
             return p->reader.range_column_major_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeScaledLibeep(int64_t i, int64_t samples) -> std::vector<float> {
+        auto CntReaderReflib::rangeLibeep(int64_t i, int64_t samples) -> std::vector<float> {
             assert(p);
             return p->reader.range_scaled_libeep(measurement_count{ i }, measurement_count{ samples });
         }
@@ -109,22 +109,22 @@ namespace ctk { namespace api {
             return result;
         }
 
-        auto CntReaderReflib::epochRowMajor(int64_t i) -> std::vector<int32_t> {
+        auto CntReaderReflib::epochRowMajorInt32(int64_t i) -> std::vector<int32_t> {
             assert(p);
             return p->reader.epoch_row_major(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochRowMajorScaled(int64_t i) -> std::vector<double> {
+        auto CntReaderReflib::epochRowMajor(int64_t i) -> std::vector<double> {
             assert(p);
             return p->reader.epoch_row_major_scaled(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochColumnMajor(int64_t i) -> std::vector<int32_t> {
+        auto CntReaderReflib::epochColumnMajorInt32(int64_t i) -> std::vector<int32_t> {
             assert(p);
             return p->reader.epoch_column_major(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochColumnMajorScaled(int64_t i) -> std::vector<double> {
+        auto CntReaderReflib::epochColumnMajor(int64_t i) -> std::vector<double> {
             assert(p);
             return p->reader.epoch_column_major_scaled(epoch_count{ i });
         }
@@ -235,7 +235,7 @@ namespace ctk { namespace api {
             return p->raw3 != nullptr;
         }
 
-        auto CntWriterReflib::rangeColumnMajor(const std::vector<int32_t>& client) -> void {
+        auto CntWriterReflib::rangeColumnMajorInt32(const std::vector<int32_t>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw ctk_limit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
@@ -244,7 +244,7 @@ namespace ctk { namespace api {
             p->raw3->range_column_major(client);
         }
 
-        auto CntWriterReflib::rangeRowMajor(const std::vector<int32_t>& client) -> void {
+        auto CntWriterReflib::rangeRowMajorInt32(const std::vector<int32_t>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw ctk_limit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
@@ -253,7 +253,7 @@ namespace ctk { namespace api {
             p->raw3->range_row_major(client);
         }
 
-        auto CntWriterReflib::rangeColumnMajorScaled(const std::vector<double>& client) -> void {
+        auto CntWriterReflib::rangeColumnMajor(const std::vector<double>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw ctk_limit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
@@ -262,10 +262,10 @@ namespace ctk { namespace api {
             p->raw3->range_column_major_scaled(client);
         }
 
-        auto CntWriterReflib::rangeRowMajorScaled(const std::vector<double>& client) -> void {
+        auto CntWriterReflib::rangeRowMajor(const std::vector<double>& client) -> void {
             assert(p);
             if (!p->raw3) {
-                throw ctk_limit{ "CntWriterReflib::rangeRowMajorScaled: addTimeSignal not invoked or close already invoked" };
+                throw ctk_limit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
             }
 
             p->raw3->range_row_major_scaled(client);
@@ -310,14 +310,14 @@ namespace ctk { namespace api {
             return result;
         }
 
-        auto CntWriterReflib::rangeRowMajor(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntWriterReflib::rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             const measurement_count n{ i };
             const measurement_count s{ samples };
             return p->writer.range_row_major(n, s);
         }
 
-        auto CntWriterReflib::rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntWriterReflib::rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             const measurement_count n{ i };
             const measurement_count s{ samples };

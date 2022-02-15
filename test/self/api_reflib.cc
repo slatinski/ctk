@@ -40,9 +40,9 @@ TEST_CASE("read write column major", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.addTimeSignal(header);
 
-        writer.rangeColumnMajor(xs);
-        writer.rangeColumnMajor(xs);
-        writer.rangeColumnMajor(xs);
+        writer.rangeColumnMajorInt32(xs);
+        writer.rangeColumnMajorInt32(xs);
+        writer.rangeColumnMajorInt32(xs);
 
         writer.close();
     }
@@ -52,7 +52,7 @@ TEST_CASE("read write column major", "[consistency] [read] [write]") {
         REQUIRE(reader.description() == header);
 
         for (int64_t i : { 0, 5, 10 }) {
-            const auto ys{ reader.rangeColumnMajor(i, 5) };
+            const auto ys{ reader.rangeColumnMajorInt32(i, 5) };
             REQUIRE(ys == xs);
         }
     }
@@ -73,9 +73,9 @@ TEST_CASE("read write column major scaled", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.addTimeSignal(header);
 
-        writer.rangeColumnMajorScaled(xs);
-        writer.rangeColumnMajorScaled(xs);
-        writer.rangeColumnMajorScaled(xs);
+        writer.rangeColumnMajor(xs);
+        writer.rangeColumnMajor(xs);
+        writer.rangeColumnMajor(xs);
 
         writer.close();
     }
@@ -85,7 +85,7 @@ TEST_CASE("read write column major scaled", "[consistency] [read] [write]") {
         REQUIRE(reader.description() == header);
 
         for (int64_t i : { 0, 5, 10 }) {
-            const auto ys{ reader.rangeColumnMajorScaled(i, 5) };
+            const auto ys{ reader.rangeColumnMajor(i, 5) };
             REQUIRE(ys == xs);
         }
     }
@@ -114,9 +114,9 @@ TEST_CASE("read write row major", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.addTimeSignal(header);
 
-        writer.rangeRowMajor(xs);
-        writer.rangeRowMajor(xs);
-        writer.rangeRowMajor(xs);
+        writer.rangeRowMajorInt32(xs);
+        writer.rangeRowMajorInt32(xs);
+        writer.rangeRowMajorInt32(xs);
 
         writer.close();
     }
@@ -126,7 +126,7 @@ TEST_CASE("read write row major", "[consistency] [read] [write]") {
         REQUIRE(reader.description() == header);
 
         for (int64_t i : { 0, 3, 6 }) {
-            const auto ys{ reader.rangeRowMajor(i, 3) };
+            const auto ys{ reader.rangeRowMajorInt32(i, 3) };
             REQUIRE(ys == xs);
         }
     }
@@ -155,9 +155,9 @@ TEST_CASE("read write row major scaled", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.addTimeSignal(header);
 
-        writer.rangeRowMajorScaled(xs);
-        writer.rangeRowMajorScaled(xs);
-        writer.rangeRowMajorScaled(xs);
+        writer.rangeRowMajor(xs);
+        writer.rangeRowMajor(xs);
+        writer.rangeRowMajor(xs);
 
         writer.close();
     }
@@ -167,7 +167,7 @@ TEST_CASE("read write row major scaled", "[consistency] [read] [write]") {
         REQUIRE(reader.description() == header);
 
         for (int64_t i : { 0, 3, 6 }) {
-            const auto ys{ reader.rangeRowMajorScaled(i, 3) };
+            const auto ys{ reader.rangeRowMajor(i, 3) };
             REQUIRE(ys == xs);
         }
     }

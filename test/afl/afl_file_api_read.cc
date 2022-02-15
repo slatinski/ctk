@@ -57,7 +57,7 @@ auto generate_input_file(const std::string& fname) -> void {
     writer.history(note);
 
     for (size_t epoch{ 0 }; epoch < 3; ++epoch) {
-        writer.rangeColumnMajor(input);
+        writer.rangeColumnMajorInt32(input);
     }
 
     std::vector<ctk::Trigger> triggers;
@@ -81,7 +81,7 @@ auto read(const std::string& fname) -> void {
     reader.history();
 
     for (int64_t i{ 0 }; i < total; ++i) {
-        reader.rangeColumnMajor(i, 1);
+        reader.rangeColumnMajorInt32(i, 1);
     }
 }
 

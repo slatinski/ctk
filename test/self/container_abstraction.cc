@@ -62,7 +62,7 @@ auto compare_readers(const std::string& fname) -> void {
         const auto v_direct{ reader_direct.range_column_major(i, chunk) };
 
         const sint i_api{ i };
-        const auto v_api{ reader_api.rangeColumnMajor(i_api, chunk_api) };
+        const auto v_api{ reader_api.rangeColumnMajorInt32(i_api, chunk_api) };
         REQUIRE(v_direct == v_api);
     }
 
@@ -117,7 +117,7 @@ auto read_api(const std::string& fname) -> int64_t {
 
     int64_t accessible{ 0 };
     for (int64_t i{ 0 }; i < samples; ++i) {
-        const auto v{ reader.rangeColumnMajor(i, chunk) };
+        const auto v{ reader.rangeColumnMajorInt32(i, chunk) };
         if (v.size() == electrodes.size()) {
             ++accessible;
         }

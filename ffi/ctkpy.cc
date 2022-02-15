@@ -150,7 +150,7 @@ namespace {
         }
 
         auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
-            return reader.rangeScaledLibeep(i, amount);
+            return reader.rangeLibeep(i, amount);
         }
 
         auto get_trigger_count() const -> size_t {
@@ -236,7 +236,7 @@ namespace {
 
             std::vector<double> ys(xs.size());
             std::transform(begin(xs), end(xs), begin(ys), float2double);
-            writer.rangeColumnMajorScaled(ys);
+            writer.rangeColumnMajor(ys);
         }
 
         auto close() -> void {
@@ -361,7 +361,7 @@ namespace {
                 initialize();
             }
 
-            writer->rangeRowMajorScaled(from_column_major(xs));
+            writer->rangeRowMajor(from_column_major(xs));
         }
 
         auto row_major(const py::array_t<double>& xs) -> void {
@@ -369,7 +369,7 @@ namespace {
                 initialize();
             }
 
-            writer->rangeRowMajorScaled(from_row_major(xs));
+            writer->rangeRowMajor(from_row_major(xs));
         }
 
         auto close() -> void {
@@ -507,27 +507,84 @@ namespace {
 
         auto column_major(int64_t i, int64_t length) -> py::array_t<double> {
             assert(reader);
-            if (length <= 0) {
-                throw std::runtime_error("invalid length");
+
+            auto xs{ reader->rangeColumnMajor(i, length) };
+            if (xs.empty()) {
+                throw std::runtime_error("can not load range");
             }
+
+            assert(!header.electrodes.empty());
 
             const size_t channels{ header.electrodes.size() };
             const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            return to_column_major(reader->rangeColumnMajorScaled(i, length), l, h);
+            return to_column_major(xs, l, h);
         }
 
 
         auto row_major(int64_t i, int64_t length) -> py::array_t<double> {
             assert(reader);
-            if (length <= 0) {
-                throw std::runtime_error("invalid length");
+
+            auto xs{ reader->rangeRowMajor(i, length) };
+            if (xs.empty()) {
+                throw std::runtime_error("can not load range");
             }
+
+            assert(!header.electrodes.empty());
 
             const size_t channels{ header.electrodes.size() };
             const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            return to_row_major(reader->rangeRowMajorScaled(i, length), l, h);
+            return to_row_major(xs, l, h);
+        }
+
+
+        auto epoch_count() -> int64_t {
+            assert(reader);
+            return reader->epochs();
+        }
+
+
+        auto epoch_column_major(int64_t i) -> py::array_t<double> {
+            assert(reader);
+
+            auto xs{ reader->epochColumnMajor(i) };
+            if (xs.empty()) {
+                throw std::runtime_error("can not load epoch");
+            }
+
+            assert(!header.electrodes.empty());
+
+            const size_t channels{ header.electrodes.size() };
+            const size_t length{ xs.size() / channels };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(xs, l, h);
+        }
+
+
+        auto epoch_row_major(int64_t i) -> py::array_t<double> {
+            assert(reader);
+
+            auto xs{ reader->epochRowMajor(i) };
+            if (xs.empty()) {
+                throw std::runtime_error("can not load epoch");
+            }
+
+            assert(!header.electrodes.empty());
+
+            const size_t channels{ header.electrodes.size() };
+            const size_t length{ xs.size() / channels };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(xs, l, h);
+        }
+
+
+        auto epoch_compressed(int64_t i) -> std::vector<uint8_t> {
+            assert(reader);
+
+            return reader->epochCompressed(i);
         }
 
 
@@ -1003,10 +1060,14 @@ PYBIND11_MODULE(ctkpy, m) {
       .def_readwrite("impedances", &ctkpy_reader::impedances)
       .def_readwrite("videos", &ctkpy_reader::videos)
       .def_readwrite("epochs", &ctkpy_reader::epochs)
-      .def_readonly("embedded", &ctkpy_reader::embedded)
       .def_property_readonly("sample_count", &ctkpy_reader::sample_count)
       .def("row_major", &ctkpy_reader::row_major)
       .def("column_major", &ctkpy_reader::column_major)
+      .def_property_readonly("epoch_count", &ctkpy_reader::epoch_count)
+      .def("epoch_row_major", &ctkpy_reader::epoch_row_major)
+      .def("epoch_column_major", &ctkpy_reader::epoch_column_major)
+      .def("epoch_compressed", &ctkpy_reader::epoch_compressed)
+      .def_readonly("embedded", &ctkpy_reader::embedded)
       .def("extract_embedded", &ctkpy_reader::extract_embedded_file)
       .def("__repr__", [](const ctkpy_reader& x) { return print(x.header); });
 

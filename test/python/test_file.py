@@ -169,6 +169,27 @@ def read(cnt, stamp):
     assert ys[3][4] == 45
     assert ys[3][5] == 46
 
+    assert reader.epoch_count == 1
+    x1s = reader.epoch_column_major(0)
+    y1s = reader.epoch_row_major(0)
+    assert (x1s == xs).all()
+    assert (y1s == ys).all()
+
+    bs = reader.epoch_compressed(0)
+    decomp = lib.decompress_reflib()
+    decomp.sensors = 4
+    samples = 6
+    x2s = decomp.column_major(bs, samples) * (1/256)
+    y2s = decomp.row_major(bs, samples) * (1/256)
+    assert (x2s == xs).all()
+    assert (y2s == ys).all()
+
+    comp = lib.compress_reflib()
+    comp.sensors = 4
+    b1s = comp.column_major(xs * 256)
+    b2s = comp.row_major(ys * 256)
+    assert b1s == bs
+    assert b2s == bs
 
 
 def test_write_read_cnt_evt(tmp_path):

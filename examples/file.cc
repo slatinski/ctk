@@ -57,8 +57,7 @@ auto write(const std::string& fname) -> void {
     writer.history(note);
 
     for (int epoch{ 0 }; epoch < 25; ++epoch) {
-        writer.rangeColumnMajor(input); // used by libeep's interface
-        //writer.rangeRowMajor(input); // probably more convenient for the calling application. used internally by both libraries.
+        writer.rangeColumnMajorInt32(input);
     }
 
     std::vector<ctk::Trigger> triggers;
@@ -90,7 +89,7 @@ auto read(const std::string& fname) -> void {
 
     size_t accessible{ 0 };
     for (int64_t i{ 0 }; i < total; ++i) {
-        const auto sample{ reader.rangeColumnMajor(i, 1) };
+        const auto sample{ reader.rangeColumnMajorInt32(i, 1) };
         if (sample.size() == description.electrodes.size()) {
             ++accessible;
         }

@@ -51,8 +51,8 @@ namespace ctk { namespace api {
                 21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
-            auto rangeRowMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
-            auto rangeRowMajorScaled(int64_t i, int64_t samples) -> std::vector<double>;
+            auto rangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
             /*
             the output is in column major format.
@@ -63,11 +63,11 @@ namespace ctk { namespace api {
                 13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
-            auto rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
-            auto rangeColumnMajorScaled(int64_t i, int64_t samples) -> std::vector<double>;
+            auto rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
             // libeep v4 interface: column major, applied electrode scaling
-            auto rangeScaledLibeep(int64_t i, int64_t samples) -> std::vector<float>;
+            auto rangeLibeep(int64_t i, int64_t samples) -> std::vector<float>;
 
             /*
             epoch interface:
@@ -76,13 +76,12 @@ namespace ctk { namespace api {
             this interface delivers data in the following fashion:
                 - all output epochs but the last contain epoch length measurements
                 - the last epoch might be shorter
-            NB: do NOT interleave calls to range (rangeRowMajor, rangeColumnMajor, rangeScaled) and epoch functions.
             */
             auto epochs() const -> int64_t;
-            auto epochRowMajor(int64_t i) -> std::vector<int32_t>;
-            auto epochRowMajorScaled(int64_t i) -> std::vector<double>;
-            auto epochColumnMajor(int64_t i) -> std::vector<int32_t>;
-            auto epochColumnMajorScaled(int64_t i) -> std::vector<double>;
+            auto epochRowMajor(int64_t i) -> std::vector<double>;
+            auto epochColumnMajor(int64_t i) -> std::vector<double>;
+            auto epochRowMajorInt32(int64_t i) -> std::vector<int32_t>;
+            auto epochColumnMajorInt32(int64_t i) -> std::vector<int32_t>;
             auto epochCompressed(int64_t i) -> std::vector<uint8_t>;
 
             auto description() const -> TimeSeries;
@@ -105,7 +104,7 @@ namespace ctk { namespace api {
 
         struct CntWriterReflib
         {
-            CntWriterReflib(const std::filesystem::path& fname, RiffType riff);
+            CntWriterReflib(const std::filesystem::path&, RiffType);
             CntWriterReflib(const CntWriterReflib&) = delete;
             CntWriterReflib(CntWriterReflib&&);
             auto operator=(const CntWriterReflib&) -> CntWriterReflib& = delete;
@@ -132,8 +131,8 @@ namespace ctk { namespace api {
                 13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
-            auto rangeColumnMajor(const std::vector<int32_t>&) -> void;
-            auto rangeColumnMajorScaled(const std::vector<double>&) -> void;
+            auto rangeColumnMajor(const std::vector<double>&) -> void;
+            auto rangeColumnMajorInt32(const std::vector<int32_t>&) -> void;
 
             /*
             the input is in row major format.
@@ -143,8 +142,8 @@ namespace ctk { namespace api {
                 21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
-            auto rangeRowMajor(const std::vector<int32_t>&) -> void;
-            auto rangeRowMajorScaled(const std::vector<double>&) -> void;
+            auto rangeRowMajor(const std::vector<double>&) -> void;
+            auto rangeRowMajorInt32(const std::vector<int32_t>&) -> void;
 
             auto trigger(const Trigger&) -> void;
             auto triggers(const std::vector<Trigger>&) -> void;
@@ -162,8 +161,8 @@ namespace ctk { namespace api {
 
             // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
             auto commited() const -> int64_t;
-            auto rangeRowMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
-            auto rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
         private:
             struct impl;
