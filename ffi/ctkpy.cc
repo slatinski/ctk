@@ -92,13 +92,6 @@ namespace {
     }
 
     static
-    auto triggers_to_api(const std::vector<ctkpy_trigger>& xs) -> std::vector<v1::Trigger> {
-        std::vector<v1::Trigger> ys(xs.size());
-        std::transform(begin(xs), end(xs), begin(ys), ctkpytrigger2v1trigger);
-        return ys;
-    }
-
-    static
     auto triggers_from_api(const std::vector<v1::Trigger>& xs) -> std::vector<ctkpy_trigger> {
         std::vector<ctkpy_trigger> ys(xs.size());
         std::transform(begin(xs), end(xs), begin(ys), v1trigger2ctkpytrigger);
