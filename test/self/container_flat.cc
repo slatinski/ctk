@@ -142,6 +142,7 @@ TEST_CASE("read/write flat files - uncompressed epochs", "[consistency]") {
                 const ptrdiff_t sample_count{ cast(sc, ptrdiff_t{}, ok{}) };
                 if (epoch_length < 3 || sample_count < 6) {
                     std::cerr << "the test will not work, skipping\n";
+                    fname = input.next();
                     continue;
                 }
 
