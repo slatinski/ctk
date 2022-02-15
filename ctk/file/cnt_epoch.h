@@ -502,6 +502,8 @@ namespace ctk { namespace impl {
     auto validate(const api::v1::TimeSeries&) -> void;
     auto validate(const api::v1::Electrode&) -> void;
 
+    // for testing
+    auto call_parse_eeph(const std::string&) -> void;
 
 } /* namespace impl */ } /* namespace ctk */
 

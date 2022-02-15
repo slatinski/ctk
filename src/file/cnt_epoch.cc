@@ -1038,6 +1038,11 @@ namespace ctk { namespace impl {
     }
 
 
+    auto call_parse_eeph(const std::string& xs) -> void {
+        parse_eeph(xs);
+    }
+
+
     static
     auto truncate(const std::string& s, size_t length) -> std::string {
         if (length < s.size()) {

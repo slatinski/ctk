@@ -25,3 +25,13 @@ add_executable(afl_read_write_leb128 afl_read_write_leb128.cc)
 target_link_libraries(afl_read_write_leb128 PRIVATE ctk_static)
 target_include_directories(afl_read_write_leb128 PRIVATE ctk_static "${CMAKE_SOURCE_DIR}")
 target_compile_options(afl_read_write_leb128 PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(afl_eeph afl_eeph.cc)
+target_link_libraries(afl_eeph PRIVATE ctk_static)
+target_include_directories(afl_eeph PRIVATE ctk_static "${CMAKE_SOURCE_DIR}")
+target_compile_options(afl_eeph PRIVATE ${CTK_CXX_FLAGS})
+
+add_executable(afl_info afl_info.cc)
+target_link_libraries(afl_info PRIVATE ctk_static)
+target_include_directories(afl_info PRIVATE ctk_static "${CMAKE_SOURCE_DIR}")
+target_compile_options(afl_info PRIVATE ${CTK_CXX_FLAGS})
