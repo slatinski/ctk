@@ -708,20 +708,48 @@ namespace ctk { namespace impl {
     }
 
 
+    static
+    auto clock_guard(const date::year_month_day& x) -> bool {
+        using namespace std::chrono;
+        using dsecs = date::sys_time<duration<double>>;
+        using T = system_clock::duration;
+
+        constexpr const system_clock::time_point dmin{ date::sys_time<T>::min() };
+        constexpr const system_clock::time_point dmax{ date::sys_time<T>::max() };
+        const auto x_days{ date::sys_days{ x } };
+        return dsecs{ dmin } <= x_days && x_days <= dsecs{ dmax };
+    }
+
+
+    auto in_clock_range(int year, unsigned month, unsigned day) -> bool {
+        const date::year yyyy{ year };
+        const date::month mm{ month };
+        const date::day dd{ day };
+        if (!yyyy.ok() || !mm.ok() || !dd.ok()) {
+            return false;
+        }
+
+        const auto ymd{ yyyy/mm/dd };
+        if (!ymd.ok()) {
+            return false;
+        }
+
+        return clock_guard(ymd);
+    }
+
+
     enum class status_tm{ ok, year, month, day, hour, min, sec };
 
     static
     auto is_valid(const tm& x) -> status_tm {
-#if !defined(_WIN32)
-        if (x.tm_year < 0) {
+        constexpr const auto min_year{ static_cast<int>(date::year::min()) };
+        constexpr const auto max_year{ static_cast<int>(date::year::max()) };
+        const auto [year, status]{ signed_addition(x.tm_year, 1900) };
+        if (status != arithmetic_error::none) {
             return status_tm::year;
         }
-#endif // !defined(_WIN32)
 
-        // class year { short y_; };
-        constexpr const int min_year{ std::numeric_limits<short>::min() };
-        constexpr const int max_year{ std::numeric_limits<short>::max() };
-        if (x.tm_year < min_year  || max_year < x.tm_year) {
+        if (year < min_year  || max_year < year) {
             return status_tm::year;
         }
 
@@ -748,7 +776,6 @@ namespace ctk { namespace impl {
         return status_tm::ok;
     }
 
-    static
     auto validate(const tm& x) -> void {
         const status_tm status{ is_valid(x) };
         switch (status) {
@@ -784,7 +811,8 @@ namespace ctk { namespace impl {
         const days x_days{ floor<days>(x_s) };
         const date::year_month_day ymd{ date::sys_days{ x_days } };
         if (!ymd.year().ok() || !ymd.month().ok() || !ymd.day().ok()) {
-            throw api::v1::ctk_data{ "timepoint2tm: invalid date" };
+            //throw api::v1::ctk_data{ "timepoint2tm: invalid date" };
+            assert(false);
         }
 
         seconds reminder{ x_s - x_days };
@@ -796,7 +824,8 @@ namespace ctk { namespace impl {
 
         const seconds s{ floor<seconds>(reminder) };
         if (h < 0h || 23h < h || m < 0min || 59min < m || s < 0s || 59s < s) {
-            throw api::v1::ctk_data{ "timepoint2tm: invalid time" };
+            //throw api::v1::ctk_data{ "timepoint2tm: invalid time" };
+            assert(false);
         }
 
         tm y{ make_tm() };
@@ -822,18 +851,18 @@ namespace ctk { namespace impl {
 
         const int sy{ plus(x.tm_year, 1900, ok{}) };
         const int sm{ plus(x.tm_mon, 1, ok{}) };
+        if (!in_clock_range(sy, cast(sm, unsigned{}, ok{}), cast(x.tm_mday, unsigned{}, ok{}))) {
+            throw api::v1::ctk_data{ "tm2timepoint: invalid date" };
+        }
+
         const auto yyyy{ date::year{ sy } };
         const auto mm{ date::month{ cast(sm, unsigned{}, ok{}) } };
         const auto dd{ date::day{ cast(x.tm_mday, unsigned{}, ok{}) } };
-        if (!yyyy.ok() || !mm.ok() || !dd.ok()) {
-            throw api::v1::ctk_data{ "tm2timepoint: invalid time" };
-        }
-
         system_clock::time_point days{ date::sys_days{ yyyy/mm/dd } };
+
         const hours h{ x.tm_hour };
         const minutes m{ x.tm_min };
         const seconds s{ x.tm_sec };
-
         return days + h + m + s;
     }
 

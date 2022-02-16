@@ -499,8 +499,11 @@ namespace ctk { namespace impl {
     auto write_electrodes(FILE*, const std::vector<api::v1::Electrode>&) -> void;
     auto read_electrodes(FILE*) -> std::vector<api::v1::Electrode>;
 
+    auto validate(const tm&) -> void;
     auto validate(const api::v1::TimeSeries&) -> void;
     auto validate(const api::v1::Electrode&) -> void;
+
+    auto in_clock_range(int year, unsigned month, unsigned day) -> bool;
 
     // for testing
     auto call_parse_eeph(const std::string&) -> void;
