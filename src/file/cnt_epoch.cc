@@ -712,12 +712,12 @@ namespace ctk { namespace impl {
     auto clock_guard(const date::year_month_day& x) -> bool {
         using namespace std::chrono;
         using dsecs = date::sys_time<duration<double>>;
-        using T = system_clock::duration;
+        using Precision = system_clock::duration;
 
-        constexpr const system_clock::time_point dmin{ date::sys_time<T>::min() };
-        constexpr const system_clock::time_point dmax{ date::sys_time<T>::max() };
-        const auto x_days{ date::sys_days{ x } };
-        return dsecs{ dmin } <= x_days && x_days <= dsecs{ dmax };
+        constexpr const system_clock::time_point dmin{ date::sys_time<Precision>::min() };
+        constexpr const system_clock::time_point dmax{ date::sys_time<Precision>::max() };
+        const auto y{ date::sys_days{ x } };
+        return dsecs{ dmin } <= y && y <= dsecs{ dmax };
     }
 
 
@@ -742,8 +742,8 @@ namespace ctk { namespace impl {
 
     static
     auto is_valid(const tm& x) -> status_tm {
-        constexpr const auto min_year{ static_cast<int>(date::year::min()) };
-        constexpr const auto max_year{ static_cast<int>(date::year::max()) };
+        constexpr const int min_year{ static_cast<int>(date::year::min()) };
+        constexpr const int max_year{ static_cast<int>(date::year::max()) };
         const auto [year, status]{ signed_addition(x.tm_year, 1900) };
         if (status != arithmetic_error::none) {
             return status_tm::year;
@@ -810,7 +810,7 @@ namespace ctk { namespace impl {
         const seconds x_s{ floor<seconds>(x.time_since_epoch()) };
         const days x_days{ floor<days>(x_s) };
         const date::year_month_day ymd{ date::sys_days{ x_days } };
-        if (!ymd.year().ok() || !ymd.month().ok() || !ymd.day().ok()) {
+        if (!ymd.ok()) {
             //throw api::v1::ctk_data{ "timepoint2tm: invalid date" };
             assert(false);
         }
@@ -1024,7 +1024,7 @@ namespace ctk { namespace impl {
                 result.sampling_frequency = parse_double(line);
             }
             else if (line.find("[Basic Channel Data]") != std::string::npos) {
-                result.electrodes = parse_electrodes(input.substr(i), result.version.major < 4); // <= 4?
+                result.electrodes = parse_electrodes(input.substr(i), result.version.major < 4);
                 i = input.find('[', i + 1);
             }
             else if (line.find("[Channels]") != std::string::npos) {

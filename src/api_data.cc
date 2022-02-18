@@ -349,38 +349,41 @@ namespace ctk { namespace api {
     }
 
 
-    template<typename N, typename Precision>
-    auto to_timespan(v1::DcDate x, N factor, Precision) -> Precision {
-        using T = typename Precision::rep;
+    template<typename N>
+    auto to_timespan(v1::DcDate x, N factor) -> std::chrono::system_clock::duration {
+        using Precision = std::chrono::system_clock::duration;
+        using T = Precision::rep;
+        using namespace ctk::impl;
 
         x = regular(x);
-        const double scaled_base{ std::round(x.date * seconds_per_day) };
-        if (!std::isfinite(scaled_base)) {
+        const double base{ std::round(x.date * seconds_per_day) };
+        if (!std::isfinite(base)) {
             throw ctk::api::v1::ctk_limit{ "to_timespan: infinite seconds" };
         }
 
-        const double scaled_fraction{ std::round(x.fraction * static_cast<double>(factor)) };
-        if (!std::isfinite(scaled_fraction)) {
+        const double fraction{ std::round(x.fraction * static_cast<double>(factor)) };
+        if (!std::isfinite(fraction)) {
             throw ctk::api::v1::ctk_limit{ "to_timespan: infinite fraction" };
         }
 
-        const T base_sec{ static_cast<T>(scaled_base) };
-        const T base_subsec{ ctk::impl::multiply(base_sec, factor, ctk::impl::ok{}) };
-        const T fraction_subsec{ static_cast<T>(scaled_fraction) };
-        const T result{ ctk::impl::plus(base_subsec, fraction_subsec, ctk::impl::ok{}) };
-        return Precision{ result };
+        const T base_sec{ static_cast<T>(base) };
+        const T base_subsec{ multiply(base_sec, factor, ok{}) };
+        const T fraction_subsec{ static_cast<T>(fraction) };
+        const T y{ plus(base_subsec, fraction_subsec, ok{}) };
+        return Precision{ y };
     }
 
 
     static
-    auto timespan2dcdate(std::chrono::nanoseconds x) -> v1::DcDate {
+    auto timespan2dcdate(std::chrono::system_clock::duration x) -> v1::DcDate {
         using namespace std::chrono;
+        using Precision = system_clock::duration;
 
-        const seconds s{ floor<seconds>(x) };
-        const nanoseconds subsecond{ x - s };
+        const seconds sec{ floor<seconds>(x) };
+        const Precision subsecond{ x - sec };
         assert(subsecond < 1s);
-        const double days_since_epoch{ static_cast<double>(s.count()) / seconds_per_day };
-        const double fraction{ static_cast<double>(subsecond.count()) / std::nano::den };
+        const double days_since_epoch{ static_cast<double>(sec.count()) / seconds_per_day };
+        const double fraction{ static_cast<double>(subsecond.count()) / Precision::period::den };
 
         if (!std::isfinite(days_since_epoch) || !std::isfinite(fraction)) {
             throw ctk::api::v1::ctk_limit{ "timespan2dcdate: infinite dcdate" };
@@ -392,30 +395,28 @@ namespace ctk { namespace api {
 
     auto dcdate2timepoint(const v1::DcDate& x) -> std::chrono::system_clock::time_point {
         using namespace std::chrono;
-#ifdef _WIN32
-        using Precision = microseconds;
-        constexpr const auto factor{ std::micro::den };
-#else
-        using Precision = nanoseconds;
-        constexpr const auto factor{ std::nano::den };
-#endif
+        using namespace ctk::impl;
+        using Precision = system_clock::duration;
         using T = Precision::rep;
 
-        constexpr const T epoch_subsec{ duration_cast<seconds>(excel_epoch.time_since_epoch()).count() * factor };
-        const T span_subsec{ to_timespan(x, factor, Precision{}).count() };
-        const Precision result{ ctk::impl::plus(epoch_subsec, span_subsec, ctk::impl::ok{}) };
+        constexpr const auto factor{ Precision::period::den };
+        constexpr const T epoch{ duration_cast<seconds>(excel_epoch.time_since_epoch()).count() * factor };
+        const T span{ to_timespan(x, factor).count() };
+        const Precision y{ plus(epoch, span, ok{}) };
 
-        return system_clock::time_point{ result };
+        return system_clock::time_point{ y };
     }
 
 
     auto timepoint2dcdate(std::chrono::system_clock::time_point x) -> v1::DcDate {
         using namespace std::chrono;
-        using T = nanoseconds::rep;
+        using namespace ctk::impl;
+        using Precision = system_clock::duration;
+        using T = Precision::rep;
 
-        constexpr const T epoch_ns{ duration_cast<nanoseconds>(excel_epoch.time_since_epoch()).count() };
-        const T x_ns{ duration_cast<nanoseconds>(x.time_since_epoch()).count() };
-        const nanoseconds span{ ctk::impl::minus(x_ns, epoch_ns, ctk::impl::ok{}) };
+        constexpr const T epoch{ duration_cast<Precision>(excel_epoch.time_since_epoch()).count() };
+        const T point{ duration_cast<Precision>(x.time_since_epoch()).count() };
+        const Precision span{ minus(point, epoch, ok{}) };
 
         return timespan2dcdate(span);
     }

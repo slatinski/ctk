@@ -130,12 +130,6 @@ auto recordinfo2info(const libeep::record_info_t& x) -> Info {
 }
 
 
-#ifdef _WIN32
-    using Precision = std::chrono::microseconds;
-#else
-    using Precision = std::chrono::nanoseconds;
-#endif
-
 
 class cnt_reader_libeep_riff
 {
@@ -297,7 +291,7 @@ public:
         return { api::dcdate2timepoint(segment_start_time()), sampling_frequency(), channels(), length };
     }
 
-    auto measure_get(ptrdiff_t start, ptrdiff_t length) -> Precision {
+    auto measure_get(ptrdiff_t start, ptrdiff_t length) -> std::chrono::system_clock::duration {
         const measurement_count samples{ cast(length, measurement_count::value_type{}, ok{}) };
         std::vector<int32_t> result(as_sizet_unchecked(matrix_size(channel_count(), samples)));
         const int absolute{ 0 };
@@ -306,16 +300,16 @@ public:
 
         if (libeep::eep_seek(cnt.get(), libeep::DATATYPE_EEG, start, absolute) != CNTERR_NONE) {
             const auto e{ std::chrono::steady_clock::now() };
-            return std::chrono::duration_cast<Precision>(e - s);
+            return e - s;
         }
 
         if (libeep::eep_read_sraw(cnt.get(), libeep::DATATYPE_EEG, result.data(), length) != CNTERR_NONE) {
             const auto e{ std::chrono::steady_clock::now() };
-            return std::chrono::duration_cast<Precision>(e - s);
+            return e - s;
         }
 
         const auto e{ std::chrono::steady_clock::now() };
-        return std::chrono::duration_cast<Precision>(e - s);
+        return e - s;
     }
 
 
@@ -689,8 +683,8 @@ TEST_CASE("libeep/reflib file access: no data comparison", "[compatibility] [rea
 */
 
 
-auto measure_read_samples(cnt_reader_libeep_riff& eeplib, measurement_count sample_count, measurement_count chunk) -> Precision {
-    Precision sum_time{ 0 };
+auto measure_read_samples(cnt_reader_libeep_riff& eeplib, measurement_count sample_count, measurement_count chunk) -> std::chrono::system_clock::duration {
+    std::chrono::system_clock::duration sum_time{ 0 };
 
     auto leftover{ sample_count };
     for (measurement_count i{ 0 }; i < sample_count && leftover != 0; i += chunk) {
@@ -706,8 +700,8 @@ auto measure_read_samples(cnt_reader_libeep_riff& eeplib, measurement_count samp
 }
 
 
-auto measure_read_samples(cnt_reader_reflib_riff& reflib, measurement_count sample_count, measurement_count chunk) -> Precision {
-    Precision sum_time{ 0 };
+auto measure_read_samples(cnt_reader_reflib_riff& reflib, measurement_count sample_count, measurement_count chunk) -> std::chrono::system_clock::duration {
+    std::chrono::system_clock::duration sum_time{ 0 };
 
     auto leftover{ sample_count };
     for (measurement_count i{ 0 }; i < sample_count && leftover != 0; i += chunk) {
@@ -718,7 +712,7 @@ auto measure_read_samples(cnt_reader_reflib_riff& reflib, measurement_count samp
         const auto v{ reflib.range_column_major(i, stride) };
         const auto e{ std::chrono::steady_clock::now() };
 
-        sum_time += std::chrono::duration_cast<Precision>(e - s);
+        sum_time += e - s;
 
     }
 
@@ -1003,7 +997,7 @@ TEST_CASE("test writer", "[consistency] [compatibility] [write]") {
 
 
 template<typename Reader, typename Writer>
-auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname) -> Precision {
+auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count, measurement_count chunk, const std::string& fname) -> std::chrono::system_clock::duration {
     const auto s{ std::chrono::steady_clock::now() };
 
     // REMEMBER MISSING: reader.channel_order()
@@ -1030,7 +1024,7 @@ auto writer_speed(Reader& reader, Writer& writer, measurement_count sample_count
     cnt_reader_reflib_riff control{ fname };
     compare_readers(reader, control);
 
-    return std::chrono::duration_cast<Precision>(e - s);
+    return e - s;
 }
 
 

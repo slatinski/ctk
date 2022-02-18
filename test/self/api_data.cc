@@ -43,6 +43,9 @@ TEST_CASE("well known values", "[compatibility]") {
 
     const system_clock::time_point tp1{ date::sys_days{ date::December/29/1899 } };
     const api::v1::DcDate dc1{ api::timepoint2dcdate(tp1) };
+    const auto delme{ api::dcdate2timepoint(dc1) };
+    const std::chrono::nanoseconds diff{ delme - tp1 };
+    const auto secs{ std::chrono::duration_cast<std::chrono::seconds>(diff) };
     REQUIRE(api::dcdate2timepoint(dc1) == tp1);
     REQUIRE(dc1.date == -1);
     REQUIRE(dc1.fraction == 0);
@@ -115,27 +118,16 @@ TEST_CASE("time point -> dcdate -> time point conversion", "[consistency]") {
     while (input < end) {
         const auto date{ api::timepoint2dcdate(input) };
         const auto output{ api::dcdate2timepoint(date) };
-        const nanoseconds diff{ duration_cast<nanoseconds>(input - output) };
-
-#ifdef _WIN32
-        REQUIRE(-500ns <= diff);
-        REQUIRE(diff <= 500ns);
-        input += 1us;
-#else
+        const system_clock::duration diff{ duration_cast<system_clock::duration>(input - output) };
         REQUIRE(diff == 0ns);
-        input += 1ns;
-#endif // _WIN32
+
+        input += 1us;
     }
 
     auto date{ api::timepoint2dcdate(input) };
     date.fraction += 151.001;
-    const nanoseconds offset{ 2min + 31s + 1ms }; // 151.001 seconds
-
-#ifdef _WIN32
-    REQUIRE(api::dcdate2timepoint(date) == floor<microseconds>(input + offset));
-#else
+    const system_clock::duration offset{ 2min + 31s + 1ms }; // 151.001 seconds
     REQUIRE(api::dcdate2timepoint(date) == input + offset);
-#endif // _WIN32
 }
 
 
