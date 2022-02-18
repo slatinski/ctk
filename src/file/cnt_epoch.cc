@@ -807,7 +807,7 @@ namespace ctk { namespace impl {
     auto timepoint2tm(std::chrono::system_clock::time_point x) -> tm {
         using namespace std::chrono;
 
-        const seconds x_s{ duration_cast<seconds>(x.time_since_epoch()) };
+        const seconds x_s{ floor<seconds>(x.time_since_epoch()) };
         const days x_days{ floor<days>(x_s) };
         const date::year_month_day ymd{ date::sys_days{ x_days } };
         if (!ymd.year().ok() || !ymd.month().ok() || !ymd.day().ok()) {
@@ -842,13 +842,7 @@ namespace ctk { namespace impl {
     auto tm2timepoint(tm x) -> std::chrono::system_clock::time_point {
         using namespace std::chrono;
 
-        if (is_valid(x) != status_tm::ok) {
-            // compatibility: allows processing of cnt files with invalid subject dob.
-            // incompatibility: the comparison of libeep::eep_get_recording_info().m_DOB and timepoint2tm(subject_dob) will be false.
-            // TODO: log warning
-            x = make_tm();
-        }
-
+        validate(x);
         const int sy{ plus(x.tm_year, 1900, ok{}) };
         const int sm{ plus(x.tm_mon, 1, ok{}) };
         if (!in_clock_range(sy, cast(sm, unsigned{}, ok{}), cast(x.tm_mday, unsigned{}, ok{}))) {
@@ -868,7 +862,7 @@ namespace ctk { namespace impl {
 
 
     static
-    auto parse_info_dob(const std::string &line) -> std::chrono::system_clock::time_point {
+    auto parse_info_dob_impl(const std::string &line) -> std::chrono::system_clock::time_point {
         tm x{ make_tm() };
         if (line.empty()) {
             return tm2timepoint(x);
@@ -878,11 +872,24 @@ namespace ctk { namespace impl {
         iss >> x.tm_sec >> x.tm_min >> x.tm_hour >> x.tm_mday >> x.tm_mon >> x.tm_year >> x.tm_wday >> x.tm_yday >> x.tm_isdst;
 
         if (iss.fail()) {
-            // TODO log
-            //throw api::v1::ctk_data{ "parse_info_dob: invalid birth date" };
-            return tm2timepoint(make_tm());
+            throw api::v1::ctk_data{ "parse_info_dob: can not load all fileds" };
         }
         return tm2timepoint(x);
+    }
+
+    static
+    auto parse_info_dob(const std::string &line) -> std::chrono::system_clock::time_point {
+        try {
+            return parse_info_dob_impl(line);
+        }
+        catch(const api::v1::ctk_limit& e) {
+            std::cerr << e.what();
+            return tm2timepoint(make_tm());
+        }
+        catch(const api::v1::ctk_data& e) {
+            std::cerr << e.what();
+            return tm2timepoint(make_tm());
+        }
     }
 
     auto parse_info(const std::string& input) -> std::tuple<api::v1::DcDate, api::v1::Info, bool> {
