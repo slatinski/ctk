@@ -288,7 +288,7 @@ namespace v1 {
 } /* namespace v1 */
 
 
-    auto dcdate2timepoint(const v1::DcDate&) -> std::chrono::system_clock::time_point;
+    auto dcdate2timepoint(v1::DcDate) -> std::chrono::system_clock::time_point;
     auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
 
     auto print(std::ostream&, std::chrono::system_clock::time_point) -> std::ostream&;

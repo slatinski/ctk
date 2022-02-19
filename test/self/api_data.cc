@@ -121,13 +121,58 @@ TEST_CASE("time point -> dcdate -> time point conversion", "[consistency]") {
         const system_clock::duration diff{ duration_cast<system_clock::duration>(input - output) };
         REQUIRE(diff == 0ns);
 
-        input += 1us;
+        input += 100ns;
     }
 
     auto date{ api::timepoint2dcdate(input) };
     date.fraction += 151.001;
     const system_clock::duration offset{ 2min + 31s + 1ms }; // 151.001 seconds
     REQUIRE(api::dcdate2timepoint(date) == input + offset);
+}
+
+
+TEST_CASE("odd input", "[consistency]") {
+    using namespace std::chrono;
+
+    const api::v1::DcDate negative_fraction{ 1, -0.2 };
+    REQUIRE_THROWS(api::dcdate2timepoint(negative_fraction));
+
+    const api::v1::DcDate giant_date{ 1e200, 0.256 };
+    REQUIRE_THROWS(api::dcdate2timepoint(giant_date));
+
+    const api::v1::DcDate giant_fraction{ 0.256, 1e200 };
+    REQUIRE_THROWS(api::dcdate2timepoint(giant_fraction));
+
+    const api::v1::DcDate negative_date{ -159.3, 0.265 };
+    const auto tp{ api::dcdate2timepoint(negative_date) };
+    REQUIRE(api::timepoint2dcdate(tp) == negative_date);
+
+    const auto sys_min{ system_clock::time_point::min() };
+    const auto sys_max{ system_clock::time_point::max() };
+
+    const auto almost_min{ sys_min + days{ 1 } + 1ns };
+    const auto dmin{ api::timepoint2dcdate(almost_min) };
+    REQUIRE(api::dcdate2timepoint(dmin) == almost_min);
+    api::print(std::cerr, dmin); std::cerr << " almost min\n";
+
+    const auto almost_max{ sys_max - (date::years{ 70 } + date::days{ 10 } + 30min) };
+    const auto dmax{ api::timepoint2dcdate(almost_max) };
+    REQUIRE(api::dcdate2timepoint(dmax) == almost_max);
+    api::print(std::cerr, dmax); std::cerr << " almost max\n";
+
+    auto first{ almost_min };
+    auto last{ first + 3ms };
+    while (first != last) {
+        REQUIRE(api::dcdate2timepoint(api::timepoint2dcdate(first)) == first);
+        first += 100ns;
+    }
+
+    first = almost_max;
+    last = first - 3ms;
+    while (first != last) {
+        REQUIRE(api::dcdate2timepoint(api::timepoint2dcdate(first)) == first);
+        first -= 100ns;
+    }
 }
 
 
