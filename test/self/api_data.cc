@@ -121,7 +121,7 @@ TEST_CASE("time point -> dcdate -> time point conversion", "[consistency]") {
         const system_clock::duration diff{ duration_cast<system_clock::duration>(input - output) };
         REQUIRE(diff == 0ns);
 
-        input += 100ns;
+        input += 1us;
     }
 
     auto date{ api::timepoint2dcdate(input) };
@@ -150,7 +150,7 @@ TEST_CASE("odd input", "[consistency]") {
     const auto sys_min{ system_clock::time_point::min() };
     const auto sys_max{ system_clock::time_point::max() };
 
-    const auto almost_min{ sys_min + days{ 1 } + 1ns };
+    const auto almost_min{ sys_min + days{ 1 } + 1us };
     const auto dmin{ api::timepoint2dcdate(almost_min) };
     REQUIRE(api::dcdate2timepoint(dmin) == almost_min);
     api::print(std::cerr, dmin); std::cerr << " almost min\n";
@@ -160,18 +160,18 @@ TEST_CASE("odd input", "[consistency]") {
     REQUIRE(api::dcdate2timepoint(dmax) == almost_max);
     api::print(std::cerr, dmax); std::cerr << " almost max\n";
 
-    auto first{ almost_min };
-    auto last{ first + 3ms };
-    while (first != last) {
-        REQUIRE(api::dcdate2timepoint(api::timepoint2dcdate(first)) == first);
-        first += 100ns;
+    auto begin{ almost_min };
+    auto end{ begin + 3ms };
+    while (begin != end) {
+        REQUIRE(api::dcdate2timepoint(api::timepoint2dcdate(begin)) == begin);
+        begin += 1us;
     }
 
-    first = almost_max;
-    last = first - 3ms;
-    while (first != last) {
-        REQUIRE(api::dcdate2timepoint(api::timepoint2dcdate(first)) == first);
-        first -= 100ns;
+    begin = almost_max;
+    end = begin - 3ms;
+    while (begin != end) {
+        REQUIRE(api::dcdate2timepoint(api::timepoint2dcdate(begin)) == begin);
+        begin -= 1us;
     }
 }
 
