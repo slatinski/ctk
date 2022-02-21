@@ -757,6 +757,7 @@ auto print(const std::string& op, const dimensions& x, measurement_count samples
         << ", stddev " << d2s(stddev) << "%]";
         //<< ", [size c/u " << d2s(comp_uncomp * 100) << "%]";
 
+    /*
     const auto median{ std::distance(first, last) / 2 };
     std::sort(first, last, faster);
     std::cerr << ", [median " << d2s(execution_times[median].first) << "%: " << execution_times[median].second;
@@ -769,6 +770,8 @@ auto print(const std::string& op, const dimensions& x, measurement_count samples
     }
 
     std::cerr << ", mean " << d2s(avg->first) << "%: " << avg->second << "]\n";
+    */
+    std::cerr << "\n";
 }
 
 
