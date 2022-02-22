@@ -721,6 +721,7 @@ namespace ctk { namespace impl {
     }
 
 
+    static
     auto in_clock_range(int year, unsigned month, unsigned day) -> bool {
         const date::year yyyy{ year };
         const date::month mm{ month };

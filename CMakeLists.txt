@@ -9,9 +9,9 @@ set(CMAKE_CXX_VISIBILITY_PRESET hidden)
 set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 option(CTK_PYTHON "Build ctk python bindings?" OFF)
-option(CTK_SELF_TEST "Build ctk test suite?" OFF)
-option(CTK_LIBEEP_TEST "Build lieep/ctk comparison test suite? (requires libeep)" OFF)
-option(CTK_AFL_TEST "Build ctk afl test suite?" OFF)
+option(CTK_TEST_SELF "Build ctk test suite?" OFF)
+option(CTK_TEST_LIBEEP "Build lieep/ctk comparison test suite? (downloads and compiles libeep)" OFF)
+option(CTK_TEST_AFL "Build ctk afl tests?" OFF)
 
 if(MSVC)
 	set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} /Od /GS /W4 /permissive-")
@@ -37,7 +37,7 @@ FetchContent_Declare(
   GIT_TAG        v2.7.1
 )
 
-# made available if CTK_LIBEEP_TEST is ON
+# made available if CTK_TEST_LIBEEP is ON
 FetchContent_Declare(
   libeep
   SVN_REPOSITORY svn://svn.code.sf.net/p/libeep/code
@@ -128,7 +128,7 @@ if(CTK_PYTHON)
 endif()
 
 
-if(CTK_SELF_TEST)
+if(CTK_TEST_SELF)
     include(CTest)
     add_subdirectory(test/self)
     add_test(NAME cast COMMAND test_throw_cast)
@@ -143,7 +143,7 @@ if(CTK_SELF_TEST)
     add_test(NAME leb128 COMMAND file_leb128)
 endif()
 
-if(CTK_LIBEEP_TEST)
+if(CTK_TEST_LIBEEP)
     FetchContent_MakeAvailable(libeep)
     add_subdirectory(${libeep_SOURCE_DIR}/trunk ${libeep_BINARY_DIR})
     include(CTest)
@@ -152,7 +152,7 @@ if(CTK_LIBEEP_TEST)
     add_test(NAME file_compeeg COMMAND file_compeeg)
 endif()
 
-if(CTK_AFL_TEST)
+if(CTK_TEST_AFL)
     add_subdirectory(test/afl)
 endif()
 
