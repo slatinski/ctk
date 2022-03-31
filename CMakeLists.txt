@@ -72,6 +72,8 @@ add_library(ctk_static
         ctk/compress/block.h
         src/compress/block.cc
         ctk/compress/multiplex.h
+        ctk/compress/magnitude.h
+        src/compress/magnitude.cc
         ctk/compress/matrix.h
         src/compress/matrix.cc
         ctk/file/io.h

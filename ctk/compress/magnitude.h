@@ -60,12 +60,18 @@ namespace ctk { namespace impl {
     auto reduce_row_time2_from_input_one_pass(I first, I last, I output) -> I {
         using T = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_unsigned<T>::value, "signed integer underflow");
-        assert(first != last && (first + 1) != last);
+
+        if (first == last) {
+            return output;
+        }
 
         I first_minus_one{ first };
         *output = *first;
         ++output;
         ++first;
+        if (first == last) {
+            return output;
+        }
 
         *output = static_cast<T>(*first - *first_minus_one);
         I first_minus_two{ first_minus_one };
@@ -93,7 +99,10 @@ namespace ctk { namespace impl {
     auto reduce_row_time2_from_input(I first, I last, I buffer, I output) -> I {
         using T = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_unsigned<T>::value, "signed integer underflow");
-        assert(first != last);
+
+        if (first == last) {
+            return output;
+        }
 
         *output = *first;
         ++output;
@@ -112,7 +121,10 @@ namespace ctk { namespace impl {
     auto reduce_row_time2_from_time(I first_time, I last_time, I output) -> I {
         using T = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_unsigned<T>::value, "signed integer underflow");
-        assert(first_time != last_time);
+
+        if (first_time == last_time) {
+            return output;
+        }
 
         *output = *first_time;
         return std::adjacent_difference(std::next(first_time), last_time, std::next(output));
@@ -133,7 +145,7 @@ namespace ctk { namespace impl {
 
         const I second{ std::next(first) };
         if (std::partial_sum(second, last, second) != last) {
-            throw api::v1::CtkBug{ "restore_row_time2: cannot sum" };
+            return first;
         }
 
         return std::partial_sum(first, last, first);
@@ -157,7 +169,6 @@ namespace ctk { namespace impl {
         *output = *first;
         ++first;
         ++output;
-
         if (first == last) {
             return output;
         }
@@ -186,7 +197,10 @@ namespace ctk { namespace impl {
     auto reduce_row_chan_from_input(I previous, I first, I last, I output) -> I {
         using T = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_unsigned<T>::value, "signed integer underflow");
-        assert(first != last);
+
+        if (first == last) {
+            return output;
+        }
 
         I first_minus_one{ first };
         I previous_minus_one{ previous };
@@ -216,6 +230,10 @@ namespace ctk { namespace impl {
     auto reduce_row_chan_from_time(I previous, I first, I first_time, I last_time, I output) -> I {
         using T = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_unsigned<T>::value, "signed integer underflow");
+
+        if (first_time == last_time) {
+            return output;
+        }
 
         I previous_minus_one = previous;
         *output = *first;
@@ -271,7 +289,10 @@ namespace ctk { namespace impl {
         using T = typename std::iterator_traits<I>::value_type;
         using ternary_minus = subtraction_with_constant<T>;
         static_assert(std::is_unsigned<T>::value, "signed integer underflow");
-        assert(first != last);
+
+        if (first == last) {
+            return output;
+        }
 
         *output = *first;
         ++output;
