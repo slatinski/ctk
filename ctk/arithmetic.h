@@ -35,10 +35,38 @@ namespace ctk { namespace impl {
     auto invalid_cast(Source a, Dest) -> std::string {
         constexpr const auto min_b{ std::numeric_limits<Dest>::min() };
         constexpr const auto max_b{ std::numeric_limits<Dest>::max() };
-
+        constexpr const size_t sizeof_a{ sizeof(Source) };
+        constexpr const size_t sizeof_b{ sizeof(Dest) };
         std::ostringstream oss;
-        oss << "invalid cast: " << a << " to [" << min_b << ", " << max_b << "]";
+
+        if (sizeof_a == 1) {
+            constexpr const bool signed_a{ std::is_signed<Source>::value };
+            if (signed_a) {
+                oss << "[invalid cast, arithmetic] " << static_cast<int>(a);
+            }
+            else {
+                oss << "[invalid cast, arithmetic] " << static_cast<unsigned>(a);
+            }
+        }
+        else {
+            oss << "[invalid cast, arithmetic] " << a;
+        }
+
+        if (sizeof_b == 1) {
+            constexpr const bool signed_b{ std::is_signed<Dest>::value };
+            if (signed_b) {
+                oss << " to [" << static_cast<int>(min_b) << ",  " << static_cast<int>(max_b) << "]";
+            }
+            else {
+                oss << " to [" << static_cast<unsigned>(min_b) << ",  " << static_cast<unsigned>(max_b) << "]";
+            }
+        }
+        else {
+            oss << " to [" << min_b << ",  " << max_b << "]";
+        }
+
         return oss.str();
+
     }
 
 
@@ -69,21 +97,23 @@ namespace ctk { namespace impl {
     auto invalid_addition(T a, T b, arithmetic_error cause) -> std::string {
         constexpr const T int_min{ std::numeric_limits<T>::min() };
         constexpr const T int_max{ std::numeric_limits<T>::max() };
-
         std::ostringstream oss;
-        oss << "signed integer addition: " << a << " + " << b << ", ";
+        oss << "[signed integer, arithmetic] " << a << " + " << b << ", ";
 
         switch (cause) {
             case arithmetic_error::addition_0:
                 oss << a << " > (" << int_max << " - " << b << ")";
-                break;
+                return oss.str();
+
             case arithmetic_error::addition_1:
                 oss << a << " < (" << int_min << " - " << b << ")";
-                break;
-            default: abort();
-        }
+                return oss.str();
 
-        return oss.str();
+            default: {
+                const std::string e{ "[invalid_addition, arithmetic] unexpected cause" };
+                throw api::v1::CtkBug{ e };
+            }
+        }
     }
 
 
@@ -111,21 +141,23 @@ namespace ctk { namespace impl {
     auto invalid_subtraction(T a, T b, arithmetic_error cause) -> std::string {
         constexpr const T int_min{ std::numeric_limits<T>::min() };
         constexpr const T int_max{ std::numeric_limits<T>::max() };
-
         std::ostringstream oss;
-        oss << "signed integer subtraction: " << a << " - " << b << ", ";
+        oss << "[signed integer, arithmetic] " << a << " - " << b << ", ";
 
         switch (cause) {
             case arithmetic_error::subtraction_0:
-                oss << a << " < " << int_min << " + " << b;
-                break;
-            case arithmetic_error::subtraction_1:
-                oss << a << " > " << int_max << " + " << b;
-                break;
-            default: abort();
-        }
+                oss << a << " < (" << int_min << " + " << b << ")";
+                return oss.str();
 
-        return oss.str();
+            case arithmetic_error::subtraction_1:
+                oss << a << " > (" << int_max << " + " << b << ")";
+                return oss.str();
+
+            default: {
+                const std::string e{ "[invalid_subtraction, arithmetic] unexpected cause" };
+                throw api::v1::CtkBug{ e };
+            }
+        }
     }
 
 
@@ -172,25 +204,31 @@ namespace ctk { namespace impl {
         constexpr const T int_min{ std::numeric_limits<T>::min() };
         constexpr const T int_max{ std::numeric_limits<T>::max() };
         std::ostringstream oss;
-        oss << "signed integer multiplication: " << a << " * " << b << ", ";
+        oss << "[signed integer, arithmetic] " << a << " * " << b << ", ";
 
         switch(cause) {
             case arithmetic_error::multiplication_0:
-                oss << a << " > " << int_max << " / " << b;
-                break;
-            case arithmetic_error::multiplication_1:
-                oss << b << " < " << int_min << " / " << a;
-                break;
-            case arithmetic_error::multiplication_2:
-                oss << a << " < " << int_min << " / " << b;
-                break;
-            case arithmetic_error::multiplication_3:
-                oss << a << " != 0 && " << b << " < (" << int_max << " / " << a << ")";
-                break;
-            default: abort();
-        }
+                oss << a << " > (" << int_max << " / " << b << ")";
+                return oss.str();
 
-        return oss.str();
+            case arithmetic_error::multiplication_1:
+                oss << b << " < (" << int_min << " / " << a << ")";
+                return oss.str();
+
+            case arithmetic_error::multiplication_2:
+                oss << a << " < (" << int_min << " / " << b << ")";
+                return oss.str();
+
+            case arithmetic_error::multiplication_3:
+                oss << b << " < (" << int_max << " / " << a << ")";
+                return oss.str();
+
+            default: {
+                oss << "[invalid_multiplication, arithmetic] unexpected cause";
+                const auto e{ oss.str() };
+                throw api::v1::CtkBug{ e };
+            }
+        }
     }
 
 
@@ -217,19 +255,23 @@ namespace ctk { namespace impl {
     auto invalid_division(T a, T b, arithmetic_error cause) -> std::string {
         constexpr const T int_min{ std::numeric_limits<T>::min() };
         std::ostringstream oss;
-        oss << "signed integer division: " << a << " / " << b << ", ";
+        oss << "[signed integer, arithmetic] " << a << " / " << b << ", ";
 
         switch (cause) {
             case arithmetic_error::division_0:
                 oss << "division by zero";
-                break;
+                return oss.str();
+
             case arithmetic_error::division_1:
                 oss << a << " == " << int_min << " && " << b << " == -1";
-                break;
-            default: abort();
-        }
+                return oss.str();
 
-        return oss.str();
+            default: {
+                oss << "[invalid_division, arithmetic] unexpected cause";
+                const auto e{ oss.str() };
+                throw api::v1::CtkBug{ e };
+            }
+        }
     }
 
 
@@ -300,7 +342,8 @@ namespace ctk { namespace impl {
         auto plus(T a, T b) const -> T {
             const auto [result, valid]{ signed_addition(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkBug{ invalid_addition(a, b, valid) };
+                const auto e{ invalid_addition(a, b, valid) };
+                throw api::v1::CtkBug{ e };
             }
 
             return result;
@@ -310,7 +353,8 @@ namespace ctk { namespace impl {
         auto minus(T a, T b) const -> T {
             const auto [result, valid]{ signed_subtraction(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkBug{ invalid_subtraction(a, b, valid) };
+                const auto e{ invalid_subtraction(a, b, valid) };
+                throw api::v1::CtkBug{ e };
             }
 
             return result;
@@ -321,7 +365,8 @@ namespace ctk { namespace impl {
         auto mul(T a, T b) const -> T {
             const auto [result, valid]{ signed_multiplication_impl(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkBug{ invalid_multiplication(a, b, valid) };
+                const auto e{ invalid_multiplication(a, b, valid) };
+                throw api::v1::CtkBug{ e };
             }
 
             return result;
@@ -331,7 +376,8 @@ namespace ctk { namespace impl {
         auto div(T a, T b) const -> T {
             const auto [result, valid]{ signed_division(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkBug{ invalid_division(a, b, valid) };
+                const auto e{ invalid_division(a, b, valid) };
+                throw api::v1::CtkBug{ e };
             }
 
             return result;
@@ -358,7 +404,8 @@ namespace ctk { namespace impl {
         auto plus(T a, T b) const -> T {
             const auto [result, valid]{ signed_addition(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkLimit{ invalid_addition(a, b, valid) };
+                const auto e{ invalid_addition(a, b, valid) };
+                throw api::v1::CtkLimit{ e };
             }
 
             return result;
@@ -368,7 +415,8 @@ namespace ctk { namespace impl {
         auto minus(T a, T b) const -> T {
             const auto [result, valid]{ signed_subtraction(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkLimit{ invalid_subtraction(a, b, valid) };
+                const auto e{ invalid_subtraction(a, b, valid) };
+                throw api::v1::CtkLimit{ e };
             }
 
             return result;
@@ -379,7 +427,8 @@ namespace ctk { namespace impl {
         auto mul(T a, T b) const -> T {
             const auto [result, valid]{ signed_multiplication_impl(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkLimit{ invalid_multiplication(a, b, valid) };
+                const auto e{ invalid_multiplication(a, b, valid) };
+                throw api::v1::CtkLimit{ e };
             }
 
             return result;
@@ -389,7 +438,8 @@ namespace ctk { namespace impl {
         auto div(T a, T b) const -> T {
             const auto [result, valid]{ signed_division(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::CtkLimit{ invalid_division(a, b, valid) };
+                const auto e{ invalid_division(a, b, valid) };
+                throw api::v1::CtkLimit{ e };
             }
 
             return result;
