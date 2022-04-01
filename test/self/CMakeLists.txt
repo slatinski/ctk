@@ -1,10 +1,3 @@
-if(MSVC)
-set(TODO_I_NEED_TO_LEARN_MORE "")
-else()
-set(TODO_I_NEED_TO_LEARN_MORE ${CTK_CXX_FLAGS} -Wno-conversion)
-endif(MSVC)
-
-
 # consistency
 
 add_executable(test_throw_cast test_throw_cast.cc)
@@ -65,7 +58,7 @@ target_compile_options(api_reflib PRIVATE ${CTK_CXX_FLAGS})
 add_executable(compress_magnitude compress_magnitude.cc ../util.cc)
 target_link_libraries(compress_magnitude PRIVATE ctk_static)
 target_include_directories(compress_magnitude PRIVATE ctk_static ${CMAKE_SOURCE_DIR})
-target_compile_options(compress_magnitude PRIVATE ${TODO_I_NEED_TO_LEARN_MORE})
+target_compile_options(compress_magnitude PRIVATE ${CTK_CXX_FLAGS})
 
 add_executable(file_flat container_flat.cc ../util.cc)
 target_link_libraries(file_flat PRIVATE ctk_static)
@@ -75,9 +68,9 @@ target_compile_options(file_flat PRIVATE ${CTK_CXX_FLAGS})
 add_executable(file_abstraction container_abstraction.cc ../util.cc)
 target_link_libraries(file_abstraction PRIVATE ctk_static)
 target_include_directories(file_abstraction PRIVATE ${CMAKE_SOURCE_DIR})
+target_compile_options(file_abstraction PRIVATE ${CTK_CXX_FLAGS})
 
 add_executable(file_evt container_evt.cc ../util.cc)
 target_link_libraries(file_evt PRIVATE ctk_static)
 target_include_directories(file_evt PRIVATE ${CMAKE_SOURCE_DIR})
-target_compile_options(file_evt PRIVATE  ${TODO_I_NEED_TO_LEARN_MORE})
-target_compile_options(file_evt PRIVATE  ${TODO_I_NEED_TO_LEARN_MORE})
+target_compile_options(file_evt PRIVATE  ${CTK_CXX_FLAGS})

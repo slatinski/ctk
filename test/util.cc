@@ -1,9 +1,9 @@
-#include "test/util.h"
-#include "exception.h"
 #include <sstream>
 #include <iomanip>
 #include <cassert>
 
+#include "test/util.h"
+#include "exception.h"
 namespace ctk { namespace impl {
     using namespace ctk::api::v1;
     
@@ -12,34 +12,16 @@ namespace ctk { namespace impl {
             throw;
         }
         // thrown by stl
-        catch (const std::bad_alloc& e) {
-            std::cerr << " " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
-        }
-        catch (const std::length_error& e) {
-            std::cerr << " " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
-        }
-        /*
-        catch (const std::ios_base::failure& e) {
-            std::cerr << " " << e.what() << "\n"; // string io
-        }
-        */
-        catch (const std::invalid_argument& e) {
-            std::cerr << " " << e.what() << "\n"; // garbage data. stol, stod
-        }
-        catch (const std::out_of_range& e) {
-            std::cerr << " " << e.what() << "\n"; // garbage data. stol, stod
-        }
+        catch (const std::bad_alloc&) { }
+        catch (const std::length_error&) { }
+        catch (const std::invalid_argument&) { }
+        catch (const std::out_of_range&) { }
         // thrown by ctk
-        catch (const CtkLimit& e) {
-            std::cerr << " " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
-        }
-        catch (const CtkData& e) {
-            std::cerr << " " << e.what() << "\n"; // garbage data
-        }
+        catch (const CtkLimit&) { }
+        catch (const CtkData&) { }
 
         // not expected
-        catch (const CtkBug& e) {
-            std::cerr << " " << e.what() << "\n"; // bug in this library
+        catch (const std::exception&) {
             throw;
         }
     }
