@@ -61,7 +61,8 @@ add_library(ctk_static
     STATIC
         ctk/type_wrapper.h
         src/type_wrapper.cc
-        ctk/throw_cast.h
+        ctk/maybe_cast.h
+        src/maybe_cast.cc
         ctk/arithmetic.h
         ctk/exception.h
         src/exception.cc

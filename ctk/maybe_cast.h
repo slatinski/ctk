@@ -19,10 +19,12 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
+#include <cstdint>
+#include <limits>
+#include <optional>
 #include <cassert>
 
 namespace ctk { namespace impl {
-
 
     template<typename U, typename S>
     constexpr
@@ -51,7 +53,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D) -> D {
+        auto convert(S s, D) -> std::optional<D> {
             static_assert(std::is_signed<S>::value);
             static_assert(std::is_signed<D>::value);
             static_assert(sizeof(S) <= sizeof(D));
@@ -65,13 +67,13 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D d) -> D {
+        auto convert(S s, D d) -> std::optional<D> {
             static_assert(std::is_signed<S>::value);
             static_assert(std::is_signed<D>::value);
             static_assert(sizeof(D) < sizeof(S));
 
             if (!valid_upper_bound(s, d) || !valid_lower_bound(s, d)) {
-                throw std::overflow_error{ "signed: invalid domain" };
+                return std::nullopt;
             }
 
             return static_cast<D>(s);
@@ -87,7 +89,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D) -> D {
+        auto convert(S s, D) -> std::optional<D> {
             static_assert(std::is_unsigned<S>::value);
             static_assert(std::is_unsigned<D>::value);
             static_assert(sizeof(S) <= sizeof(D));
@@ -100,13 +102,13 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D d) -> D {
+        auto convert(S s, D d) -> std::optional<D> {
             static_assert(std::is_unsigned<S>::value);
             static_assert(std::is_unsigned<D>::value);
             static_assert(sizeof(D) < sizeof(S));
 
             if (!valid_upper_bound(s, d)) {
-                throw std::overflow_error{ "unsigned: invalid domain" };
+                return std::nullopt;
             }
 
             return static_cast<D>(s);
@@ -122,7 +124,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D) -> D {
+        auto convert(S s, D) -> std::optional<D> {
             static_assert(std::is_unsigned<S>::value);
             static_assert(std::is_signed<D>::value);
             static_assert(sizeof(S) < sizeof(D));
@@ -136,14 +138,14 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D) -> D {
+        auto convert(S s, D) -> std::optional<D> {
             static_assert(std::is_unsigned<S>::value);
             static_assert(std::is_signed<D>::value);
             static_assert(sizeof(D) <= sizeof(S));
 
             const uintmax_t umax{ std::numeric_limits<D>::max() };
             if (umax < s) {
-                throw std::overflow_error{ "unsigned to signed: invalid domain" };
+                return std::nullopt;
             }
 
             return static_cast<D>(s);
@@ -158,7 +160,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D) -> D {
+        auto convert(S s, D) -> std::optional<D> {
             static_assert(std::is_signed<S>::value);
             static_assert(std::is_unsigned<D>::value);
             static_assert(sizeof(S) <= sizeof(D));
@@ -173,14 +175,14 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto convert(S s, D) -> D {
+        auto convert(S s, D) -> std::optional<D> {
             static_assert(std::is_signed<S>::value);
             static_assert(std::is_unsigned<D>::value);
             static_assert(sizeof(D) < sizeof(S));
 
             const uintmax_t umax{ std::numeric_limits<D>::max() };
             if (umax < static_cast<uintmax_t>(s)) {
-                throw std::overflow_error{ "signed to unsigned: invalid domain" };
+                return std::nullopt;
             }
 
             return static_cast<D>(s);
@@ -195,7 +197,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto cast(S s, D d) -> D {
+        auto cast(S s, D d) -> std::optional<D> {
             static_assert(std::is_integral<S>::value);
             static_assert(std::is_integral<D>::value);
 
@@ -209,12 +211,12 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto cast(S s, D d) -> D {
+        auto cast(S s, D d) -> std::optional<D> {
             static_assert(std::is_integral<S>::value);
             static_assert(std::is_integral<D>::value);
 
             if (s < 0) {
-                throw std::overflow_error{ "signed to unsigned: source is negative" };
+                return std::nullopt;
             }
 
             using op = wide_enough_signed2unsigned<sizeof(S) <= sizeof(D)>;
@@ -227,7 +229,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto cast(S s, D d) -> D {
+        auto cast(S s, D d) -> std::optional<D> {
             static_assert(std::is_integral<S>::value);
             static_assert(std::is_integral<D>::value);
 
@@ -241,7 +243,7 @@ namespace ctk { namespace impl {
     {
         template<typename S, typename D>
         static
-        auto cast(S s, D d) -> D {
+        auto cast(S s, D d) -> std::optional<D> {
             static_assert(std::is_integral<S>::value);
             static_assert(std::is_integral<D>::value);
 
@@ -251,9 +253,9 @@ namespace ctk { namespace impl {
     };
 
     template<typename X, typename Y>
-    auto throw_cast(X x) -> Y {
+    auto maybe_cast(X x, Y type_tag) -> std::optional<Y> {
         using op = cast_to<std::is_signed<X>::value, std::is_signed<Y>::value>;
-        return op::cast(x, Y{});
+        return op::cast(x, type_tag);
     }
 
 } /* namespace impl */ } /* namespace ctk */

@@ -20,12 +20,12 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <vector>
-#include <cassert>
-#include <ostream>
+#include <string>
 #include <sstream>
+#include <cassert>
 
 #include "type_wrapper.h"
-#include "throw_cast.h"
+#include "maybe_cast.h"
 #include "exception.h"
 
 
@@ -285,13 +285,14 @@ namespace ctk { namespace impl {
     struct guarded
     {
         template<typename T, typename U>
-        auto cast(T x, U) const -> U {
-            try {
-                return throw_cast<T, U>(x);
+        auto cast(T x, U type_tag) const -> U {
+            const auto maybe_y{ maybe_cast(x, type_tag) };
+            if (!maybe_y) {
+                const auto e{ invalid_cast(x, type_tag) };
+                throw api::v1::CtkBug{ e };
             }
-            catch(std::overflow_error&) {
-                throw api::v1::CtkBug{ invalid_cast(x, U{}) };
-            }
+
+            return *maybe_y;
         }
 
         template<typename T>
@@ -342,13 +343,14 @@ namespace ctk { namespace impl {
     struct ok
     {
         template<typename T, typename U>
-        auto cast(T x, U) const -> U {
-            try {
-                return throw_cast<T, U>(x);
+        auto cast(T x, U type_tag) const -> U {
+            const auto maybe_y{ maybe_cast(x, type_tag) };
+            if (!maybe_y) {
+                const auto e{ invalid_cast(x, type_tag) };
+                throw api::v1::CtkLimit{ e };
             }
-            catch(std::overflow_error&) {
-                throw api::v1::CtkLimit{ invalid_cast(x, U{}) };
-            }
+
+            return *maybe_y;
         }
 
         template<typename T>

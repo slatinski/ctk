@@ -42,16 +42,16 @@ struct different_size_same_sidedness
         constexpr const Wide w_nmin{ nmin };
 
         if constexpr (std::is_signed<Narrow>::value && std::is_signed<Wide>::value) {
-            REQUIRE_THROWS(throw_cast<Wide, Narrow>(static_cast<Wide>(w_nmin - wone)));
+            REQUIRE_THROWS(cast(static_cast<Wide>(w_nmin - wone), Narrow{}, ok{}));
         }
 
         // wide -> narrow
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmin) == nmin);
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmin + wone) == nmin + none);
+        REQUIRE(cast(w_nmin, Narrow{}, ok{}) == nmin);
+        REQUIRE(cast(w_nmin + wone, Narrow{}, ok{}) == nmin + none);
 
         // narrow -> wide
-        REQUIRE(throw_cast<Narrow, Wide>(nmin) == w_nmin);
-        REQUIRE(throw_cast<Narrow, Wide>(nmin + none) == w_nmin + wone);
+        REQUIRE(cast(nmin, Wide{}, ok{}) == w_nmin);
+        REQUIRE(cast(nmin + none, Wide{}, ok{}) == w_nmin + wone);
     }
 
     template<typename Narrow, typename Wide>
@@ -69,13 +69,13 @@ struct different_size_same_sidedness
         constexpr const Wide w_nmax{ nmax };
 
         // wide -> narrow
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmax - wone) == nmax - none);
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmax) == nmax);
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(w_nmax + wone));
+        REQUIRE(cast(w_nmax - wone, Narrow{}, ok{}) == nmax - none);
+        REQUIRE(cast(w_nmax, Narrow{}, ok{}) == nmax);
+        REQUIRE_THROWS(cast(w_nmax + wone, Narrow{}, ok{}));
 
         // narrow -> wide
-        REQUIRE(throw_cast<Narrow, Wide>(nmax - none) == w_nmax - wone);
-        REQUIRE(throw_cast<Narrow, Wide>(nmax) == w_nmax);
+        REQUIRE(cast(nmax - none, Wide{}, ok{}) == w_nmax - wone);
+        REQUIRE(cast(nmax, Wide{}, ok{}) == w_nmax);
     }
 
     template<typename Narrow, typename Wide>
@@ -105,15 +105,15 @@ struct different_size_narrow_signed_wide_unsigned
         constexpr const Wide wmin{ std::numeric_limits<Wide>::min() };
 
         // wide unsigned -> narrow signed
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(w_minus_one));
-        REQUIRE(throw_cast<Wide, Narrow>(wmin) == nzero);
-        REQUIRE(throw_cast<Wide, Narrow>(wmin + wone) == none);
+        REQUIRE_THROWS(cast(w_minus_one, Narrow{}, ok{}));
+        REQUIRE(cast(wmin, Narrow{}, ok{}) == nzero);
+        REQUIRE(cast(wmin + wone, Narrow{}, ok{}) == none);
 
         // narrow signed -> wide unsigned
-        REQUIRE_THROWS(throw_cast<Narrow, Wide>(n_minus_one));
-        REQUIRE(throw_cast<Narrow, Wide>(nzero) == wzero);
-        REQUIRE(throw_cast<Narrow, Wide>(nzero + none) == wone);
-        REQUIRE_THROWS(throw_cast<Narrow, Wide>(nmin));
+        REQUIRE_THROWS(cast(n_minus_one, Wide{}, ok{}));
+        REQUIRE(cast(nzero, Wide{}, ok{}) == wzero);
+        REQUIRE(cast(nzero + none, Wide{}, ok{}) == wone);
+        REQUIRE_THROWS(cast(nmin, Wide{}, ok{}));
     }
 
     template<typename Narrow, typename Wide>
@@ -130,13 +130,13 @@ struct different_size_narrow_signed_wide_unsigned
         constexpr const Wide wmax{ std::numeric_limits<Wide>::max() };
 
         // wide unsigned -> narrow signed
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmax) == nmax);
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(w_nmax + wone));
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(wmax));
+        REQUIRE(cast(w_nmax, Narrow{}, ok{}) == nmax);
+        REQUIRE_THROWS(cast(w_nmax + wone, Narrow{}, ok{}));
+        REQUIRE_THROWS(cast(wmax, Narrow{}, ok{}));
 
         // narrow signed -> wide unsigned
-        REQUIRE(throw_cast<Narrow, Wide>(nmax - none) == w_nmax - wone);
-        REQUIRE(throw_cast<Narrow, Wide>(nmax) == w_nmax);
+        REQUIRE(cast(nmax - none, Wide{}, ok{}) == w_nmax - wone);
+        REQUIRE(cast(nmax, Wide{}, ok{}) == w_nmax);
     }
 
     template<typename Narrow, typename Wide>
@@ -165,14 +165,14 @@ struct different_size_narrow_unsigned_wide_signed
         constexpr const Wide wmin{ std::numeric_limits<Wide>::min() };
 
         // wide signed -> narrow unsigned
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(wmin));
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(wzero - wone));
-        REQUIRE(throw_cast<Wide, Narrow>(wzero) == nmin);
-        REQUIRE(throw_cast<Wide, Narrow>(wone) == nmin + none);
+        REQUIRE_THROWS(cast(wmin, Narrow{}, ok{}));
+        REQUIRE_THROWS(cast(wzero - wone, Narrow{}, ok{}));
+        REQUIRE(cast(wzero, Narrow{}, ok{}) == nmin);
+        REQUIRE(cast(wone, Narrow{}, ok{}) == nmin + none);
 
         // narrow unsigned -> wide signed
-        REQUIRE(throw_cast<Narrow, Wide>(nmin) == wzero);
-        REQUIRE(throw_cast<Narrow, Wide>(nmin + none) == wone);
+        REQUIRE(cast(nmin, Wide{}, ok{}) == wzero);
+        REQUIRE(cast(nmin + none, Wide{}, ok{}) == wone);
     }
 
     template<typename Narrow, typename Wide>
@@ -189,14 +189,14 @@ struct different_size_narrow_unsigned_wide_signed
         constexpr const Wide wmax{ std::numeric_limits<Wide>::max() };
 
         // wide signed -> narrow unsigned
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(wmax));
-        REQUIRE_THROWS(throw_cast<Wide, Narrow>(w_nmax + none));
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmax) == nmax);
-        REQUIRE(throw_cast<Wide, Narrow>(w_nmax - none) == nmax - none);
+        REQUIRE_THROWS(cast(wmax, Narrow{}, ok{}));
+        REQUIRE_THROWS(cast(w_nmax + none, Narrow{}, ok{}));
+        REQUIRE(cast(w_nmax, Narrow{}, ok{}) == nmax);
+        REQUIRE(cast(w_nmax - none, Narrow{}, ok{}) == nmax - none);
 
         // narrow unsigned -> wide signed
-        REQUIRE(throw_cast<Narrow, Wide>(nmax) == w_nmax);
-        REQUIRE(throw_cast<Narrow, Wide>(nmax - none) == w_nmax - none);
+        REQUIRE(cast(nmax, Wide{}, ok{}) == w_nmax);
+        REQUIRE(cast(nmax - none, Wide{}, ok{}) == w_nmax - none);
     }
 
     template<typename Narrow, typename Wide>
@@ -225,14 +225,14 @@ struct same_size
         constexpr const U umin{ std::numeric_limits<U>::min() };
 
         // signed -> unsigned
-        REQUIRE_THROWS(throw_cast<S, U>(smin));
-        REQUIRE_THROWS(throw_cast<S, U>(szero - sone));
-        REQUIRE(throw_cast<S, U>(szero) == umin);
-        REQUIRE(throw_cast<S, U>(szero + sone) == umin + uone);
+        REQUIRE_THROWS(cast(smin, U{}, ok{}));
+        REQUIRE_THROWS(cast(szero - sone, U{}, ok{}));
+        REQUIRE(cast(szero, U{}, ok{}) == umin);
+        REQUIRE(cast(szero + sone, U{}, ok{}) == umin + uone);
 
         // unsigned -> signed
-        REQUIRE(throw_cast<U, S>(umin) == szero);
-        REQUIRE(throw_cast<U, S>(umin + uone) == szero + sone);
+        REQUIRE(cast(umin, S{}, ok{}) == szero);
+        REQUIRE(cast(umin + uone, S{}, ok{}) == szero + sone);
     }
 
     template<typename S, typename U>
@@ -250,14 +250,14 @@ struct same_size
         constexpr const U u_smax{ smax };
 
         // signed -> unsigned
-        REQUIRE(throw_cast<S, U>(smax - sone) == u_smax - uone);
-        REQUIRE(throw_cast<S, U>(smax) == u_smax);
+        REQUIRE(cast(smax - sone, U{}, ok{}) == u_smax - uone);
+        REQUIRE(cast(smax, U{}, ok{}) == u_smax);
 
         // unsigned -> signed
-        REQUIRE_THROWS(throw_cast<U, S>(umax));
-        REQUIRE_THROWS(throw_cast<U, S>(u_smax + uone));
-        REQUIRE(throw_cast<U, S>(u_smax) == smax);
-        REQUIRE(throw_cast<U, S>(u_smax - uone) == smax - sone);
+        REQUIRE_THROWS(cast(umax, S{}, ok{}));
+        REQUIRE_THROWS(cast(u_smax + uone, S{}, ok{}));
+        REQUIRE(cast(u_smax, S{}, ok{}) == smax);
+        REQUIRE(cast(u_smax - uone, S{}, ok{}) == smax - sone);
     }
 
     template<typename S, typename U>
@@ -288,7 +288,7 @@ auto test_cast(Narrow, Wide) -> void {
 }
 
 
-TEST_CASE("throw_cast", "[correct]") {
+TEST_CASE("throw cast", "[correct]") {
     test_cast(int8_t{}, int16_t{});
     test_cast(int8_t{}, int32_t{});
     test_cast(int8_t{}, int64_t{});
