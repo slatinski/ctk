@@ -3,6 +3,7 @@
 #include <iostream>
 
 #include "api_compression.h"
+#include "exception.h"
 
 struct close_file
 {
@@ -103,6 +104,12 @@ auto main(int argc, char* argv[]) -> int {
         return 1;
     }
     catch (const std::length_error&) {
+        return 1;
+    }
+    catch (const ctk::api::v1::CtkLimit&) {
+        return 1;
+    }
+    catch (const ctk::api::v1::CtkData&) {
         return 1;
     }
 

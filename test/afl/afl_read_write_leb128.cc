@@ -17,6 +17,7 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include <array>
 #include <iostream>
 #include <cassert>
 #include "ctk/file/leb128.h"
