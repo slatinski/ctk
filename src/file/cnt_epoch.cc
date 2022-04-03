@@ -2794,7 +2794,7 @@ namespace ctk { namespace impl {
             return 'F';
         }
 
-        return ' ';
+        return 0; // compatibility
     }
 
     auto char2sex(uint8_t x) -> ctk::api::v1::Sex {
@@ -2820,7 +2820,7 @@ namespace ctk { namespace impl {
             return 'M';
         }
 
-        return ' ';
+        return 0; // compatibility
     }
 
     auto char2hand(uint8_t x) -> ctk::api::v1::Handedness {
