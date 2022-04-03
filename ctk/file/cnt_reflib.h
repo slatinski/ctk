@@ -420,7 +420,7 @@ private:
         measurement_count due{ amount };
 
         using IOut = decltype(begin(buffer));
-        buffer.resize(as_sizet_unchecked(matrix_size(height, amount)));
+        buffer.resize(as_sizet(matrix_size(height, amount)));
         const buf_win<IOut> output{ begin(buffer), end(buffer), height, amount};
 
         while(0 < due && load_epoch(i)) {
@@ -647,7 +647,7 @@ public:
             return;
         }
 
-        buffer.resize(as_sizet_unchecked(matrix_size(height, cache_index)));
+        buffer.resize(as_sizet(matrix_size(height, cache_index)));
         const auto epoch_length{ epoch_writer.epoch_length() };
         const measurement_count zero{ 0 };
 

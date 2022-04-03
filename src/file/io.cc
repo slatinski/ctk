@@ -92,13 +92,13 @@ namespace ctk { namespace impl {
         constexpr const int64_t stride{ 1024 * 4 }; // arbitrary. TODO
         std::array<uint8_t, stride> buffer;
 
-        auto chunk{ std::min(x.size, stride) };
+        ptrdiff_t chunk{ cast(std::min(x.size, stride), ptrdiff_t{}, ok{}) };
         while (0 < chunk) {
             read(fin, begin(buffer), begin(buffer) + chunk);
             write(fout, begin(buffer), begin(buffer) + chunk);
 
             x.size -= chunk;
-            chunk = std::min(x.size, stride);
+            chunk = cast(std::min(x.size, stride), ptrdiff_t{}, ok{});
         }
     }
 

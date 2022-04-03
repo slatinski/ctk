@@ -1912,7 +1912,6 @@ namespace ctk { namespace impl {
     }
 
 
-    // TODO epoch access correct/quirk
     static
     auto epoch_n(FILE* f, epoch_count i, const std::vector<file_range>& epoch_ranges, measurement_count sample_count, measurement_count epoch_length) -> compressed_epoch {
         const epoch_count total{ vsize(epoch_ranges) };
@@ -1922,7 +1921,7 @@ namespace ctk { namespace impl {
         assert(0 <= i);
         assert(f);
 
-        const auto n{ as_sizet_unchecked(i) };
+        const auto n{ as_sizet(i) };
         const auto data{ read_compressed_epoch(f, epoch_ranges[n]) };
         const auto length{ compressed_epoch_length(i, sample_count, epoch_length) };
 

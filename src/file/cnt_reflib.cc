@@ -101,10 +101,14 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
 
     // refh and imp are recognized by libeep but not used.
     // nsh, vish, egih, egig, egiz, binh are mentioned in http://eeprobe.ant-neuro.com/doc/cnt_riff.txt but not referenced in the libeep code.
-    const std::vector<std::string> reserved{ "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh", "imp ", "nsh ", "vish", "egih", "egig", "egiz", "binh" };
+    // xevt, xseg, xsen and xtrg are used by this library.
+    const std::vector<std::string> reserved{ "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh", "imp ", "nsh ", "vish", "egih", "egig", "egiz", "binh", "xevt", "xseg", "xsen", "xtrg" };
     const auto verboten{ std::find(begin(reserved), end(reserved), label) };
     if (verboten != end(reserved)) {
-        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::embed: label reserved by libeep" };
+        std::ostringstream oss;
+        oss << "[cnt_writer_reflib_riff::embed, cnt_reflib] reserved label " << *verboten;
+        const auto e{ oss.str() };
+        throw api::v1::CtkLimit{ e };
     }
 
     const auto already_present = [label](const external_file& x) -> bool { return x.label == label; };
@@ -189,7 +193,7 @@ auto reader_scales(const std::vector<api::v1::Electrode>& xs) -> std::vector<dou
 auto writer_scales(const std::vector<api::v1::Electrode>& xs) -> std::vector<double> {
     std::vector<double> ys(reader_scales(xs));
 
-    const auto inverse = [](double d) -> double { return 1.0 / d; };
+    const auto inverse = [](double d) -> double { return 1 / d; };
     std::transform(begin(ys), end(ys), begin(ys), inverse);
 
     return ys;
