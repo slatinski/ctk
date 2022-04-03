@@ -51,6 +51,23 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(date)
 
+FetchContent_Declare(
+    spdlog
+    GIT_REPOSITORY https://github.com/gabime/spdlog.git
+    GIT_TAG        v1.9.2
+)
+FetchContent_GetProperties(spdlog)
+if(NOT spdlog_POPULATED)
+    FetchContent_Populate(spdlog)
+    if(NOT MSVC)
+        add_definitions(-fPIC)
+    endif(NOT MSVC)
+    add_subdirectory(${spdlog_SOURCE_DIR} ${spdlog_BINARY_DIR})
+    if(NOT MSVC)
+        remove_definitions(-fPIC)
+    endif(NOT MSVC)
+endif(NOT spdlog_POPULATED)
+
 
 include(GNUInstallDirs)
 include(GenerateExportHeader)
@@ -67,6 +84,8 @@ add_library(ctk_static
         src/arithmetic.cc
         ctk/exception.h
         src/exception.cc
+        ctk/logger.h
+        src/logger.cc
         ctk/compress/bit_stream.h
         src/compress/bit_stream.cc
         ctk/compress/block.h
@@ -103,6 +122,7 @@ target_include_directories(ctk_static
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/ctk>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
         $<BUILD_INTERFACE:${date_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${spdlog_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/ctk>
 )
 target_compile_options(ctk_static PRIVATE ${CTK_CXX_FLAGS})
@@ -121,6 +141,8 @@ add_library(ctk
         src/api_bindings.cc
         ctk/api_c.h
         src/api_c.cc
+        ctk/logger.h
+        src/logger.cc
 )
 target_include_directories(ctk
     PUBLIC
