@@ -669,12 +669,24 @@ namespace ctk { namespace impl {
 
     auto d2s(double x, int p) -> std::string {
         std::ostringstream oss;
+        // TODO: use scientific to prevent locale problems?
         oss << std::setprecision(p) << x;
         return oss.str();
     }
 
     auto ascii_sampling_frequency(double x) -> std::string {
-        return d2s(x, 11);
+        // TODO: understand the limits of buggy roundtrips
+        //
+        // std::string x = "255.9949866127";
+        // double num = std::stod(x);
+        // std::ostringstream os;
+        // os << std::setprecision(11) << num;
+        // std::string y = os.str();
+        // x "255.9949866127"
+        // y "255.99498661"   (setprecision(11))
+        // y "255.994986613"  (setprecision(12))
+        // y "255.9949866127" (setprecision(13))
+        return d2s(x, 13);
     }
 
 
