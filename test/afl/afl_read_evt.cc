@@ -31,12 +31,12 @@ auto generate_input_file(const std::filesystem::path& fname) -> void {
     ctk::EventImpedance impedance{ std::chrono::system_clock::now(), impedances };
 
     ctk::EventVideo video{std::chrono::system_clock::now(), 1.0, 128 };
-    video.condition_label = L"Rare";
-    video.description = "a description";
-    video.video_file = L"/path/to/file";
+    video.ConditionLabel = L"Rare";
+    video.Description = "a description";
+    video.VideoFile = L"/path/to/file";
 
     ctk::EventEpoch epoch{ std::chrono::system_clock::now(), 2.0, -1.5, 128 };
-    epoch.condition_label = L"Frequent";
+    epoch.ConditionLabel = L"Frequent";
 
     ctk::EventWriter writer{ fname };
     writer.addImpedance(impedance);
@@ -57,70 +57,70 @@ auto compare(std::chrono::system_clock::time_point x, std::chrono::system_clock:
 }
 
 auto compare(const ctk::api::v1::EventImpedance& x, const ctk::api::v1::EventImpedance& y) -> bool {
-    const size_t xsize{ x.values.size() };
-    const size_t ysize{ y.values.size() };
+    const size_t xsize{ x.Values.size() };
+    const size_t ysize{ y.Values.size() };
     if (xsize != ysize) {
         return false;
     }
 
     for (size_t i{ 0 }; i < xsize; ++i) {
         // ohm -> kohm -> ohm roundtrip might lead to loss of precision
-        if (1/* ohm */ <= std::fabs(x.values[i] - y.values[i])) {
+        if (1/* ohm */ <= std::fabs(x.Values[i] - y.Values[i])) {
             return false;
         }
     }
 
-    return compare(x.stamp, y.stamp);
+    return compare(x.Stamp, y.Stamp);
 }
 
 auto compare(const ctk::api::v1::EventVideo& x, const ctk::api::v1::EventVideo& y) -> bool {
-    if (std::isfinite(x.duration) && std::isfinite(y.duration)) {
-        if (x.duration != y.duration) {
+    if (std::isfinite(x.Duration) && std::isfinite(y.Duration)) {
+        if (x.Duration != y.Duration) {
             return false;
         }
     }
 
-    if (x.trigger_code != y.trigger_code) {
+    if (x.TriggerCode != y.TriggerCode) {
         return false;
     }
 
-    if (x.condition_label != y.condition_label) {
+    if (x.ConditionLabel != y.ConditionLabel) {
         return false;
     }
 
-    if (x.description != y.description) {
+    if (x.Description != y.Description) {
         return false;
     }
 
-    if (x.video_file != y.video_file) {
+    if (x.VideoFile != y.VideoFile) {
         return false;
     }
 
-    return compare(x.stamp, y.stamp);
+    return compare(x.Stamp, y.Stamp);
 }
 
 auto compare(const ctk::api::v1::EventEpoch& x, const ctk::api::v1::EventEpoch& y) -> bool {
-    if (std::isfinite(x.duration) && std::isfinite(y.duration)) {
-        if (x.duration != y.duration) {
+    if (std::isfinite(x.Duration) && std::isfinite(y.Duration)) {
+        if (x.Duration != y.Duration) {
             return false;
         }
     }
 
-    if (std::isfinite(x.offset) && std::isfinite(y.offset)) {
-        if (x.offset != y.offset) {
+    if (std::isfinite(x.Offset) && std::isfinite(y.Offset)) {
+        if (x.Offset != y.Offset) {
             return false;
         }
     }
 
-    if (x.trigger_code != y.trigger_code) {
+    if (x.TriggerCode != y.TriggerCode) {
         return false;
     }
 
-    if (x.condition_label != y.condition_label) {
+    if (x.ConditionLabel != y.ConditionLabel) {
         return false;
     }
 
-    return compare(x.stamp, y.stamp);
+    return compare(x.Stamp, y.Stamp);
 }
 
 auto read(const std::filesystem::path& fname) -> void {

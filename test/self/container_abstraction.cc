@@ -43,14 +43,14 @@ auto compare_readers(const std::string& fname) -> void {
 
     const auto desc{ reader_direct.description() };
     const auto desc_api{ reader_api.description() };
-    REQUIRE(desc.epoch_length == desc_api.epoch_length);
-    REQUIRE(desc.sampling_frequency == desc_api.sampling_frequency);
-    REQUIRE(desc.start_time == desc_api.start_time);
-    REQUIRE(desc.electrodes == desc_api.electrodes);
+    REQUIRE(desc.EpochLength == desc_api.EpochLength);
+    REQUIRE(desc.SamplingFrequency == desc_api.SamplingFrequency);
+    REQUIRE(desc.StartTime == desc_api.StartTime);
+    REQUIRE(desc.Electrodes == desc_api.Electrodes);
 
     REQUIRE(reader_direct.history() == reader_api.history());
-    REQUIRE(reader_direct.file_version().major == reader_api.fileVersion().major);
-    REQUIRE(reader_direct.file_version().minor == reader_api.fileVersion().minor);
+    REQUIRE(reader_direct.file_version().Major == reader_api.fileVersion().Major);
+    REQUIRE(reader_direct.file_version().Minor == reader_api.fileVersion().Minor);
 
     // missing dob
     REQUIRE(reader_direct.information() == reader_api.information());
@@ -112,7 +112,7 @@ auto read_direct(const std::string& fname) -> int64_t {
 auto read_api(const std::string& fname) -> int64_t {
     ctk::CntReaderReflib reader{ fname };
     const auto samples{ reader.sampleCount() };
-    const auto electrodes{ reader.description().electrodes };
+    const auto electrodes{ reader.description().Electrodes };
     const int64_t chunk{ 1 };
 
     int64_t accessible{ 0 };

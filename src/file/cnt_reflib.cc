@@ -177,7 +177,7 @@ auto operator<<(std::ostream& os, const external_file& x) -> std::ostream& {
 auto reader_scales(const std::vector<api::v1::Electrode>& xs) -> std::vector<double> {
     std::vector<double> ys(xs.size());
 
-    const auto scale = [](const api::v1::Electrode& e) -> double { return e.iscale * e.rscale; };
+    const auto scale = [](const api::v1::Electrode& e) -> double { return e.IScale * e.RScale; };
     std::transform(begin(xs), end(xs), begin(ys), scale);
 
     return ys;

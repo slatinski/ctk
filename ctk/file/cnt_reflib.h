@@ -179,7 +179,7 @@ public:
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
-    , scales{ reader_scales(reader.data().description().electrodes)  } {
+    , scales{ reader_scales(reader.data().description().Electrodes)  } {
         decode.row_order(reader.data().order()); // TODO?
     }
 
@@ -189,7 +189,7 @@ public:
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
-    , scales{ reader_scales(reader.data().description().electrodes)  } {
+    , scales{ reader_scales(reader.data().description().Electrodes)  } {
         decode.row_order(reader.data().order());
     }
 
@@ -498,13 +498,13 @@ public:
     cnt_writer_flat(const std::filesystem::path& fname, const api::v1::TimeSeries& description, api::v1::RiffType riff)
     : epoch_writer{ fname, description, riff }
     , cache_index{ 0 }
-    , height{ vsize(description.electrodes) }
-    , scales{ writer_scales(description.electrodes) }
+    , height{ vsize(description.Electrodes) }
+    , scales{ writer_scales(description.Electrodes) }
     , closed{ false } {
         const auto order{ natural_row_order(height) }; // TODO?
         encode.row_order(order);
 
-        const measurement_count epoch_length{ description.epoch_length };
+        const measurement_count epoch_length{ description.EpochLength };
         cache.resize(as_sizet_unchecked(matrix_size(height, epoch_length)));
     }
 

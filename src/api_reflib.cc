@@ -174,7 +174,7 @@ namespace ctk { namespace api {
 
         auto CntReaderReflib::extractEmbeddedFile(const UserFile& x) const -> bool {
             assert(p);
-            return p->reader.extract_embedded_file(x.label, x.file_name);
+            return p->reader.extract_embedded_file(x.Label, x.FileName);
         }
 
 
@@ -301,7 +301,7 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::embed(const UserFile& x) -> void {
             assert(p);
-            p->writer.embed(x.label, x.file_name);
+            p->writer.embed(x.Label, x.FileName);
         }
 
         auto CntWriterReflib::commited() const -> int64_t {

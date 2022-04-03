@@ -26,12 +26,12 @@ auto generate_input_file(const std::string& fname) -> void {
 
     const std::string note{ "initial recording" };
     ctk::Info i;
-    i.subject_name = "Jane Doe";
-    i.physician = "Dr X";
-    i.technician = "Mr Y";
-    i.machine_make = "eego";
-    i.machine_model = "201";
-    i.machine_sn = "0000";
+    i.SubjectName = "Jane Doe";
+    i.Physician = "Dr X";
+    i.Technician = "Mr Y";
+    i.MachineMake = "eego";
+    i.MachineModel = "201";
+    i.MachineSn = "0000";
 
     constexpr const int64_t epoch_length{ 4 };
     constexpr const size_t height{ 3 };
@@ -39,16 +39,16 @@ auto generate_input_file(const std::string& fname) -> void {
     std::iota(begin(input), end(input), 0);
 
     ctk::TimeSeries description;
-    description.epoch_length = epoch_length;
-    description.sampling_frequency = 1024;
-    description.start_time = ctk::api::dcdate2timepoint({ 0, 0 });
-    description.electrodes.resize(height);
+    description.EpochLength = epoch_length;
+    description.SamplingFrequency = 1024;
+    description.StartTime = ctk::api::v1::dcdate2timepoint({ 0, 0 });
+    description.Electrodes.resize(height);
     for (size_t j{ 0 }; j < height; ++j) {
-        description.electrodes[j].label = "fpx";
-        description.electrodes[j].reference = "ref";
-        description.electrodes[j].unit = "u";
-        description.electrodes[j].iscale = 1.0;
-        description.electrodes[j].rscale = 1.0;
+        description.Electrodes[j].ActiveLabel = "fpx";
+        description.Electrodes[j].Reference = "ref";
+        description.Electrodes[j].Unit = "u";
+        description.Electrodes[j].IScale = 1.0;
+        description.Electrodes[j].RScale = 1.0;
     }
 
     ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };

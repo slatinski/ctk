@@ -683,28 +683,28 @@ namespace ctk { namespace impl {
             api::v1::Electrode e;
 
             std::istringstream iss{ line };
-            iss >> e.label >> e.iscale >> e.rscale >> e.unit;
-            if (iss.fail() || e.label.empty() || e.unit.empty()) {
+            iss >> e.ActiveLabel >> e.IScale >> e.RScale >> e.Unit;
+            if (iss.fail() || e.ActiveLabel.empty() || e.Unit.empty()) {
                 throw api::v1::CtkData{ "invalid electrode" };
             }
             // compatibility
-            e.label.resize(std::min(e.label.size(), size_t{ 9 }));
-            e.unit.resize(std::min(e.unit.size(), size_t{ 9 }));
+            e.ActiveLabel.resize(std::min(e.ActiveLabel.size(), size_t{ 9 }));
+            e.Unit.resize(std::min(e.Unit.size(), size_t{ 9 }));
 
             std::array<std::string, 3> nonobligatory;
             iss >> nonobligatory[0] >> nonobligatory[1] >> nonobligatory[2];
 
-            e.reference = optional_electrode_field(nonobligatory, "REF:");
-            e.status = optional_electrode_field(nonobligatory, "STAT:");
-            e.type = optional_electrode_field(nonobligatory, "TYPE:");
+            e.Reference = optional_electrode_field(nonobligatory, "REF:");
+            e.Status = optional_electrode_field(nonobligatory, "STAT:");
+            e.Type = optional_electrode_field(nonobligatory, "TYPE:");
 
             // compatibility
             if (libeep) {
                 /* No (valid) label but exactly 5 columns enables    */
                 /*   workaround for old files: it must be a reflabel */
-                if (e.reference.empty() && !nonobligatory[0].empty() && nonobligatory[1].empty() && nonobligatory[2].empty()) {
-                    e.reference = nonobligatory[0];
-                    e.reference.resize(std::min(e.reference.size(), size_t{ 9 }));
+                if (e.Reference.empty() && !nonobligatory[0].empty() && nonobligatory[1].empty() && nonobligatory[2].empty()) {
+                    e.Reference = nonobligatory[0];
+                    e.Reference.resize(std::min(e.Reference.size(), size_t{ 9 }));
                 }
             }
 
@@ -913,67 +913,67 @@ namespace ctk { namespace impl {
         while(i < input.size()) {
             if (line.find("[StartDate]") != std::string::npos) {
                 std::tie(line, i) = load_line(input, i, length);
-                start_time.date = parse_double(line);
+                start_time.Date = parse_double(line);
                 is_ascii = true;
             }
             else if (line.find("[StartFraction]") != std::string::npos) {
                 std::tie(line, i) = load_line(input, i, length);
-                start_time.fraction = parse_double(line);
+                start_time.Fraction = parse_double(line);
             }
             else if (line.find("[Hospital]") != std::string::npos) {
-                std::tie(information.hospital, i) = load_line(input, i, length);
+                std::tie(information.Hospital, i) = load_line(input, i, length);
             }
             else if (line.find("[TestName]") != std::string::npos) {
-                std::tie(information.test_name, i) = load_line(input, i, length);
+                std::tie(information.TestName, i) = load_line(input, i, length);
             }
             else if (line.find("[TestSerial]") != std::string::npos) {
-                std::tie(information.test_serial, i) = load_line(input, i, length);
+                std::tie(information.TestSerial, i) = load_line(input, i, length);
             }
             else if (line.find("[Physician]") != std::string::npos) {
-                std::tie(information.physician, i) = load_line(input, i, length);
+                std::tie(information.Physician, i) = load_line(input, i, length);
             }
             else if (line.find("[Technician]") != std::string::npos) {
-                std::tie(information.technician, i) = load_line(input, i, length);
+                std::tie(information.Technician, i) = load_line(input, i, length);
             }
             else if (line.find("[MachineMake]") != std::string::npos) {
-                std::tie(information.machine_make, i) = load_line(input, i, length);
+                std::tie(information.MachineMake, i) = load_line(input, i, length);
             }
             else if (line.find("[MachineModel]") != std::string::npos) {
-                std::tie(information.machine_model, i) = load_line(input, i, length);
+                std::tie(information.MachineModel, i) = load_line(input, i, length);
             }
             else if (line.find("[MachineSN]") != std::string::npos) {
-                std::tie(information.machine_sn, i) = load_line(input, i, length);
+                std::tie(information.MachineSn, i) = load_line(input, i, length);
             }
             else if (line.find("[SubjectName]") != std::string::npos) {
-                std::tie(information.subject_name, i) = load_line(input, i, length);
+                std::tie(information.SubjectName, i) = load_line(input, i, length);
             }
             else if (line.find("[SubjectID]") != std::string::npos) {
-                std::tie(information.subject_id, i) = load_line(input, i, length);
+                std::tie(information.SubjectId, i) = load_line(input, i, length);
             }
             else if (line.find("[SubjectAddress]") != std::string::npos) {
-                std::tie(information.subject_address, i) = load_line(input, i, length);
+                std::tie(information.SubjectAddress, i) = load_line(input, i, length);
             }
             else if (line.find("[SubjectPhone]") != std::string::npos) {
-                std::tie(information.subject_phone, i) = load_line(input, i, length);
+                std::tie(information.SubjectPhone, i) = load_line(input, i, length);
             }
             else if (line.find("[SubjectSex]") != std::string::npos) {
                 std::tie(line, i) = load_line(input, i, length);
                 if (!line.empty()) {
-                    information.subject_sex = ch2sex(static_cast<uint8_t>(line[0]));
+                    information.SubjectSex = char2sex(static_cast<uint8_t>(line[0]));
                 }
             }
             else if (line.find("[SubjectHandedness]") != std::string::npos) {
                 std::tie(line, i) = load_line(input, i, length);
                 if (!line.empty()) {
-                    information.subject_handedness = ch2hand(static_cast<uint8_t>(line[0]));
+                    information.SubjectHandedness = char2hand(static_cast<uint8_t>(line[0]));
                 }
             }
             else if (line.find("[SubjectDateOfBirth]") != std::string::npos) {
                 std::tie(line, i) = load_line(input, i, length);
-                information.subject_dob = parse_info_dob(line);
+                information.SubjectDob = parse_info_dob(line);
             }
             else if (line.find("[Comment]") != std::string::npos) {
-                std::tie(information.comment, i) = load_line(input, i, length);
+                std::tie(information.Comment, i) = load_line(input, i, length);
             }
 
             std::tie(line, i) = load_line(input, i, length);
@@ -1034,7 +1034,7 @@ namespace ctk { namespace impl {
                 result.sampling_frequency = parse_double(line);
             }
             else if (line.find("[Basic Channel Data]") != std::string::npos) {
-                result.electrodes = parse_electrodes(input.substr(i), result.version.major < 4);
+                result.electrodes = parse_electrodes(input.substr(i), result.version.Major < 4);
                 i = input.find('[', i + 1);
             }
             else if (line.find("[Channels]") != std::string::npos) {
@@ -1119,25 +1119,25 @@ namespace ctk { namespace impl {
 
     static
     auto write_electrode(FILE* f, const api::v1::Electrode& x) -> void {
-        write_string(f, x.label);
-        write_string(f, x.reference);
-        write_string(f, x.unit);
-        write_string(f, x.status);
-        write_string(f, x.type);
-        write(f, x.iscale);
-        write(f, x.rscale);
+        write_string(f, x.ActiveLabel);
+        write_string(f, x.Reference);
+        write_string(f, x.Unit);
+        write_string(f, x.Status);
+        write_string(f, x.Type);
+        write(f, x.IScale);
+        write(f, x.RScale);
     }
 
     static
     auto read_electrode(FILE* f) -> api::v1::Electrode {
         api::v1::Electrode x;
-        x.label = read_string(f);
-        x.reference = read_string(f);
-        x.unit = read_string(f);
-        x.status = read_string(f);
-        x.type = read_string(f);
-        x.iscale = read(f, double{});
-        x.rscale = read(f, double{});
+        x.ActiveLabel = read_string(f);
+        x.Reference = read_string(f);
+        x.Unit = read_string(f);
+        x.Status = read_string(f);
+        x.Type = read_string(f);
+        x.IScale = read(f, double{});
+        x.RScale = read(f, double{});
         return x;
     }
 
@@ -1174,18 +1174,18 @@ namespace ctk { namespace impl {
         std::ostringstream oss;
 
         for (const auto& e : electrodes) {
-            oss << truncate(e.label, 10) << " ";
-            oss << d2s(e.iscale, 11) << " ";
-            oss << d2s(e.rscale, 11) << " ";
-            oss << truncate(e.unit, 10);
-            if (!e.reference.empty()) {
-                oss << " REF:" << truncate(e.reference, 10);
+            oss << truncate(e.ActiveLabel, 10) << " ";
+            oss << d2s(e.IScale, 11) << " ";
+            oss << d2s(e.RScale, 11) << " ";
+            oss << truncate(e.Unit, 10);
+            if (!e.Reference.empty()) {
+                oss << " REF:" << truncate(e.Reference, 10);
             }
-            if (!e.status.empty()) {
-                oss << " STAT:" << truncate(e.status, 10);
+            if (!e.Status.empty()) {
+                oss << " STAT:" << truncate(e.Status, 10);
             }
-            if (!e.type.empty()) {
-                oss << " TYPE:" << truncate(e.type, 10);
+            if (!e.Type.empty()) {
+                oss << " TYPE:" << truncate(e.Type, 10);
             }
             oss << "\n";
         }
@@ -1198,11 +1198,11 @@ namespace ctk { namespace impl {
         std::ostringstream oss;
 
         oss << "[File Version]\n" << CTK_FILE_VERSION_MAJOR << "." << CTK_FILE_VERSION_MINOR << "\n";
-        oss << "[Sampling Rate]\n" << ascii_sampling_frequency(data.header.sampling_frequency) << "\n";
+        oss << "[Sampling Rate]\n" << ascii_sampling_frequency(data.header.SamplingFrequency) << "\n";
         oss << "[Samples]\n" << data.sample_count << "\n";
-        oss << "[Channels]\n" << data.header.electrodes.size() << "\n";
+        oss << "[Channels]\n" << data.header.Electrodes.size() << "\n";
         oss << "[Basic Channel Data]\n";
-        oss << make_electrodes_content(data.header.electrodes);
+        oss << make_electrodes_content(data.header.Electrodes);
         oss << "[History]\n" << data.history << "\nEOH\n";
 
         return oss.str();
@@ -1212,37 +1212,37 @@ namespace ctk { namespace impl {
     auto make_info_content(const api::v1::DcDate& x, const api::v1::Info& i) -> std::string {
         const size_t length{ 256 }; // libeep writes 512 and reads 256 bytes.
         std::ostringstream oss;
-        oss << "[StartDate]\n" << d2s(x.date, 21) << "\n";
-        oss << "[StartFraction]\n" << d2s(x.fraction, 21) << "\n";
+        oss << "[StartDate]\n" << d2s(x.Date, 21) << "\n";
+        oss << "[StartFraction]\n" << d2s(x.Fraction, 21) << "\n";
 
-        if (!i.hospital.empty()) { oss << "[Hospital]\n" << truncate(i.hospital, length) << "\n"; }
-        if (!i.test_name.empty()) { oss << "[TestName]\n" << truncate(i.test_name, length) << "\n"; }
-        if (!i.test_serial.empty()) { oss << "[TestSerial]\n" << truncate(i.test_serial, length) << "\n"; }
-        if (!i.physician.empty()) { oss << "[Physician]\n" << truncate(i.physician, length) << "\n"; }
-        if (!i.technician.empty()) { oss << "[Technician]\n" << truncate(i.technician, length) << "\n"; }
-        if (!i.machine_make.empty()) { oss << "[MachineMake]\n" << truncate(i.machine_make, length) << "\n"; }
-        if (!i.machine_model.empty()) { oss << "[MachineModel]\n" << truncate(i.machine_model, length) << "\n"; }
-        if (!i.machine_sn.empty()) { oss << "[MachineSN]\n" << truncate(i.machine_sn, length) << "\n"; }
-        if (!i.subject_name.empty()) { oss << "[SubjectName]\n" << truncate(i.subject_name, length) << "\n"; }
-        if (!i.subject_id.empty()) { oss << "[SubjectID]\n" << truncate(i.subject_id, length) << "\n"; }
-        if (!i.subject_address.empty()) { oss << "[SubjectAddress]\n" << truncate(i.subject_address, length) << "\n"; }
-        if (!i.subject_phone.empty()) { oss << "[SubjectPhone]\n" << truncate(i.subject_phone, length) << "\n"; }
-        if (i.subject_sex != api::v1::Sex::unknown) { oss << "[SubjectSex]\n" << sex2ch(i.subject_sex) << "\n"; }
-        if (i.subject_dob != tm2timepoint(make_tm())) {
-            const tm dob{ timepoint2tm(i.subject_dob) };
+        if (!i.Hospital.empty()) { oss << "[Hospital]\n" << truncate(i.Hospital, length) << "\n"; }
+        if (!i.TestName.empty()) { oss << "[TestName]\n" << truncate(i.TestName, length) << "\n"; }
+        if (!i.TestSerial.empty()) { oss << "[TestSerial]\n" << truncate(i.TestSerial, length) << "\n"; }
+        if (!i.Physician.empty()) { oss << "[Physician]\n" << truncate(i.Physician, length) << "\n"; }
+        if (!i.Technician.empty()) { oss << "[Technician]\n" << truncate(i.Technician, length) << "\n"; }
+        if (!i.MachineMake.empty()) { oss << "[MachineMake]\n" << truncate(i.MachineMake, length) << "\n"; }
+        if (!i.MachineModel.empty()) { oss << "[MachineModel]\n" << truncate(i.MachineModel, length) << "\n"; }
+        if (!i.MachineSn.empty()) { oss << "[MachineSN]\n" << truncate(i.MachineSn, length) << "\n"; }
+        if (!i.SubjectName.empty()) { oss << "[SubjectName]\n" << truncate(i.SubjectName, length) << "\n"; }
+        if (!i.SubjectId.empty()) { oss << "[SubjectID]\n" << truncate(i.SubjectId, length) << "\n"; }
+        if (!i.SubjectAddress.empty()) { oss << "[SubjectAddress]\n" << truncate(i.SubjectAddress, length) << "\n"; }
+        if (!i.SubjectPhone.empty()) { oss << "[SubjectPhone]\n" << truncate(i.SubjectPhone, length) << "\n"; }
+        if (i.SubjectSex != api::v1::Sex::Unknown) { oss << "[SubjectSex]\n" << sex2char(i.SubjectSex) << "\n"; }
+        if (i.SubjectDob != tm2timepoint(make_tm())) {
+            const tm dob{ timepoint2tm(i.SubjectDob) };
 
             oss << "[SubjectDateOfBirth]\n" << dob.tm_sec << " " << dob.tm_min << " " << dob.tm_hour << " " << dob.tm_mday << " " << dob.tm_mon << " " << dob.tm_year << " " << dob.tm_wday << " " << dob.tm_yday << " " << dob.tm_isdst << "\n";
 
         }
 
-        if (i.subject_handedness != api::v1::Handedness::unknown) { oss << "[SubjectHandedness]\n" << hand2ch(i.subject_handedness) << "\n"; }
-        if (!i.comment.empty()) { oss << "[Comment]\n" << truncate(i.comment, length) << "\n"; }
+        if (i.SubjectHandedness != api::v1::Handedness::Unknown) { oss << "[SubjectHandedness]\n" << hand2char(i.SubjectHandedness) << "\n"; }
+        if (!i.Comment.empty()) { oss << "[Comment]\n" << truncate(i.Comment, length) << "\n"; }
 
         return oss.str();
     }
 
     auto make_info_content(const amorph& x) -> std::string {
-        return make_info_content(api::timepoint2dcdate(x.header.start_time), x.information);
+        return make_info_content(api::v1::timepoint2dcdate(x.header.StartTime), x.information);
     }
 
 
@@ -1275,7 +1275,7 @@ namespace ctk { namespace impl {
 
     auto read_info(FILE* f, const file_range& x, const api::v1::FileVersion& version) -> std::pair<std::chrono::system_clock::time_point, api::v1::Info> {
         if (x.size == 0) {
-            return { api::dcdate2timepoint({ 0, 0 }), api::v1::Info{} };
+            return { api::v1::dcdate2timepoint({ 0, 0 }), api::v1::Info{} };
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
@@ -1289,15 +1289,15 @@ namespace ctk { namespace impl {
         auto[start_time, i, is_ascii]{ parse_info(s) };
 
         // compatibility
-        if (!is_ascii && version.major == 0 && version.minor == 0) {
+        if (!is_ascii && version.Major == 0 && version.Minor == 0) {
             if (!seek(f, x.fpos, SEEK_SET)) {
                 throw api::v1::CtkBug{ "read_info: can not seek back to file position" };
             }
-            start_time.date = read(f, double{});
-            start_time.fraction = read(f, double{});
+            start_time.Date = read(f, double{});
+            start_time.Fraction = read(f, double{});
         }
 
-        return { api::dcdate2timepoint(start_time), i };
+        return { api::v1::dcdate2timepoint(start_time), i };
     }
 
 
@@ -1378,7 +1378,7 @@ namespace ctk { namespace impl {
 
     static
     auto is_valid(const ctk::api::v1::DcDate& x) -> bool {
-        return std::isfinite(x.date) && std::isfinite(x.fraction);
+        return std::isfinite(x.Date) && std::isfinite(x.Fraction);
     }
 
 
@@ -1387,17 +1387,17 @@ namespace ctk { namespace impl {
 
     static
     auto valid_electrode(const ctk::api::v1::Electrode& x) -> status_elc {
-        if (x.label.empty()) { return status_elc::label_empty; }
-        if (x.unit.empty()) { return status_elc::unit_empty; }
-        if (10 < x.label.size()) { return status_elc::label_trunc; }
-        if (10 < x.reference.size()) { return status_elc::ref_trunc; }
-        if (9 < x.unit.size()) { return status_elc::unit_trunc; }
-        if (10 < x.status.size()) { return status_elc::stat_trunc; }
-        if (10 < x.type.size()) { return status_elc::type_trunc; }
-        if (x.label[0] == '[') { return status_elc::label_brace; }
-        if (x.label[0] == ';') { return status_elc::label_semicolon; }
-        if (!std::isfinite(x.iscale)) { return status_elc::iscale; }
-        if (!std::isfinite(x.rscale)) { return status_elc::rscale; }
+        if (x.ActiveLabel.empty()) { return status_elc::label_empty; }
+        if (x.Unit.empty()) { return status_elc::unit_empty; }
+        if (10 < x.ActiveLabel.size()) { return status_elc::label_trunc; }
+        if (10 < x.Reference.size()) { return status_elc::ref_trunc; }
+        if (9 < x.Unit.size()) { return status_elc::unit_trunc; }
+        if (10 < x.Status.size()) { return status_elc::stat_trunc; }
+        if (10 < x.Type.size()) { return status_elc::type_trunc; }
+        if (x.ActiveLabel[0] == '[') { return status_elc::label_brace; }
+        if (x.ActiveLabel[0] == ';') { return status_elc::label_semicolon; }
+        if (!std::isfinite(x.IScale)) { return status_elc::iscale; }
+        if (!std::isfinite(x.RScale)) { return status_elc::rscale; }
         return status_elc::ok;
     }
 
@@ -1430,25 +1430,25 @@ namespace ctk { namespace impl {
 
     static
     auto valid_time_series(const api::v1::TimeSeries& x) -> status_ts {
-        if (x.epoch_length < 1) {
+        if (x.EpochLength < 1) {
             return status_ts::epochl;
         }
 
-        if (!std::isfinite(x.sampling_frequency) || x.sampling_frequency <= 0) {
+        if (!std::isfinite(x.SamplingFrequency) || x.SamplingFrequency <= 0) {
             return status_ts::sfreq;
         }
 
-        if (!is_valid(api::timepoint2dcdate(x.start_time))) {
+        if (!is_valid(api::v1::timepoint2dcdate(x.StartTime))) {
             return status_ts::stamp;
         }
 
-        if (x.electrodes.empty()) {
+        if (x.Electrodes.empty()) {
             return status_ts::no_elc;
         }
 
         const auto check_electrode = [](bool acc, const api::v1::Electrode& e) -> bool { return acc && is_valid(e); };
 
-        const auto all_valid{ std::accumulate(begin(x.electrodes), end(x.electrodes), true, check_electrode) };
+        const auto all_valid{ std::accumulate(begin(x.Electrodes), end(x.Electrodes), true, check_electrode) };
         return all_valid ? status_ts::ok : status_ts::invalid_elc;
     }
 
@@ -1463,7 +1463,7 @@ namespace ctk { namespace impl {
             case status_ts::invalid_elc: /* fall trough */;
         }
 
-        for (const api::v1::Electrode& e : x.electrodes) {
+        for (const api::v1::Electrode& e : x.Electrodes) {
             validate(e);
         }
     }
@@ -1485,7 +1485,7 @@ namespace ctk { namespace impl {
             return status_amorph::order;
         }
 
-        if (x.order.size() != x.header.electrodes.size()) {
+        if (x.order.size() != x.header.Electrodes.size()) {
             return status_amorph::order_elc;
         }
         
@@ -1661,10 +1661,10 @@ namespace ctk { namespace impl {
         const auto[start_time, information]{ read_info_riff(f, inf, eep_h.version) };
 
         amorph result;
-        result.header.start_time = start_time;
-        result.header.epoch_length = static_cast<measurement_count::value_type>(length);
-        result.header.electrodes = eep_h.electrodes;
-        result.header.sampling_frequency = eep_h.sampling_frequency;
+        result.header.StartTime = start_time;
+        result.header.EpochLength = static_cast<measurement_count::value_type>(length);
+        result.header.Electrodes = eep_h.electrodes;
+        result.header.SamplingFrequency = eep_h.sampling_frequency;
         result.sample_count = eep_h.sample_count;
         result.version = eep_h.version;
         result.history = eep_h.history;
@@ -1950,8 +1950,8 @@ namespace ctk { namespace impl {
 
     epoch_writer_flat::epoch_writer_flat(const std::filesystem::path& cnt, const api::v1::TimeSeries& x, api::v1::RiffType s)
     : samples{ 0 }
-    , epoch_size{ x.epoch_length }
-    , start_time{ x.start_time }
+    , epoch_size{ x.EpochLength }
+    , start_time{ x.StartTime }
     , f_ep{ nullptr }
     , f_data{ nullptr }
     , f_sample_count{ nullptr }
@@ -1975,27 +1975,27 @@ namespace ctk { namespace impl {
         riff->write_entity(f_ep, epoch_length);
         epoch_ranges.emplace_back(0, 0);
 
-        const api::v1::DcDate start{ api::timepoint2dcdate(start_time) };
-        ascii_parseable(start.date); // compatibility: stored in info
-        ascii_parseable(start.fraction); // compatibility: stored in info
+        const api::v1::DcDate start{ api::v1::timepoint2dcdate(start_time) };
+        ascii_parseable(start.Date); // compatibility: stored in info
+        ascii_parseable(start.Fraction); // compatibility: stored in info
         const auto i{ make_info_content(start, api::v1::Info{}) };
         write(f_info, begin(i), end(i));
         ::fflush(f_info);
 
         // written only once
-        const sensor_count c{ vsize(x.electrodes) };
+        const sensor_count c{ vsize(x.Electrodes) };
         const auto o{ natural_row_order(c) };
         auto f_chan{ add_file(fname_chan(fname), file_tag::chan, "raw3") };
         write(f_chan, begin(o), end(o));
         close_last();
 
-        ascii_parseable(x.sampling_frequency); // compatibility: stored in eeph
+        ascii_parseable(x.SamplingFrequency); // compatibility: stored in eeph
         auto f_sampling_frequency{ add_file(fname_sampling_frequency(fname), file_tag::sampling_frequency, "eeph") };
-        write(f_sampling_frequency, x.sampling_frequency);
+        write(f_sampling_frequency, x.SamplingFrequency);
         close_last();
 
         auto f_electrodes{ add_file(fname_electrodes(fname), file_tag::electrodes, "eeph") };
-        write_electrodes(f_electrodes, x.electrodes);
+        write_electrodes(f_electrodes, x.Electrodes);
         close_last();
 
         auto f_type{ add_file(fname_cnt_type(fname), file_tag::cnt_type, "cntt") };
@@ -2053,7 +2053,7 @@ namespace ctk { namespace impl {
 
     auto epoch_writer_flat::info(const api::v1::Info& x) -> void {
         assert(f_info);
-        const api::v1::DcDate start{ api::timepoint2dcdate(start_time) };
+        const api::v1::DcDate start{ api::v1::timepoint2dcdate(start_time) };
         const auto i{ make_info_content(start, x) };
         seek(f_info, part_header_size, SEEK_SET);
         write(f_info, begin(i), end(i));
@@ -2121,7 +2121,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::epoch(epoch_count i) const -> compressed_epoch {
-        return epoch_n(f_data, i, data->epoch_ranges, data->sample_count, measurement_count{ data->header.epoch_length });
+        return epoch_n(f_data, i, data->epoch_ranges, data->sample_count, measurement_count{ data->header.EpochLength });
     }
 
     auto epoch_reader_common::epoch(epoch_count i, std::nothrow_t) const -> compressed_epoch {
@@ -2146,7 +2146,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::epoch_length() const -> measurement_count {
-        return measurement_count{ data->header.epoch_length };
+        return measurement_count{ data->header.EpochLength };
     }
 
     auto epoch_reader_common::sample_count() const -> measurement_count {
@@ -2154,7 +2154,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::sampling_frequency() const -> double {
-        return data->header.sampling_frequency;
+        return data->header.SamplingFrequency;
     }
 
     auto epoch_reader_common::description() const -> api::v1::TimeSeries {
@@ -2170,7 +2170,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::channels() const -> std::vector<api::v1::Electrode> {
-        return data->header.electrodes;
+        return data->header.Electrodes;
     }
 
     auto epoch_reader_common::info_content() const -> std::string {
@@ -2190,7 +2190,7 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_common::segment_start_time() const -> api::v1::DcDate {
-        return api::timepoint2dcdate(data->header.start_time);
+        return api::v1::timepoint2dcdate(data->header.StartTime);
     }
 
     auto epoch_reader_common::history() const -> std::string {
@@ -2393,11 +2393,11 @@ namespace ctk { namespace impl {
         read(f_history.get(), begin(history), end(history));
 
         amorph result;
-        result.header.epoch_length = static_cast<measurement_count::value_type>(length);
+        result.header.EpochLength = static_cast<measurement_count::value_type>(length);
         result.sample_count = read_sample_count(f_sample_count.get());
-        result.header.sampling_frequency = read(f_sampling_frequency.get(), double{});
-        result.header.electrodes = read_electrodes_flat(f_electrodes.get());
-        result.header.start_time = start_time;
+        result.header.SamplingFrequency = read(f_sampling_frequency.get(), double{});
+        result.header.Electrodes = read_electrodes_flat(f_electrodes.get());
+        result.header.StartTime = start_time;
         result.order = read_chan(f_chan.get(), { part_header_size, chan_size });
         result.epoch_ranges = offsets2ranges({ part_header_size, data_size }, offsets);
         result.trigger_range = { part_header_size, trigger_size };
@@ -2482,55 +2482,55 @@ namespace ctk { namespace impl {
         return os;
     }
 
-    auto sex2ch(ctk::api::v1::Sex x) -> uint8_t {
-        if (x == ctk::api::v1::Sex::male) {
+    auto sex2char(ctk::api::v1::Sex x) -> uint8_t {
+        if (x == ctk::api::v1::Sex::Male) {
             return 'M';
         }
-        else if (x == ctk::api::v1::Sex::female) {
+        else if (x == ctk::api::v1::Sex::Female) {
             return 'F';
         }
 
         return ' ';
     }
 
-    auto ch2sex(uint8_t x) -> ctk::api::v1::Sex {
+    auto char2sex(uint8_t x) -> ctk::api::v1::Sex {
         if (x == 'M' || x == 'm') {
-            return ctk::api::v1::Sex::male;
+            return ctk::api::v1::Sex::Male;
         }
         else if (x == 'F' || x == 'f') {
-            return ctk::api::v1::Sex::female;
+            return ctk::api::v1::Sex::Female;
         }
 
-        return ctk::api::v1::Sex::unknown;
+        return ctk::api::v1::Sex::Unknown;
     }
 
 
-    auto hand2ch(ctk::api::v1::Handedness x) -> uint8_t {
-        if (x == ctk::api::v1::Handedness::left) {
+    auto hand2char(ctk::api::v1::Handedness x) -> uint8_t {
+        if (x == ctk::api::v1::Handedness::Left) {
             return 'L';
         }
-        else if (x == ctk::api::v1::Handedness::right) {
+        else if (x == ctk::api::v1::Handedness::Right) {
             return 'R';
         }
-        else if (x == ctk::api::v1::Handedness::mixed) {
+        else if (x == ctk::api::v1::Handedness::Mixed) {
             return 'M';
         }
 
         return ' ';
     }
 
-    auto ch2hand(uint8_t x) -> ctk::api::v1::Handedness {
+    auto char2hand(uint8_t x) -> ctk::api::v1::Handedness {
         if (x == 'L' || x == 'l') {
-            return ctk::api::v1::Handedness::left;
+            return ctk::api::v1::Handedness::Left;
         }
         else if (x == 'R' || x == 'r') {
-            return ctk::api::v1::Handedness::right;
+            return ctk::api::v1::Handedness::Right;
         }
         else if (x == 'M' || x == 'm') {
-            return ctk::api::v1::Handedness::mixed;
+            return ctk::api::v1::Handedness::Mixed;
         }
 
-        return ctk::api::v1::Handedness::unknown;
+        return ctk::api::v1::Handedness::Unknown;
     }
 
 

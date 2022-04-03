@@ -39,64 +39,64 @@ auto compare(std::chrono::system_clock::time_point x, std::chrono::system_clock:
 }
 
 auto compare(const api::v1::EventImpedance& x, const api::v1::EventImpedance& y) -> bool {
-    const size_t xsize{ x.values.size() };
-    const size_t ysize{ y.values.size() };
+    const size_t xsize{ x.Values.size() };
+    const size_t ysize{ y.Values.size() };
     if (xsize != ysize) {
         return false;
     }
 
     for (size_t i{ 0 }; i < xsize; ++i) {
         // ohm -> kohm -> ohm roundtrip might lead to loss of precision
-        if (1/* ohm */ <= std::fabs(x.values[i] - y.values[i])) {
+        if (1/* ohm */ <= std::fabs(x.Values[i] - y.Values[i])) {
             return false;
         }
     }
 
-    return compare(x.stamp, y.stamp);
+    return compare(x.Stamp, y.Stamp);
 }
 
 auto compare(const api::v1::EventVideo& x, const api::v1::EventVideo& y) -> bool {
-    if (x.duration != y.duration) {
+    if (x.Duration != y.Duration) {
         return false;
     }
 
-    if (x.trigger_code != y.trigger_code) {
+    if (x.TriggerCode != y.TriggerCode) {
         return false;
     }
 
-    if (x.condition_label != y.condition_label) {
+    if (x.ConditionLabel != y.ConditionLabel) {
         return false;
     }
 
-    if (x.description != y.description) {
+    if (x.Description != y.Description) {
         return false;
     }
 
-    if (x.video_file != y.video_file) {
+    if (x.VideoFile != y.VideoFile) {
         return false;
     }
 
-    return compare(x.stamp, y.stamp);
+    return compare(x.Stamp, y.Stamp);
 }
 
 auto compare(const api::v1::EventEpoch& x, const api::v1::EventEpoch& y) -> bool {
-    if (x.duration != y.duration) {
+    if (x.Duration != y.Duration) {
         return false;
     }
 
-    if (x.offset != y.offset) {
+    if (x.Offset != y.Offset) {
         return false;
     }
 
-    if (x.trigger_code != y.trigger_code) {
+    if (x.TriggerCode != y.TriggerCode) {
         return false;
     }
 
-    if (x.condition_label != y.condition_label) {
+    if (x.ConditionLabel != y.ConditionLabel) {
         return false;
     }
 
-    return compare(x.stamp, y.stamp);
+    return compare(x.Stamp, y.Stamp);
 }
 
 template<typename T>

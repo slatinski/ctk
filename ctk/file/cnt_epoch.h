@@ -455,11 +455,11 @@ namespace ctk { namespace impl {
     auto d2s(double x, int precision) -> std::string;
     auto ascii_sampling_frequency(double) -> std::string;
 
-    auto sex2ch(ctk::api::v1::Sex x) -> uint8_t;
-    auto ch2sex(uint8_t x) -> ctk::api::v1::Sex;
+    auto sex2char(ctk::api::v1::Sex x) -> uint8_t;
+    auto char2sex(uint8_t x) -> ctk::api::v1::Sex;
 
-    auto hand2ch(ctk::api::v1::Handedness x) -> uint8_t;
-    auto ch2hand(uint8_t x) -> ctk::api::v1::Handedness;
+    auto hand2char(ctk::api::v1::Handedness x) -> uint8_t;
+    auto char2hand(uint8_t x) -> ctk::api::v1::Handedness;
 
     auto make_tm() -> tm; // compatibility: returns 1970-01-01 if not set (instead of 1899-12-30)
     auto timepoint2tm(std::chrono::system_clock::time_point) -> tm;

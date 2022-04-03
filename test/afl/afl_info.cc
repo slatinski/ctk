@@ -31,23 +31,23 @@ auto generate_input_file(const std::string& fname) -> void {
     std::cerr << "writing " << fname << "\n";
 
     amorph x;
-    x.header.start_time = system_clock::now(); 
-    x.information.hospital = "a bc";
-    x.information.test_name = "a bc";
-    x.information.test_serial = "a bc";
-    x.information.physician = "a bc";
-    x.information.technician = "a bc";
-    x.information.machine_make = "a bc";
-    x.information.machine_model = "a bc";
-    x.information.machine_sn = "a bc";
-    x.information.subject_name = "a bc";
-    x.information.subject_id = "a bc";
-    x.information.subject_address = "a bc";
-    x.information.subject_phone = "a bc";
-    x.information.subject_sex = Sex::male;
-    x.information.subject_handedness = Handedness::left;
-    x.information.subject_dob = system_clock::now();
-    x.information.comment = "a bc";
+    x.header.StartTime = system_clock::now(); 
+    x.information.Hospital = "a bc";
+    x.information.TestName = "a bc";
+    x.information.TestSerial = "a bc";
+    x.information.Physician = "a bc";
+    x.information.Technician = "a bc";
+    x.information.MachineMake = "a bc";
+    x.information.MachineModel = "a bc";
+    x.information.MachineSn = "a bc";
+    x.information.SubjectName = "a bc";
+    x.information.SubjectId = "a bc";
+    x.information.SubjectAddress = "a bc";
+    x.information.SubjectPhone = "a bc";
+    x.information.SubjectSex = Sex::Male;
+    x.information.SubjectHandedness = Handedness::Left;
+    x.information.SubjectDob = system_clock::now();
+    x.information.Comment = "a bc";
 
     const std::string xs{ make_info_content(x) };
 

@@ -389,7 +389,7 @@ namespace ctk { namespace impl {
     , original{ 1 }
     , duration{ 0 }
     , duration_offset{ 0 }
-    , stamp{ api::dcdate2timepoint({ 0, 0 }) } {
+    , stamp{ api::v1::dcdate2timepoint({ 0, 0 }) } {
     }
 
 
@@ -951,15 +951,15 @@ namespace ctk { namespace impl {
     auto read_dcdate(FILE* f) -> std::chrono::system_clock::time_point {
         const double date{ read(f, double{}) };
         const double fraction{ read(f, double{}) };
-        return api::dcdate2timepoint({ date, fraction });
+        return api::v1::dcdate2timepoint({ date, fraction });
     }
 
 
     static
     auto write_dcdate(FILE* f, const std::chrono::system_clock::time_point& x) -> void {
-        const auto y{ api::timepoint2dcdate(x) };
-        write(f, y.date);
-        write(f, y.fraction);
+        const auto y{ api::v1::timepoint2dcdate(x) };
+        write(f, y.Date);
+        write(f, y.Fraction);
     }
 
 
@@ -1336,19 +1336,19 @@ namespace ctk { namespace impl {
         const std::vector<float> impedances{ as_float_array(i_impedance->value) };
 
         api::v1::EventImpedance result;
-        result.values.resize(impedances.size());
-        std::transform(begin(impedances), end(impedances), begin(result.values), kohm2ohm);
+        result.Values.resize(impedances.size());
+        std::transform(begin(impedances), end(impedances), begin(result.Values), kohm2ohm);
 
-        result.stamp = x.common.stamp;
+        result.Stamp = x.common.stamp;
         return result;
     }
 
     auto impedance2marker(const api::v1::EventImpedance& x) -> marker_event {
-        std::vector<float> impedance(x.values.size());
-        std::transform(begin(x.values), end(x.values), begin(impedance), ohm2kohm);
+        std::vector<float> impedance(x.Values.size());
+        std::transform(begin(x.Values), end(x.Values), begin(impedance), ohm2kohm);
 
         const event_descriptor descriptor{ str_variant{ impedance }, descriptor_name::impedance, "kOhm" };
-        const base_event common{ x.stamp, event_type::marker, event_name::marker, { descriptor }, 0, 0 };
+        const base_event common{ x.Stamp, event_type::marker, event_name::marker, { descriptor }, 0, 0 };
         return marker_event{ common, event_description::impedance };
     }
 
@@ -1360,22 +1360,22 @@ namespace ctk { namespace impl {
 
         const auto i_condition_label{ std::find_if(first, last, is_condition_label_descriptor) };
         if (i_condition_label != last && is_wstring(i_condition_label->value)) {
-            result.condition_label = as_wstring(i_condition_label->value);
+            result.ConditionLabel = as_wstring(i_condition_label->value);
         }
 
         const auto i_event_code{ std::find_if(first, last, is_event_code_descriptor) };
         if (i_event_code != last && is_int32(i_event_code->value)) {
-            result.trigger_code = as_int32(i_event_code->value);
+            result.TriggerCode = as_int32(i_event_code->value);
         }
 
         const auto i_video_file{ std::find_if(first, last, is_videofile_descriptor) };
         if (i_video_file != last && is_wstring(i_video_file->value)) {
-            result.video_file = as_wstring(i_video_file->value);
+            result.VideoFile = as_wstring(i_video_file->value);
         }
 
-        result.description = x.description;
-        result.duration = x.common.duration;
-        result.stamp = x.common.stamp;
+        result.Description = x.description;
+        result.Duration = x.common.duration;
+        result.Stamp = x.common.stamp;
         return result;
     }
 
@@ -1385,22 +1385,22 @@ namespace ctk { namespace impl {
         descriptors.reserve(4);
 
         // compatibility: if present, the condition descriptor must be first
-        if (!x.condition_label.empty()) {
-            descriptors.emplace_back(str_variant{ x.condition_label }, descriptor_name::condition, unit);
+        if (!x.ConditionLabel.empty()) {
+            descriptors.emplace_back(str_variant{ x.ConditionLabel }, descriptor_name::condition, unit);
         }
 
-        if (x.trigger_code != std::numeric_limits<int32_t>::min()) {
-            descriptors.emplace_back(str_variant{ x.trigger_code }, descriptor_name::event_code, unit);
+        if (x.TriggerCode != std::numeric_limits<int32_t>::min()) {
+            descriptors.emplace_back(str_variant{ x.TriggerCode }, descriptor_name::event_code, unit);
         }
 
         descriptors.emplace_back(str_variant{ video_marker_type::recording }, descriptor_name::video_marker_type, unit);
 
-        if (!x.video_file.empty()) {
-            descriptors.emplace_back(str_variant{ x.video_file }, descriptor_name::video_file_name, unit);
+        if (!x.VideoFile.empty()) {
+            descriptors.emplace_back(str_variant{ x.VideoFile }, descriptor_name::video_file_name, unit);
         }
 
-        const base_event common{ x.stamp, event_type::marker, event_name::marker, descriptors, x.duration, 0 };
-        return marker_event{ common, x.description };
+        const base_event common{ x.Stamp, event_type::marker, event_name::marker, descriptors, x.Duration, 0 };
+        return marker_event{ common, x.Description };
     }
 
 
@@ -1411,17 +1411,17 @@ namespace ctk { namespace impl {
 
         const auto i_event_code{ std::find_if(first, last, is_event_code_descriptor) };
         if (i_event_code != last && is_int32(i_event_code->value)) {
-            result.trigger_code = as_int32(i_event_code->value);
+            result.TriggerCode = as_int32(i_event_code->value);
         }
 
         const auto i_condition_label{ std::find_if(first, last, is_condition_label_descriptor) };
         if (i_condition_label != last && is_wstring(i_condition_label->value)) {
-            result.condition_label = as_wstring(i_condition_label->value);
+            result.ConditionLabel = as_wstring(i_condition_label->value);
         }
 
-        result.duration = x.common.duration;
-        result.offset = x.common.duration_offset;
-        result.stamp = x.common.stamp;
+        result.Duration = x.common.duration;
+        result.Offset = x.common.duration_offset;
+        result.Stamp = x.common.stamp;
         return result;
     }
 
@@ -1431,15 +1431,15 @@ namespace ctk { namespace impl {
         descriptors.reserve(2);
 
         // compatibility: if present, the condition descriptor must be first
-        if (!x.condition_label.empty()) {
-            descriptors.emplace_back(str_variant{ x.condition_label }, descriptor_name::condition, unit);
+        if (!x.ConditionLabel.empty()) {
+            descriptors.emplace_back(str_variant{ x.ConditionLabel }, descriptor_name::condition, unit);
         }
 
-        if (x.trigger_code != std::numeric_limits<int32_t>::min()) {
-            descriptors.emplace_back(str_variant{ x.trigger_code }, descriptor_name::event_code, unit);
+        if (x.TriggerCode != std::numeric_limits<int32_t>::min()) {
+            descriptors.emplace_back(str_variant{ x.TriggerCode }, descriptor_name::event_code, unit);
         }
 
-        const base_event common{ x.stamp, event_type::epoch, event_name::epoch, descriptors, x.duration, x.offset };
+        const base_event common{ x.Stamp, event_type::epoch, event_name::epoch, descriptors, x.Duration, x.Offset };
         return epoch_event{ common };
     }
 

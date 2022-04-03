@@ -26,12 +26,12 @@ auto write(const std::string& fname) -> void {
 
     const std::string note{ "initial recording" };
     ctk::Info info;
-    info.subject_name = "Jane Doe";
-    info.physician = "Dr X";
-    info.technician = "Mr Y";
-    info.machine_make = "eego";
-    info.machine_model = "201";
-    info.machine_sn = "0000";
+    info.SubjectName = "Jane Doe";
+    info.Physician = "Dr X";
+    info.Technician = "Mr Y";
+    info.MachineMake = "eego";
+    info.MachineModel = "201";
+    info.MachineSn = "0000";
 
     constexpr const int64_t epoch_length{ 4 };
     constexpr const int64_t height{ 3 };
@@ -39,16 +39,16 @@ auto write(const std::string& fname) -> void {
     std::iota(begin(input), end(input), 0);
 
     ctk::TimeSeries description;
-    description.epoch_length = epoch_length;
-    description.sampling_frequency = 1024;
-    description.start_time = std::chrono::system_clock::now();
-    description.electrodes.resize(height);
+    description.EpochLength = epoch_length;
+    description.SamplingFrequency = 1024;
+    description.StartTime = std::chrono::system_clock::now();
+    description.Electrodes.resize(height);
     for (int64_t i{ 0 }; i < height; ++i) {
-        description.electrodes[i].label = "fpx";
-        description.electrodes[i].reference = "ref";
-        description.electrodes[i].unit = "u";
-        description.electrodes[i].iscale = 1.0;
-        description.electrodes[i].rscale = 1.0;
+        description.Electrodes[i].ActiveLabel = "fpx";
+        description.Electrodes[i].Reference = "ref";
+        description.Electrodes[i].Unit = "u";
+        description.Electrodes[i].IScale = 1.0;
+        description.Electrodes[i].RScale = 1.0;
     }
 
     ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
@@ -80,7 +80,7 @@ auto read(const std::string& fname) -> void {
     const auto history{ reader.history() };
 
     std::cerr << "sample count: " << total << "\n";
-    std::cerr << "channel count: " << description.electrodes.size() << "\n";
+    std::cerr << "channel count: " << description.Electrodes.size() << "\n";
     std::cerr << description << "\n";
     std::cerr << "info: " << information << "\n";
     std::cerr << "triggers: " << triggers.size() << "\n";
@@ -90,7 +90,7 @@ auto read(const std::string& fname) -> void {
     size_t accessible{ 0 };
     for (int64_t i{ 0 }; i < total; ++i) {
         const auto sample{ reader.rangeColumnMajorInt32(i, 1) };
-        if (sample.size() == description.electrodes.size()) {
+        if (sample.size() == description.Electrodes.size()) {
             ++accessible;
         }
     }

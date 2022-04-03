@@ -48,21 +48,24 @@ TEST_CASE("electrodes round trip", "[consistency]") {
     std::vector<api::v1::Electrode> input;
 
     api::v1::Electrode e;
+    e.ActiveLabel = "";
+    e.Unit = "";
+    e.IScale = 1;
+    e.RScale = 1;
+
     REQUIRE_THROWS(parse_electrodes(make_electrodes_content({ e }), false));
 
-    e.label = "label";
+    e.ActiveLabel = "label";
     REQUIRE_THROWS(parse_electrodes(make_electrodes_content({ e }), false));
 
-    e.iscale = 0;
-    REQUIRE_THROWS(parse_electrodes(make_electrodes_content({ e }), false));
-
-    e.rscale = 0;
-    REQUIRE_THROWS(parse_electrodes(make_electrodes_content({ e }), false));
-
-    e.unit = "unit";
+    e.Unit = "unit";
     REQUIRE(parse_electrodes(make_electrodes_content({ e }), false) == std::vector<api::v1::Electrode>{ e });
 
-    input.push_back(e);
+    e.ActiveLabel = "";
+    REQUIRE_THROWS(parse_electrodes(make_electrodes_content({ e }), false));
+    e.ActiveLabel = "label";
+
+    input.push_back(api::v1::Electrode{ "1", "ref" });
 
     // optional fields:
     // reference type status
@@ -77,22 +80,22 @@ TEST_CASE("electrodes round trip", "[consistency]") {
     api::v1::Electrode e2{ e };
     api::v1::Electrode e3{ e };
 
-    e1.status = "status";
+    e1.Status = "status";
     input.push_back(e1);
 
-    e1.type = "type";
+    e1.Type = "type";
     input.push_back(e1);
 
-    e2.type = "type";
+    e2.Type = "type";
     input.push_back(e2);
 
-    e3.reference = "reference";
+    e3.Reference = "reference";
     input.push_back(e3);
 
-    e3.status = "status";
+    e3.Status = "status";
     input.push_back(e3);
 
-    e3.type = "type";
+    e3.Type = "type";
     input.push_back(e3);
 
     const auto s{ make_electrodes_content(input) };
@@ -104,26 +107,26 @@ TEST_CASE("electrodes round trip", "[consistency]") {
     api::v1::Electrode e4{ e };
     api::v1::Electrode e5{ e };
 
-    e4.status = "status";
+    e4.Status = "status";
     compat.push_back(e4);
 
-    e5.type = "type";
+    e5.Type = "type";
     compat.push_back(e5);
 
     /* No (valid) label but exactly 5 columns enables    */
     /*   workaround for old files: it must be a reflabel */
     const auto s1{ make_electrodes_content(compat) };
     const auto sloppy{ parse_electrodes(s1, true) };
-    REQUIRE(sloppy[0].reference == "STAT:stat");
-    REQUIRE(sloppy[1].reference == "TYPE:type");
-    REQUIRE(sloppy[0].label == e.label);
-    REQUIRE(sloppy[0].iscale == e.iscale);
-    REQUIRE(sloppy[0].rscale == e.rscale);
-    REQUIRE(sloppy[0].unit == e.unit);
-    REQUIRE(sloppy[1].label == e.label);
-    REQUIRE(sloppy[1].iscale == e.iscale);
-    REQUIRE(sloppy[1].rscale == e.rscale);
-    REQUIRE(sloppy[1].unit == e.unit);
+    REQUIRE(sloppy[0].Reference == "STAT:stat");
+    REQUIRE(sloppy[1].Reference == "TYPE:type");
+    REQUIRE(sloppy[0].ActiveLabel == e.ActiveLabel);
+    REQUIRE(sloppy[0].IScale == e.IScale);
+    REQUIRE(sloppy[0].RScale == e.RScale);
+    REQUIRE(sloppy[0].Unit == e.Unit);
+    REQUIRE(sloppy[1].ActiveLabel == e.ActiveLabel);
+    REQUIRE(sloppy[1].IScale == e.IScale);
+    REQUIRE(sloppy[1].RScale == e.RScale);
+    REQUIRE(sloppy[1].Unit == e.Unit);
 
 }
 

@@ -60,8 +60,8 @@ namespace v1 {
 
     struct DcDate
     {
-        double date; // amount of seconds since 30 Dec 1899 divided by the numer of seconds per day (86400)
-        double fraction; // subsecond amount
+        double Date;     // amount of seconds since 30 Dec 1899 divided by the numer of seconds per day (86400)
+        double Fraction; // subsecond amount
 
         DcDate();
         DcDate(double date, double fraction);
@@ -75,38 +75,41 @@ namespace v1 {
         friend auto operator!=(const DcDate&, const DcDate&) -> bool = default;
     };
     auto operator<<(std::ostream&, const DcDate&) -> std::ostream&;
+    auto dcdate2timepoint(v1::DcDate) -> std::chrono::system_clock::time_point;
+    auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
+    auto print(std::ostream&, std::chrono::system_clock::time_point) -> std::ostream&;
 
 
-    enum class Sex { unknown, male, female };
+    enum class Sex { Female, Male, Unknown };
     auto operator<<(std::ostream&, Sex) -> std::ostream&;
-    auto sex2char(Sex) -> uint8_t;
-    auto char2sex(uint8_t) -> Sex;
+    auto Sex2Char(Sex) -> uint8_t;
+    auto Char2Sex(uint8_t) -> Sex;
 
 
-    enum class Handedness { unknown, left, right, mixed };
+    enum class Handedness { Left, Mixed, Right, Unknown };
     auto operator<<(std::ostream&, Handedness) -> std::ostream&;
-    auto handedness2char(Handedness) -> uint8_t;
-    auto char2handedness(uint8_t) -> Handedness;
+    auto Hand2Char(Handedness) -> uint8_t;
+    auto Char2Hand(uint8_t) -> Handedness;
 
 
     struct Info
     {
-        std::string hospital;
-        std::string test_name;
-        std::string test_serial;
-        std::string physician;
-        std::string technician;
-        std::string machine_make;
-        std::string machine_model;
-        std::string machine_sn;
-        std::string subject_name;
-        std::string subject_id;
-        std::string subject_address;
-        std::string subject_phone;
-        Sex subject_sex;
-        Handedness subject_handedness;
-        std::chrono::system_clock::time_point subject_dob; // utc implied, stored as struct tm - truncated to seconds precision
-        std::string comment;
+        std::string Hospital;
+        std::string TestName;
+        std::string TestSerial;
+        std::string Physician;
+        std::string Technician;
+        std::string MachineMake;
+        std::string MachineModel;
+        std::string MachineSn;
+        std::string SubjectName;
+        std::string SubjectId;
+        std::string SubjectAddress;
+        std::string SubjectPhone;
+        Sex SubjectSex;
+        Handedness SubjectHandedness;
+        std::chrono::system_clock::time_point SubjectDob; // utc implied, stored as struct tm - truncated to seconds precision
+        std::string Comment;
 
         Info();
         Info(const Info&) = default;
@@ -123,16 +126,18 @@ namespace v1 {
 
     struct Electrode
     {
-        std::string label;
-        std::string reference;
-        std::string unit;
-        std::string status;
-        std::string type;
-        double iscale; // user customization point: instrument scaling. default 1
-        double rscale; // range scaling. default 1/256 (3.9nV LSB, 16.75V p2p for 32-bit signed integrals)
+        std::string ActiveLabel;
+        std::string Reference;
+        std::string Unit; // default: uV
+        std::string Status;
+        std::string Type;
+        double IScale; // user customization point: instrument scaling. default 1
+        double RScale; // range scaling. default 1/256 (3.9nV LSB, 16.75V p2p for 32-bit signed integrals)
 
         static auto default_scaling_factor() -> double { return 256; }
+        static auto default_unit() -> std::string { return "uV"; }
 
+        Electrode(const std::string& label, const std::string& reference);
         Electrode(const std::string& label, const std::string& reference, const std::string& unit);
         Electrode(const std::string& label, const std::string& reference, const std::string& unit, double iscale, double rscale);
         Electrode();
@@ -150,11 +155,10 @@ namespace v1 {
 
     struct TimeSeries
     {
-        std::chrono::system_clock::time_point start_time; // utc implied
-        double sampling_frequency;
-        std::vector<Electrode> electrodes;
-        int64_t epoch_length;
-        // compression level?
+        std::chrono::system_clock::time_point StartTime; // utc implied
+        double SamplingFrequency; // Hz
+        std::vector<Electrode> Electrodes;
+        int64_t EpochLength;
 
         TimeSeries(std::chrono::system_clock::time_point, double, const std::vector<Electrode>&, int64_t);
         TimeSeries(const DcDate&, double, const std::vector<Electrode>&, int64_t);
@@ -177,11 +181,11 @@ namespace v1 {
 
     struct FileVersion
     {
-        uint32_t major;
-        uint32_t minor;
+        uint32_t Major;
+        uint32_t Minor;
 
         FileVersion();
-        FileVersion(uint32_t major, uint32_t minor);
+        FileVersion(uint32_t, uint32_t);
         FileVersion(const FileVersion&) = default;
         FileVersion(FileVersion&&) = default;
         auto operator=(const FileVersion&) -> FileVersion& = default;
@@ -195,10 +199,10 @@ namespace v1 {
 
     struct UserFile
     {
-        // riff restriction: 4 characters.
-        // libeep restriction: cannot be any of: "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh" or "imp ".
-        std::string label;
-        std::string file_name;
+        // 4 characters long.
+        // can not be any of "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh", "imp ", "nsh ", "vish", "egih", "egig", "egiz", "binh", "xevt", "xseg", "xsen", "xtrg"
+        std::string Label;
+        std::string FileName;
 
         UserFile() = default;
         UserFile(const std::string& label, const std::string& file_name);
@@ -212,29 +216,11 @@ namespace v1 {
     };
     auto operator<<(std::ostream&, const UserFile&) -> std::ostream&;
 
-    struct Version
-    {
-        uint32_t major;
-        uint32_t minor;
-        uint32_t patch;
-        uint32_t build;
-
-        Version();
-        Version(const Version&) = default;
-        Version(Version&&) = default;
-        auto operator=(const Version&) -> Version& = default;
-        auto operator=(Version&&) -> Version& = default;
-        ~Version() = default;
-        friend auto operator==(const Version&, const Version&) -> bool = default;
-        friend auto operator!=(const Version&, const Version&) -> bool = default;
-    };
-    auto operator<<(std::ostream&, const Version&) -> std::ostream&;
-
 
     struct EventImpedance
     {
-        std::chrono::system_clock::time_point stamp; // utc implied
-        std::vector<float> values; // in Ohm
+        std::chrono::system_clock::time_point Stamp; // utc implied
+        std::vector<float> Values; // Ohm, usually one per electrode
 
         EventImpedance();
         EventImpedance(std::chrono::system_clock::time_point, const std::vector<float>&);
@@ -250,12 +236,12 @@ namespace v1 {
 
     struct EventVideo
     {
-        std::chrono::system_clock::time_point stamp; // utc implied
-        double duration;
-        int32_t trigger_code;
-        std::wstring condition_label;
-        std::string description;
-        std::wstring video_file;
+        std::chrono::system_clock::time_point Stamp; // utc implied
+        double Duration;
+        int32_t TriggerCode;
+        std::wstring ConditionLabel;
+        std::string Description;
+        std::wstring VideoFile;
 
         EventVideo();
         EventVideo(std::chrono::system_clock::time_point, double, int32_t);
@@ -271,11 +257,11 @@ namespace v1 {
 
     struct EventEpoch
     {
-        std::chrono::system_clock::time_point stamp; // utc implied
-        double duration;
-        double offset;
-        int32_t trigger_code;
-        std::wstring condition_label;
+        std::chrono::system_clock::time_point Stamp; // utc implied
+        double Duration;
+        double Offset;
+        int32_t TriggerCode;
+        std::wstring ConditionLabel;
 
         EventEpoch();
         EventEpoch(std::chrono::system_clock::time_point, double duration, double offset, int32_t);
@@ -288,14 +274,6 @@ namespace v1 {
         friend auto operator!=(const EventEpoch&, const EventEpoch&) -> bool = default;
     };
 
-
 } /* namespace v1 */
-
-
-    auto dcdate2timepoint(v1::DcDate) -> std::chrono::system_clock::time_point;
-    auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
-
-    auto print(std::ostream&, std::chrono::system_clock::time_point) -> std::ostream&;
-    auto print(std::ostream&, const v1::DcDate&) -> std::ostream&;
 
 } /* namespace api*/ } /* namespace ctk */

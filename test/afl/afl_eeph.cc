@@ -29,14 +29,14 @@ auto generate_input_file(const std::string& fname) -> void {
     std::cerr << "writing " << fname << "\n";
 
     Electrode e{ "1", "ref", "uV" };
-    e.type = "none";
-    e.status = "unknown";
+    e.Type = "none";
+    e.Status = "unknown";
 
     amorph x;
     x.sample_count = measurement_count{ 12 }; 
-    x.header.sampling_frequency = 2048.12; 
-    x.header.epoch_length = 1024; 
-    x.header.electrodes = { e, e, e, e };
+    x.header.SamplingFrequency = 2048.12; 
+    x.header.EpochLength = 1024; 
+    x.header.Electrodes = { e, e, e, e };
     x.history = "no history";
 
     const std::string xs{ make_eeph_content(x) };
