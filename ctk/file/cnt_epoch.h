@@ -63,7 +63,7 @@ namespace ctk { namespace impl {
         // riff size
         virtual auto entity_size() const -> size_t = 0;
         virtual auto write_entity(FILE*, int64_t) const -> void = 0;
-        virtual auto read_entity(FILE*) const -> int64_t = 0;
+        virtual auto maybe_read_entity(FILE*) const -> std::optional<int64_t> = 0;
         virtual auto read_ep(FILE*, const file_range&) const -> ep_content = 0;
 
         // evt size
@@ -370,7 +370,6 @@ namespace ctk { namespace impl {
 
         auto count() const -> epoch_count;
         auto epoch(epoch_count i) const -> compressed_epoch;
-        auto epoch(epoch_count i, std::nothrow_t) const -> compressed_epoch;
         auto has_triggers() const -> bool;
         auto triggers() const -> std::vector<api::v1::Trigger>;
         auto epoch_length() const -> measurement_count;

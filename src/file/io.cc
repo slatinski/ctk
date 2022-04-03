@@ -17,11 +17,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "file/io.h"
+
 #include <array>
 #include <sstream>
+#include <string>
 #include <cassert>
 
-#include "file/io.h"
 #include "arithmetic.h"
 
 namespace ctk { namespace impl {
@@ -47,6 +49,15 @@ namespace ctk { namespace impl {
 
         return result;
     }
+
+    auto maybe_tell(FILE* f) -> int64_t {
+#ifdef WIN32
+        return ::_ftelli64(f);
+#else
+        return ::ftello(f);
+#endif
+    }
+
 
 
     auto open_r(const std::filesystem::path& fname) -> file_ptr {

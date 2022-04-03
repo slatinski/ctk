@@ -402,7 +402,7 @@ namespace ctk { namespace impl {
         }
 
         virtual
-        auto read_entity(FILE* f) const -> int64_t final {
+        auto maybe_read_entity(FILE* f) const -> std::optional<int64_t> {
             return cast(read(f, SizeType{}), int64_t{}, ok{}); // CtkData
         }
 
@@ -564,13 +564,31 @@ namespace ctk { namespace impl {
     }
 
     static
-    auto read_chunk(FILE* f, chunk scratch) -> chunk {
-        scratch.storage.fpos = tell(f);
-        scratch.id = read(f, label_type{});
-        scratch.storage.size = scratch.riff->read_entity(f);
+    auto maybe_read_chunk(FILE* f, chunk scratch) -> std::optional<chunk> {
+        const int64_t maybe_fpos{ maybe_tell(f) };
+        if (maybe_fpos < 0) {
+            return std::nullopt;
+        }
+        scratch.storage.fpos = maybe_fpos;
+
+        const auto maybe_id = maybe_read(f, label_type{});
+        if (!maybe_id) {
+            return std::nullopt;
+        }
+        scratch.id = *maybe_id;
+
+        const auto maybe_size{ scratch.riff->maybe_read_entity(f) };
+        if (!maybe_size) {
+            return std::nullopt;
+        }
+        scratch.storage.size = *maybe_size;
 
         if (is_root_or_list(scratch)) {
-            scratch.label = read(f, label_type{});
+            const auto maybe_label = maybe_read(f, label_type{});
+            if (!maybe_label) {
+                return std::nullopt;
+            }
+            scratch.label = *maybe_label;
         }
         else {
             scratch.label = as_label("");
@@ -580,19 +598,17 @@ namespace ctk { namespace impl {
         return scratch;
     }
 
-    static
-    auto read_chunk(FILE* f, const chunk& x, std::nothrow_t) -> chunk {
-        try {
-            return read_chunk(f, x);
-        }
-        catch(const api::v1::CtkData&) {
-            return empty_chunk(x);
-        }
-    }
 
     static
     auto read_root(FILE* f, api::v1::RiffType t) -> chunk {
-        return read_chunk(f, chunk{ t });
+        const auto maybe_chunk{ maybe_read_chunk(f, chunk{ t }) };
+        if (!maybe_chunk) {
+            std::ostringstream oss;
+            oss << "[read_root, cnt_epoch] can not read chunk of type " << t;
+            throw api::v1::CtkData{ oss.str() };
+        }
+
+        return *maybe_chunk;
     }
 
 
@@ -1352,10 +1368,11 @@ namespace ctk { namespace impl {
         }
 
         while (first < last) {
-            const auto next{ read_chunk(f, parent, std::nothrow) };
-            if (next.storage.size == 0) {
-                break; // sum(sub-chunks) != data_size(parent_chunk): malformed input file
+            const auto maybe_next{ maybe_read_chunk(f, parent) };
+            if (!maybe_next) {
+                break;
             }
+            const chunk next{ *maybe_next };
             result.push_back(next);
 
             //first = next.storage.fpos + hs + make_even(next.storage.size);
@@ -2122,15 +2139,6 @@ namespace ctk { namespace impl {
 
     auto epoch_reader_common::epoch(epoch_count i) const -> compressed_epoch {
         return epoch_n(f_data, i, data->epoch_ranges, data->sample_count, measurement_count{ data->header.EpochLength });
-    }
-
-    auto epoch_reader_common::epoch(epoch_count i, std::nothrow_t) const -> compressed_epoch {
-        try {
-            return epoch(i);
-        }
-        catch (const api::v1::CtkData&) {
-            return compressed_epoch{};
-        }
     }
 
     auto epoch_reader_common::has_triggers() const -> bool {

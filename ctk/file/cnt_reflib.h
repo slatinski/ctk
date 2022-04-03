@@ -375,7 +375,7 @@ private:
             return is_valid();
         }
 
-        const compressed_epoch ce{ reader.data().epoch(i, std::nothrow) };
+        const compressed_epoch ce{ reader.data().epoch(i) };
         if (ce.data.empty()) {
             cache.clear();
             cached_epoch_length = measurement_count{ 0 };

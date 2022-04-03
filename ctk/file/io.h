@@ -20,17 +20,18 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <cstdio>
-#include <iostream>
 #include <memory>
 #include <optional>
+#include <sstream>
 #include <filesystem>
 
 #include "exception.h"
 
 namespace ctk { namespace impl {
 
-    auto seek(FILE* f, int64_t offset, int whence) -> bool;
-    auto tell(FILE* f) -> int64_t;
+    auto seek(FILE*, int64_t offset, int whence) -> bool;
+    auto tell(FILE*) -> int64_t;
+    auto maybe_tell(FILE*) -> int64_t;
 
 
     template<typename T>
@@ -93,16 +94,13 @@ namespace ctk { namespace impl {
     {
         auto operator()(FILE* f) const -> void {
             if (!f) return;
-            if (std::fclose(f)) {
-                // close_file is used in destructors. no exception is thrown. abort?
-                std::cerr << "close_file: failed\n";
-            }
+            std::fclose(f);
         }
     };
     using file_ptr = std::unique_ptr<FILE, close_file>; // use different types for reading/writing?
 
-    auto open_r(const std::filesystem::path& fname) -> file_ptr; 
-    auto open_w(const std::filesystem::path& fname) -> file_ptr;
+    auto open_r(const std::filesystem::path&) -> file_ptr;
+    auto open_w(const std::filesystem::path&) -> file_ptr;
 
 
     struct file_range
