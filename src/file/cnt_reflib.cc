@@ -26,14 +26,14 @@ auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::p
     const epoch_reader_flat reader{ input_name, tokens };
 
     // additional consistency check: accessibility of the last epoch
-    const auto epochs{ reader.data().count() };
+    const auto epochs{ reader.common_epoch_reader().count() };
     if (epochs == 0) {
         throw api::v1::CtkData{ "flat2riff: empty time signal" };
     }
-    reader.data().epoch(epochs - epoch_count{ 1 });
+    reader.common_epoch_reader().epoch(epochs - epoch_count{ 1 });
 
     riff_list root{ reader.writer_map() };
-    const auto t{ reader.data().cnt_type() };
+    const auto t{ reader.common_epoch_reader().cnt_type() };
     const int64_t no_offset{ 0 }; // verbatim copy of the whole file
     for (const auto& x : user) {
         root.push_back(riff_node{ riff_file{ data_chunk(t, x.label), x.file_name, no_offset } });

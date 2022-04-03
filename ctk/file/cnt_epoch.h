@@ -183,6 +183,9 @@ namespace ctk { namespace impl {
 
         auto operator=(const tagged_file&) -> tagged_file& = default;
         auto operator=(tagged_file&&) -> tagged_file& = default;
+
+        friend auto operator==(const tagged_file&, const tagged_file&) -> bool = default;
+        friend auto operator!=(const tagged_file&, const tagged_file&) -> bool = default;
     };
     auto operator<<(std::ostream&, const tagged_file&) -> std::ostream&;
 
@@ -375,7 +378,7 @@ namespace ctk { namespace impl {
         auto epoch_length() const -> measurement_count;
         auto sample_count() const -> measurement_count;
         auto sampling_frequency() const -> double;
-        auto description() const -> api::v1::TimeSeries;
+        auto param_eeg() const -> api::v1::TimeSeries;
         auto order() const -> std::vector<int16_t>;
         auto channel_count() const -> sensor_count;
         auto channels() const -> std::vector<api::v1::Electrode>;
@@ -413,7 +416,7 @@ namespace ctk { namespace impl {
         //auto operator=(const epoch_reader_flat&) -> epoch_reader_flat&;
         auto operator=(epoch_reader_flat&&) -> epoch_reader_flat& = default;
 
-        auto data() const -> const epoch_reader_common&;
+        auto common_epoch_reader() const -> const epoch_reader_common&;
         auto writer_map() const -> riff_list; // reflib
         auto writer_map_extended() const -> riff_list; // extended
         
@@ -445,9 +448,9 @@ namespace ctk { namespace impl {
         //auto operator=(const epoch_reader_riff&) -> epoch_reader_riff&;
         auto operator=(epoch_reader_riff&&) -> epoch_reader_riff& = default;
 
-        auto data() const -> const epoch_reader_common&;
+        auto common_epoch_reader() const -> const epoch_reader_common&;
         auto embedded_files() const -> std::vector<std::string>;
-        auto extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> bool;
+        auto extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> void;
     };
 
 

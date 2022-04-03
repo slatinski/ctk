@@ -179,8 +179,8 @@ public:
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
-    , scales{ reader_scales(reader.data().description().Electrodes)  } {
-        decode.row_order(reader.data().order()); // TODO?
+    , scales{ reader_scales(reader.common_epoch_reader().param_eeg().Electrodes)  } {
+        decode.row_order(reader.common_epoch_reader().order()); // TODO?
     }
 
     // constructs epoch_reader_flat reader
@@ -189,12 +189,12 @@ public:
     , cached{ std::numeric_limits<measurement_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
-    , scales{ reader_scales(reader.data().description().Electrodes)  } {
-        decode.row_order(reader.data().order());
+    , scales{ reader_scales(reader.common_epoch_reader().param_eeg().Electrodes)  } {
+        decode.row_order(reader.common_epoch_reader().order());
     }
 
     auto sample_count() const -> measurement_count {
-        return reader.data().sample_count();
+        return reader.common_epoch_reader().sample_count();
     }
 
     /*
@@ -253,7 +253,7 @@ public:
 
 
     // libeep v4 interface
-    auto range_scaled_libeep(measurement_count i, measurement_count amount) -> std::vector<float> {
+    auto range_libeep_v4(measurement_count i, measurement_count amount) -> std::vector<float> {
         const auto double2float = [](double x) -> float { return static_cast<float>(x); };
 
         const auto xs{ range_column_major_scaled(i, amount) };
@@ -272,7 +272,7 @@ public:
         - the last epoch might be shorter
     */
     auto epochs() const -> epoch_count {
-        return reader.data().count();
+        return reader.common_epoch_reader().count();
     }
 
     auto epoch_row_major(epoch_count i) -> std::vector<int32_t> {
@@ -312,56 +312,56 @@ public:
     }
 
     auto epoch_compressed(epoch_count i) -> std::vector<uint8_t> {
-        const compressed_epoch ce{ reader.data().epoch(i) };
+        const compressed_epoch ce{ reader.common_epoch_reader().epoch(i) };
         return ce.data;
     }
 
-    auto description() const -> api::v1::TimeSeries {
-        return reader.data().description();
+    auto param_eeg() const -> api::v1::TimeSeries {
+        return reader.common_epoch_reader().param_eeg();
     }
 
     auto cnt_type() const -> api::v1::RiffType {
-        return reader.data().cnt_type();
+        return reader.common_epoch_reader().cnt_type();
     }
 
     auto epoch_length() const -> measurement_count {
-        return reader.data().epoch_length();
+        return reader.common_epoch_reader().epoch_length();
     }
 
     auto sampling_frequency() const -> double {
-        return reader.data().sampling_frequency();
+        return reader.common_epoch_reader().sampling_frequency();
     }
 
     auto channels() const -> std::vector<api::v1::Electrode> {
-        return reader.data().channels();
+        return reader.common_epoch_reader().channels();
     }
 
     auto triggers() const -> std::vector<api::v1::Trigger> {
-        return reader.data().triggers();
+        return reader.common_epoch_reader().triggers();
     }
 
     auto information() const -> api::v1::Info {
-        return reader.data().information();
+        return reader.common_epoch_reader().information();
     }
 
     auto file_version() const -> api::v1::FileVersion {
-        return reader.data().file_version();
+        return reader.common_epoch_reader().file_version();
     }
 
     auto segment_start_time() const -> api::v1::DcDate {
-        return reader.data().segment_start_time();
+        return reader.common_epoch_reader().segment_start_time();
     }
 
     auto history() const -> std::string {
-        return reader.data().history();
+        return reader.common_epoch_reader().history();
     }
 
     auto embedded_files() const -> std::vector<std::string> {
         return reader.embedded_files();
     }
 
-    auto extract_embedded_file(const std::string& label, const std::filesystem::path& fname) const -> bool {
-        return reader.extract_embedded_file(label, fname);
+    auto extract_embedded_file(const std::string& label, const std::filesystem::path& fname) const -> void {
+        reader.extract_embedded_file(label, fname);
     }
 
 private:
@@ -375,7 +375,7 @@ private:
             return is_valid();
         }
 
-        const compressed_epoch ce{ reader.data().epoch(i) };
+        const compressed_epoch ce{ reader.common_epoch_reader().epoch(i) };
         if (ce.data.empty()) {
             cache.clear();
             cached_epoch_length = measurement_count{ 0 };
@@ -415,7 +415,7 @@ private:
             return false;
         }
 
-        const sensor_count height{ reader.data().channel_count() };
+        const sensor_count height{ reader.common_epoch_reader().channel_count() };
         measurement_count output_index{ 0 };
         measurement_count due{ amount };
 
@@ -442,7 +442,7 @@ private:
     template<typename Transformation>
     auto multiplex(const std::vector<int32_t>& xs, measurement_count amount, Transformation transform) -> std::vector<int32_t> {
         std::vector<int32_t> ys(xs.size());
-        transform.to_client(begin(xs), begin(ys), reader.data().order(), amount);
+        transform.to_client(begin(xs), begin(ys), reader.common_epoch_reader().order(), amount);
         return ys;
     }
 
@@ -453,7 +453,7 @@ private:
         const std::vector<double> ys{ apply_scaling(xs, scales, epoch_length, int2double{ 0 }) };
 
         std::vector<double> zs(ys.size());
-        transform.to_client(begin(ys), begin(zs), reader.data().order(), amount);
+        transform.to_client(begin(ys), begin(zs), reader.common_epoch_reader().order(), amount);
         return zs;
     }
 };
@@ -590,6 +590,11 @@ public:
         append_buffer(length);
     }
 
+    auto range_libeep_v4(const std::vector<float>& xs) -> void {
+        std::vector<double> ys(xs.size());
+        std::copy(begin(xs), end(xs), begin(ys));
+        range_column_major_scaled(ys);
+    }
 
     /*
     NB: do NOT interleave calls to range_xxx_major and epoch_xxx_major.

@@ -41,7 +41,7 @@ auto compare_readers(const std::string& fname) -> void {
     const auto triggers_api{ reader_api.Triggers() };
     REQUIRE(triggers == triggers_api);
 
-    const auto desc{ reader_direct.description() };
+    const auto desc{ reader_direct.param_eeg() };
     const auto desc_api{ reader_api.ParamEeg() };
     REQUIRE(desc.EpochLength == desc_api.EpochLength);
     REQUIRE(desc.SamplingFrequency == desc_api.SamplingFrequency);

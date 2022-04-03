@@ -277,13 +277,13 @@ namespace ctk { namespace impl {
         }
 
         const T l{ read(f, type_tag) };
-        const measurement_count epoch_length{ cast(l, measurement_count::value_type{}, ok{}) }; // CtkData
+        const measurement_count epoch_length{ cast(l, measurement_count::value_type{}, ok{}) };
 
-        std::vector<T> v(items - 1 /* epoch length */);
-        read(f, begin(v), end(v));
+        std::vector<T> xs(items - 1 /* epoch length */);
+        read(f, begin(xs), end(xs));
 
-        std::vector<int64_t> offsets(v.size());
-        std::transform(begin(v), end(v), begin(offsets), [](T x) -> int64_t { return cast(x, int64_t{}, ok{}); }); // CtkData
+        std::vector<int64_t> offsets(xs.size());
+        std::transform(begin(xs), end(xs), begin(offsets), [](T y) -> int64_t { return cast(y, int64_t{}, ok{}); });
         return { epoch_length, offsets };
     }
 
@@ -437,11 +437,11 @@ namespace ctk { namespace impl {
 
 
     static
-    auto string2riff(const std::string& s) -> ctk::api::v1::RiffType {
-        if (s == root_id_riff32()) {
+    auto string2riff(const std::string& x) -> ctk::api::v1::RiffType {
+        if (x == root_id_riff32()) {
             return ctk::api::v1::RiffType::riff32;
         }
-        else if (s == root_id_riff64()) {
+        else if (x == root_id_riff64()) {
             return ctk::api::v1::RiffType::riff64;
         }
 
@@ -449,8 +449,8 @@ namespace ctk { namespace impl {
     }
 
     static
-    auto make_cnt_field_size(api::v1::RiffType t) -> riff_ptr {
-        switch(t) {
+    auto make_cnt_field_size(api::v1::RiffType x) -> riff_ptr {
+        switch(x) {
             case api::v1::RiffType::riff32: {
                 using size_type = uint32_t;
                 using evt_type = int32_t;
@@ -1116,14 +1116,14 @@ namespace ctk { namespace impl {
 
 
     static
-    auto write_string(FILE* f, const std::string& xs) -> void {
+    auto write_string_bin(FILE* f, const std::string& xs) -> void {
         const int64_t size{ cast(xs.size(), int64_t{}, ok{}) };
         write_leb128(f, size);
         write(f, begin(xs), end(xs));
     }
 
     static
-    auto read_string(FILE* f) -> std::string {
+    auto read_string_bin(FILE* f) -> std::string {
         const int64_t size{ read_leb128(f, int64_t{}) };
         const size_t count{ cast(size, size_t{}, ok{}) };
 
@@ -1135,11 +1135,11 @@ namespace ctk { namespace impl {
 
     static
     auto write_electrode(FILE* f, const api::v1::Electrode& x) -> void {
-        write_string(f, x.ActiveLabel);
-        write_string(f, x.Reference);
-        write_string(f, x.Unit);
-        write_string(f, x.Status);
-        write_string(f, x.Type);
+        write_string_bin(f, x.ActiveLabel);
+        write_string_bin(f, x.Reference);
+        write_string_bin(f, x.Unit);
+        write_string_bin(f, x.Status);
+        write_string_bin(f, x.Type);
         write(f, x.IScale);
         write(f, x.RScale);
     }
@@ -1147,11 +1147,11 @@ namespace ctk { namespace impl {
     static
     auto read_electrode(FILE* f) -> api::v1::Electrode {
         api::v1::Electrode x;
-        x.ActiveLabel = read_string(f);
-        x.Reference = read_string(f);
-        x.Unit = read_string(f);
-        x.Status = read_string(f);
-        x.Type = read_string(f);
+        x.ActiveLabel = read_string_bin(f);
+        x.Reference = read_string_bin(f);
+        x.Unit = read_string_bin(f);
+        x.Status = read_string_bin(f);
+        x.Type = read_string_bin(f);
         x.IScale = read(f, double{});
         x.RScale = read(f, double{});
         return x;
@@ -2049,9 +2049,9 @@ namespace ctk { namespace impl {
         riff->write_trigger(f_triggers, x);
     }
 
-    auto epoch_writer_flat::append(const std::vector<api::v1::Trigger>& v) -> void {
+    auto epoch_writer_flat::append(const std::vector<api::v1::Trigger>& xs) -> void {
         assert(riff && f_triggers);
-        riff->write_triggers(f_triggers, v);
+        riff->write_triggers(f_triggers, xs);
     }
 
     auto epoch_writer_flat::close() -> void {
@@ -2165,7 +2165,7 @@ namespace ctk { namespace impl {
         return data->header.SamplingFrequency;
     }
 
-    auto epoch_reader_common::description() const -> api::v1::TimeSeries {
+    auto epoch_reader_common::param_eeg() const -> api::v1::TimeSeries {
         return data->header;
     }
 
@@ -2309,7 +2309,7 @@ namespace ctk { namespace impl {
     , common{ f_data.get(), f_triggers.get(), x.a, x.riff.get(), part_header_size } {
     }
 
-    auto epoch_reader_flat::data() const -> const epoch_reader_common& {
+    auto epoch_reader_flat::common_epoch_reader() const -> const epoch_reader_common& {
         return common;
     }
 
@@ -2435,7 +2435,7 @@ namespace ctk { namespace impl {
     , common{ f.get(), f.get(), x.a, x.riff.get(), 0 /* initial offset */ } {
     }
 
-    auto epoch_reader_riff::data() const -> const epoch_reader_common& {
+    auto epoch_reader_riff::common_epoch_reader() const -> const epoch_reader_common& {
         return common;
     }
     
@@ -2446,17 +2446,16 @@ namespace ctk { namespace impl {
         return result;
     }
 
-    auto epoch_reader_riff::extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> bool {
+    auto epoch_reader_riff::extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> void {
         const auto first{ begin(a.user) };
         const auto last{ end(a.user) };
         const auto chunk{ std::find_if(first, last, [label](const auto& x) -> bool { return x.label == label; }) };
         if (chunk == last) {
-            return false;
+            return;
         }
 
         auto fout{ open_w(output) };
         copy_file_portion(f.get(), chunk->storage, fout.get());
-        return true;
     }
 
     auto epoch_reader_riff::cnt_type() const -> api::v1::RiffType {

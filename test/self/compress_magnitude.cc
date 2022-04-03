@@ -518,11 +518,11 @@ auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg =
 auto run(epoch_reader_riff& reader, int repetitions) -> std::pair<reduction_stat, restore_stat> {
     reduction_stat t_reduction;
     restore_stat t_restore;
-    const auto& order{ reader.data().order() };
+    const auto& order{ reader.common_epoch_reader().order() };
 
-    const epoch_count epochs{ reader.data().count() };
+    const epoch_count epochs{ reader.common_epoch_reader().count() };
     for (epoch_count i{ 0 }; i < epochs; ++i) {
-        const compressed_epoch ce{ reader.data().epoch(i) };
+        const compressed_epoch ce{ reader.common_epoch_reader().epoch(i) };
         if (ce.data.empty()) {
             std::cerr << "cnt: cannot read epoch " << (i + epoch_count{ 1 }) << "/" << epochs << "\n";
             continue;

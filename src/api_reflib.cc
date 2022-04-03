@@ -99,7 +99,7 @@ namespace ctk { namespace api {
 
         auto CntReaderReflib::RangeLibeep(int64_t i, int64_t samples) -> std::vector<float> {
             assert(p);
-            return p->reader.range_scaled_libeep(measurement_count{ i }, measurement_count{ samples });
+            return p->reader.range_libeep_v4(measurement_count{ i }, measurement_count{ samples });
         }
 
         auto CntReaderReflib::Epochs() const -> int64_t {
@@ -135,7 +135,7 @@ namespace ctk { namespace api {
 
         auto CntReaderReflib::ParamEeg() const -> TimeSeries {
             assert(p);
-            return p->reader.description();
+            return p->reader.param_eeg();
         }
 
         auto CntReaderReflib::CntType() const -> RiffType {
@@ -224,14 +224,14 @@ namespace ctk { namespace api {
             p->writer.recording_info(info);
         }
 
-        auto CntWriterReflib::ParamEeg(const TimeSeries& param) -> void {
+        auto CntWriterReflib::ParamEeg(const TimeSeries& param_eeg) -> void {
             assert(p);
             if (p->raw3) {
                 const std::string e{ "[CntWriterReflib::ParamEeg, api_reflib] one segment only" };
                 throw CtkLimit{ e };
             }
 
-            p->raw3 = p->writer.add_time_signal(param);
+            p->raw3 = p->writer.add_time_signal(param_eeg);
         }
 
         auto CntWriterReflib::RangeColumnMajorInt32(const std::vector<int32_t>& client) -> void {
