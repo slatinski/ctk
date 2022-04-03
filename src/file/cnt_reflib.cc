@@ -144,34 +144,52 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
 auto cnt_writer_reflib_riff::commited() const -> measurement_count {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::commited, cnt_reflib] invalid operation" };
-        throw api::v1::CtkLimit{ e };
+        throw api::v1::CtkBug{ e };
     }
 
     return flat_writer->commited();
 }
 
-auto cnt_writer_reflib_riff::range_row_major(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
+auto cnt_writer_reflib_riff::range_row_major(measurement_count i, measurement_count samples) -> std::vector<double> {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::range_row_major, cnt_reflib] invalid operation" };
-        throw api::v1::CtkLimit{ e };
+        throw api::v1::CtkBug{ e };
     }
 
     return flat_writer->range_row_major(i, samples);
 }
 
-auto cnt_writer_reflib_riff::range_column_major(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
+auto cnt_writer_reflib_riff::range_column_major(measurement_count i, measurement_count samples) -> std::vector<double> {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::range_column_major, cnt_reflib] invalid operation" };
-        throw api::v1::CtkLimit{ e };
+        throw api::v1::CtkBug{ e };
     }
 
     return flat_writer->range_column_major(i, samples);
 }
 
+auto cnt_writer_reflib_riff::range_row_major_int32(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
+    if (!flat_writer) {
+        const std::string e{ "[cnt_writer_reflib_riff::range_row_major_int32, cnt_reflib] invalid operation" };
+        throw api::v1::CtkBug{ e };
+    }
+
+    return flat_writer->range_row_major_int32(i, samples);
+}
+
+auto cnt_writer_reflib_riff::range_column_major_int32(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
+    if (!flat_writer) {
+        const std::string e{ "[cnt_writer_reflib_riff::range_column_major_int32, cnt_reflib] invalid operation" };
+        throw api::v1::CtkBug{ e };
+    }
+
+    return flat_writer->range_column_major_int32(i, samples);
+}
+
 auto cnt_writer_reflib_riff::flush() -> void {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::flush, cnt_reflib] invalid operation" };
-        throw api::v1::CtkLimit{ e };
+        throw api::v1::CtkBug{ e };
     }
 
     flat_writer->flush();

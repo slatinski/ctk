@@ -67,7 +67,7 @@ namespace ctk { namespace api {
             auto RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
             // libeep v4 interface: column major, float
-            auto RangeLibeep(int64_t i, int64_t samples) -> std::vector<float>;
+            auto RangeV4(int64_t i, int64_t samples) -> std::vector<float>;
 
             /*
             epoch interface:
@@ -151,7 +151,7 @@ namespace ctk { namespace api {
             auto RangeRowMajorInt32(const std::vector<int32_t>&) -> void;
 
             // libeep v4 interface: column major, float
-            auto RangeLibeep(const std::vector<float>&) -> void;
+            auto RangeV4(const std::vector<float>&) -> void;
 
             auto AddTrigger(const Trigger&) -> void;
             auto AddTriggers(const std::vector<Trigger>&) -> void;
@@ -169,8 +169,10 @@ namespace ctk { namespace api {
 
             // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
             auto Commited() const -> int64_t;
-            auto RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
-            auto RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto ReadRangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto ReadRangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto ReadRangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto ReadRangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
         private:
             struct impl;

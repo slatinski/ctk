@@ -709,12 +709,22 @@ public:
         return sample_count() - cache_index;
     }
 
-    auto range_row_major(measurement_count i, measurement_count amount) -> std::vector<T> {
+    auto range_row_major(measurement_count i, measurement_count amount) -> std::vector<double> {
+        cnt_reader_reflib_flat reader{ epoch_writer.file_name(), epoch_writer.file_tokens() };
+        return reader.range_row_major_scaled(i, amount);
+    }
+
+    auto range_column_major(measurement_count i, measurement_count amount) -> std::vector<double> {
+        cnt_reader_reflib_flat reader{ epoch_writer.file_name(), epoch_writer.file_tokens() };
+        return reader.range_column_major_scaled(i, amount);
+    }
+
+    auto range_row_major_int32(measurement_count i, measurement_count amount) -> std::vector<int32_t> {
         cnt_reader_reflib_flat reader{ epoch_writer.file_name(), epoch_writer.file_tokens() };
         return reader.range_row_major(i, amount);
     }
 
-    auto range_column_major(measurement_count i, measurement_count amount) -> std::vector<T> {
+    auto range_column_major_int32(measurement_count i, measurement_count amount) -> std::vector<int32_t> {
         cnt_reader_reflib_flat reader{ epoch_writer.file_name(), epoch_writer.file_tokens() };
         return reader.range_column_major(i, amount);
     }
@@ -826,8 +836,10 @@ public:
 
     // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
     auto commited() const -> measurement_count;
-    auto range_row_major(measurement_count i, measurement_count samples) -> std::vector<int32_t>;
-    auto range_column_major(measurement_count i, measurement_count samples) -> std::vector<int32_t>;
+    auto range_row_major(measurement_count i, measurement_count samples) -> std::vector<double>;
+    auto range_column_major(measurement_count i, measurement_count samples) -> std::vector<double>;
+    auto range_row_major_int32(measurement_count i, measurement_count samples) -> std::vector<int32_t>;
+    auto range_column_major_int32(measurement_count i, measurement_count samples) -> std::vector<int32_t>;
 
     auto history(const std::string&) -> void;
 };

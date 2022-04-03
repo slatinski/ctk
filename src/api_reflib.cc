@@ -97,7 +97,7 @@ namespace ctk { namespace api {
             return p->reader.range_column_major_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::RangeLibeep(int64_t i, int64_t samples) -> std::vector<float> {
+        auto CntReaderReflib::RangeV4(int64_t i, int64_t samples) -> std::vector<float> {
             assert(p);
             return p->reader.range_libeep_v4(measurement_count{ i }, measurement_count{ samples });
         }
@@ -267,9 +267,9 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Setup, "CntWriterReflib::TimeSignal");
 
             p->raw3 = p->writer.add_time_signal(param_eeg);
-            if (p->raw3 == nullptr) {
-                const std::string e{ "[CntWriterReflib::TimeSignal, api_reflib] add_time_signal failed" };
-                throw CtkLimit{ e };
+            if (!p->raw3) {
+                const std::string e{ "[CntWriterReflib::ParamEeg, api_reflib] add_time_signal failed silently" };
+                throw CtkBug{ e };
             }
 
             p->phase = WriterPhase::Writing;
@@ -327,13 +327,13 @@ namespace ctk { namespace api {
             p->raw3->range_row_major_scaled(client);
         }
 
-        auto CntWriterReflib::RangeLibeep(const std::vector<float>& client) -> void {
+        auto CntWriterReflib::RangeV4(const std::vector<float>& client) -> void {
             assert(p);
 
-            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeLibeep");
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeV4");
 
             if (!p->raw3) {
-                const std::string e{ "[CntWriterReflib::RangeLibeep, api_reflib] invalid pointer" };
+                const std::string e{ "[CntWriterReflib::RangeV4, api_reflib] invalid pointer" };
                 throw CtkBug{ e };
             }
 
@@ -388,27 +388,53 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::Embed(const UserFile& x) -> void {
             assert(p);
+            if (p->phase == WriterPhase::Closed) {
+                std::ostringstream oss;
+                oss << "[CntWriterReflib::Embed, api_reflib] invalid phase '" << p->phase << "'";
+                const auto e{ oss.str() };
+                throw CtkBug{ e };
+            }
+
             p->writer.embed(x.Label, x.FileName);
         }
 
         auto CntWriterReflib::Commited() const -> int64_t {
             assert(p);
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::Commited");
             const measurement_count::value_type result{ p->writer.commited() };
             return result;
         }
 
-        auto CntWriterReflib::RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntWriterReflib::ReadRangeRowMajor(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::ReadRangeRowMajor");
             const measurement_count n{ i };
             const measurement_count s{ samples };
             return p->writer.range_row_major(n, s);
         }
 
-        auto CntWriterReflib::RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntWriterReflib::ReadRangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::ReadRangeColumnMajor");
             const measurement_count n{ i };
             const measurement_count s{ samples };
             return p->writer.range_column_major(n, s);
+        }
+
+        auto CntWriterReflib::ReadRangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+            assert(p);
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::ReadRangeRowMajorInt32");
+            const measurement_count n{ i };
+            const measurement_count s{ samples };
+            return p->writer.range_row_major_int32(n, s);
+        }
+
+        auto CntWriterReflib::ReadRangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+            assert(p);
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::ReadRangeColumnMajorInt32");
+            const measurement_count n{ i };
+            const measurement_count s{ samples };
+            return p->writer.range_column_major_int32(n, s);
         }
 
 

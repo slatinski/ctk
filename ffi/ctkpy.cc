@@ -95,7 +95,7 @@ namespace {
         }
 
         auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
-            return reader.RangeLibeep(i, amount);
+            return reader.RangeV4(i, amount);
         }
 
         auto get_trigger_count() const -> size_t {
