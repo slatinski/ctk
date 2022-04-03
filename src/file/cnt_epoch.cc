@@ -800,54 +800,75 @@ namespace ctk { namespace impl {
     }
 
 
-    enum class status_tm{ ok, year, month, day, hour, min, sec };
+    static
+    auto print_tm(const tm& x) -> std::string {
+        std::ostringstream oss;
+        oss << x.tm_year << "/" << x.tm_mon << "/" << x.tm_mday << " " << x.tm_hour << ":" << x.tm_min << ":" << x.tm_sec;
+        return oss.str();
+    }
+
 
     static
-    auto is_valid(const tm& x) -> status_tm {
+    auto is_valid(const tm& x) -> std::pair<bool, std::string> {
         constexpr const int min_year{ static_cast<int>(date::year::min()) };
         constexpr const int max_year{ static_cast<int>(date::year::max()) };
         const auto [year, status]{ signed_addition(x.tm_year, 1900) };
         if (status != arithmetic_error::none) {
-            return status_tm::year;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": can not add 1900 to " << x.tm_year;
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
         if (year < min_year  || max_year < year) {
-            return status_tm::year;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": invalid year " << year << " (min " << min_year << ", max " << max_year << ")";
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
         if (x.tm_mon < 0 || 11 < x.tm_mon) {
-            return status_tm::month;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": invalid month " << x.tm_mon << " (min 0, max 11)";
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
         if (x.tm_mday < 1 || 31 < x.tm_mday) {
-            return status_tm::day;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": invalid day " << x.tm_mday << " (min 1, max 31)";
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
         if (x.tm_hour < 0 || 23 < x.tm_hour) {
-            return status_tm::hour;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": invalid hour " << x.tm_hour << " (min 0, max 23)";
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
         if (x.tm_min < 0 || 59 < x.tm_min) {
-            return status_tm::min;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": invalid minute " << x.tm_min << " (min 0, max 59)";
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
         if (x.tm_sec < 0 || 60 < x.tm_sec) {
-            return status_tm::sec;
+            std::ostringstream oss;
+            oss << "[is_valid tm, cnt_epoch]" << print_tm(x) << ": invalid second " << x.tm_sec << " (min 0, max 60)";
+            const auto e{ oss.str() };
+            return { false, e };
         }
 
-        return status_tm::ok;
+        return { true, "" };
     }
 
     auto validate(const tm& x) -> void {
-        const status_tm status{ is_valid(x) };
-        switch (status) {
-            case status_tm::ok: return;
-            case status_tm::year: throw api::v1::CtkData{ "validate(struct tm): negative year" };
-            case status_tm::month: throw api::v1::CtkData{ "validate(struct tm): invalid month" };
-            case status_tm::day: throw api::v1::CtkData{ "validate(struct tm): invalid day" };
-            case status_tm::hour: throw api::v1::CtkData{ "validate(struct tm): invalid hour" };
-            case status_tm::min: throw api::v1::CtkData{ "validate(struct tm): invalid minute" };
-            case status_tm::sec: throw api::v1::CtkData{ "validate(struct tm): invalid seconds" };
+        const auto[valid, error]{ is_valid(x) };
+        if (!valid) {
+            throw api::v1::CtkData{ error };
         }
     }
 
@@ -924,7 +945,7 @@ namespace ctk { namespace impl {
 
 
     static
-    auto parse_info_dob_impl(const std::string &line) -> std::chrono::system_clock::time_point {
+    auto parse_info_dob(const std::string &line) -> std::chrono::system_clock::time_point {
         tm x{ make_tm() };
         if (line.empty()) {
             return tm2timepoint(x);
@@ -934,22 +955,12 @@ namespace ctk { namespace impl {
         iss >> x.tm_sec >> x.tm_min >> x.tm_hour >> x.tm_mday >> x.tm_mon >> x.tm_year >> x.tm_wday >> x.tm_yday >> x.tm_isdst;
 
         if (iss.fail()) {
-            throw api::v1::CtkData{ "parse_info_dob: can not load all fileds" };
         }
-        return tm2timepoint(x);
-    }
 
-    static
-    auto parse_info_dob(const std::string &line) -> std::chrono::system_clock::time_point {
         try {
-            return parse_info_dob_impl(line);
+            return tm2timepoint(x);
         }
-        catch(const api::v1::CtkLimit& e) {
-            std::cerr << e.what();
-            return tm2timepoint(make_tm());
-        }
-        catch(const api::v1::CtkData& e) {
-            std::cerr << e.what();
+        catch(const api::v1::CtkData&) {
             return tm2timepoint(make_tm());
         }
     }
