@@ -752,90 +752,13 @@ struct matrix_common
 };
 
 
-template<typename I, typename Multiplex>
-// Multiplex has an interface compatible with column_major2row_major and row_major2row_major (multiplex.h)
-class dma_array final
-{
-    I first_client;
-    I last_client;
-    Multiplex multiplex;
-
-public:
-
-    dma_array(I first_client, I last_client, Multiplex multiplex)
-    : first_client{ first_client }
-    , last_client{ last_client }
-    , multiplex{ multiplex } {
-    }
-    dma_array(const dma_array&) = default;
-    dma_array(dma_array&&) = default;
-    auto operator=(const dma_array&) -> dma_array& = default;
-    auto operator=(dma_array&&) -> dma_array& = default;
-    ~dma_array() = default;
-
-    template<typename IUnsigned>
-    auto app2lib(IUnsigned first, IUnsigned last, const std::vector<int16_t>& order, measurement_count epoch_length) const -> void {
-        using T = typename std::iterator_traits<I>::value_type;
-        using U = typename std::iterator_traits<IUnsigned>::value_type;
-        static_assert(sizeof(T) == sizeof(U));
-        static_assert(std::is_unsigned<U>::value);
-
-        const auto lib_size{ std::distance(first, last) };
-        const auto app_size{ std::distance(first_client, last_client) };
-        const auto mat_size{ matrix_size(sensor_count{ vsize(order) }, epoch_length) };
-        if (lib_size != app_size || lib_size != mat_size) {
-            throw api::v1::CtkLimit{ "dma_array::app2lib: invalid dimensions" };
-        }
-
-        multiplex.from_client(first_client, first, order, epoch_length);
-    }
-
-    template<typename IUnsigned>
-    auto lib2app(IUnsigned first, IUnsigned last, const std::vector<int16_t>& order, measurement_count epoch_length) -> void {
-        using T = typename std::iterator_traits<I>::value_type;
-        using U = typename std::iterator_traits<IUnsigned>::value_type;
-        static_assert(sizeof(T) == sizeof(U));
-        static_assert(std::is_unsigned<U>::value);
-
-        const auto lib_size{ std::distance(first, last) };
-        const auto app_size{ std::distance(first_client, last_client) };
-        const auto mat_size{ matrix_size(sensor_count{ vsize(order) }, epoch_length) };
-        if (lib_size != app_size || lib_size != mat_size) {
-            throw api::v1::CtkBug{ "dma_array::lib2app: invalid dimensions" };
-        }
-
-        multiplex.to_client(first, first_client, order, epoch_length);
-    }
-};
-
-
-template<typename Dma, typename Encoder, typename T, typename Format>
-// Dma has an interface compatible with dma_array
-// Encoder is matrix_encoder_general<T, Format>
-// Format is reflib or extended
-auto dma2vector(const Dma& transfer, Encoder& encode, const dimensions& x, Format format, T type_tag) -> std::vector<uint8_t> {
-    const auto compressed{ max_encoded_size(x, format, type_tag) };
-    std::vector<uint8_t> bytes(as_sizet_unchecked(compressed));
-
-    const auto first{ begin(bytes) };
-    const auto last{ end(bytes) };
-    const auto next{ encode(transfer, x.length, first, last) };
-
-    const auto output_size{ as_sizet_unchecked(std::distance(first, next)) };
-    if (bytes.size() < output_size) {
-        throw api::v1::CtkBug{ "dma2vector: write memory access violation" };
-    }
-
-    bytes.resize(output_size);
-    return bytes;
-}
-
+// functionality equivalent to decompepoch_mux, libcnt/raw3.c
 template<typename T, typename Format>
 // T is signed/unsigned integral type with size 1, 2, 4 or 8 bytes
 // Format is reflib or extended
-class matrix_decoder_general final
+class matrix_decoder_general
 {
-    matrix_common<T> common;
+    matrix_common<T> common; // row major first order
 
 public:
 
@@ -865,48 +788,33 @@ public:
         common.reserve(epoch_length);
     }
 
-    // input byte stream as vector; returns the output matrix as vector
     template<typename Multiplex>
     // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (multiplex.h)
-    auto operator()(const std::vector<uint8_t>& bytes, measurement_count epoch_length, Multiplex multiplex) -> std::vector<T> {
-        if (epoch_length < 1 || common.height < 1) {
-            throw api::v1::CtkLimit{ "matrix_decoder_general: invalid dimensions" };
-        }
-        const auto area{ matrix_size(common.height, epoch_length) };
-        std::vector<T> output(as_sizet_unchecked(area));
-        dma_array transfer{ begin(output), end(output), multiplex };
-
-        operator()(transfer, begin(bytes), end(bytes), epoch_length);
-        return output;
-    }
-
-
-    // direct memory access to the usigned buffer.
-    // use carfully.
-    template<typename IByteConst, typename Dma>
-    // Dma has an interface compatible with dma_array
-    auto operator()(Dma& dma, IByteConst first_in, IByteConst last_in, measurement_count epoch_length) -> void {
-        using B = typename std::iterator_traits<IByteConst>::value_type;
-        static_assert(sizeof(B) == 1);
-
-        const sensor_count height{ common.height };
-        if (epoch_length < 1 || height < 1) {
-            throw api::v1::CtkLimit{ "matrix_decoder_general: invalid dimensions" };
+    auto operator()(const std::vector<uint8_t>& bytes, measurement_count samples, Multiplex multiplex) -> std::vector<T> {
+        if (bytes.empty()) {
+            return {};
         }
 
-        if (!common.initialized(epoch_length)) {
-            common.resize(epoch_length);
+        if (!common.initialized(samples)) {
+            common.resize(samples);
         }
 
-        const measurement_count::value_type l{ epoch_length };
+        const sensor_count electrodes{ common.height };
+        const auto area{ matrix_size(electrodes, samples) };
+        std::vector<T> output(as_sizet(area));
+
+        const measurement_count::value_type l{ samples };
         const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
         auto previous{ common.data.previous() };
         auto first{ common.data.matrix() };
         auto next{ first + length };
-        auto bits{ bit_reader{ first_in, last_in } };
 
-        for (sensor_count row{ 0 }; row < height; ++row, next += length) {
-            // buffer: the interval [next, next + length) is allocated by matrix_buffer::resize()
+        auto first_in{ begin(bytes) };
+        auto last_in{ end(bytes) };
+        bit_reader bits{ first_in, last_in };
+
+        for (sensor_count i{ 0 }; i < electrodes; ++i, next += length) {
+            // rolling buffer: the interval [next, next + length) is allocated by matrix_buffer::resize()
             first_in = decode_row(bits, previous, first, next, next, Format{});
 
             previous = first;
@@ -914,10 +822,12 @@ public:
         }
 
         if (first_in != last_in) {
-            throw api::v1::CtkData{ "matrix_decoder_general: partial input consumption" };
+            const std::string e{ "[matrix_decoder_general, matrix] partial input consumption" };
+            throw api::v1::CtkData{ e };
         }
 
-        dma.lib2app(common.data.matrix(), common.data.buffer(), common.order, epoch_length); // unsigned -> signed conversion
+        multiplex.to_client(common.data.matrix(), begin(output), common.order, samples);
+        return output;
     }
 };
 
@@ -967,48 +877,50 @@ public:
     }
 
 
-    // input matrix as vector; returns vector of bytes
     template<typename Multiplex>
     // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (multiplex.h)
-    auto operator()(const std::vector<T>& input, measurement_count epoch_length, Multiplex multiplex) -> std::vector<uint8_t> {
-        const dma_array transfer{ begin(input), end(input), multiplex };
-        return dma2vector(transfer, *this, { common.height, epoch_length }, Format{}, T{});
-    }
-
-    // direct memory access to the usigned buffer.
-    // use carfully.
-    template<typename IByte, typename Dma>
-    // Dma has an interface compatible with dma_array
-    auto operator()(const Dma& dma, measurement_count epoch_length, IByte first_out, IByte last_out) -> IByte {
-        const auto height{ common.height };
-        if (epoch_length < 1 || height < 1) {
-            return first_out;
+    auto operator()(const std::vector<T>& input, measurement_count samples, Multiplex multiplex) -> std::vector<uint8_t> {
+        if (input.empty()) {
+            return {};
         }
 
-        if (!common.initialized(epoch_length)) {
-            encoder.resize(epoch_length);
-            common.resize(epoch_length);
+        if (!common.initialized(samples)) {
+            encoder.resize(samples);
+            common.resize(samples);
         }
+
+        const auto electrodes{ common.height };
+        const auto compressed{ matrix_size(electrodes, max_block_size(samples, Format{}, T{})) };
+        std::vector<uint8_t> bytes(as_sizet(compressed));
+        auto first_out{ begin(bytes) };
+        auto last_out{ end(bytes) };
         std::fill(first_out, last_out, 0);
-        auto bits{ bit_writer{ first_out, last_out } };
+        bit_writer bits{ first_out, last_out };
 
         auto previous{ common.data.previous() };
         auto first{ common.data.matrix() };
         auto last{ common.data.buffer() };
-        dma.app2lib(first, last, common.order, epoch_length); // signed -> unsigned conversion
+        multiplex.from_client(begin(input), first, common.order, samples); // signed -> unsigned conversion
 
-        const measurement_count::value_type l{ epoch_length };
-	const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
+        const measurement_count::value_type l{ samples };
+        const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
         auto next{ first + length };
 
-        for (sensor_count row{ 0 }; row < height; ++row, next += length) {
+        for (sensor_count i{ 0 }; i < electrodes; ++i, next += length) {
             first_out = encoder.compress(previous, first, next, bits);
 
             previous = first;
             first = next;
         }
 
-        return first_out;
+        const auto output_size{ as_sizet(std::distance(begin(bytes), first_out)) };
+        if (bytes.size() < output_size) {
+            const std::string e{ "[matrix_encoder_general, matrix] write memory access violation" };
+            throw api::v1::CtkBug{ e };
+        }
+
+        bytes.resize(output_size);
+        return bytes;
     }
 };
 
