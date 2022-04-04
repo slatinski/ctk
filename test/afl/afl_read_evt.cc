@@ -168,15 +168,15 @@ auto ignore_expected() -> void {
         std::cerr << " " << e.what() << "\n"; // garbage data. stol, stod
     }
     // thrown by ctk
-    catch (const ctk::ctk_limit& e) {
+    catch (const ctk::CtkLimit& e) {
         std::cerr << " " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
     }
-    catch (const ctk::ctk_data& e) {
+    catch (const ctk::CtkData& e) {
         std::cerr << " " << e.what() << "\n"; // garbage data
     }
 
     // not expected
-    catch (const ctk::ctk_bug& e) {
+    catch (const ctk::CtkBug& e) {
         std::cerr << " " << e.what() << "\n"; // bug in this library
         throw;
     }

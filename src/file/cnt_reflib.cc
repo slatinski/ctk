@@ -28,7 +28,7 @@ auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::p
     // additional consistency check: accessibility of the last epoch
     const auto epochs{ reader.data().count() };
     if (epochs == 0) {
-        throw api::v1::ctk_data{ "flat2riff: empty time signal" };
+        throw api::v1::CtkData{ "flat2riff: empty time signal" };
     }
     reader.data().epoch(epochs - epoch_count{ 1 });
 
@@ -86,7 +86,7 @@ auto cnt_writer_reflib_riff::history(const std::string& x) -> void {
 
 auto cnt_writer_reflib_riff::add_time_signal(const api::v1::TimeSeries& description) -> cnt_writer_reflib_flat* {
     if (flat_writer) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::add_time_signal: one segment only" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::add_time_signal: one segment only" };
     }
     flat_writer.reset(new cnt_writer_reflib_flat{ fname_flat(file_name), description, riff });
     assert(flat_writer);
@@ -104,13 +104,13 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
     const std::vector<std::string> reserved{ "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh", "imp ", "nsh ", "vish", "egih", "egig", "egiz", "binh" };
     const auto verboten{ std::find(begin(reserved), end(reserved), label) };
     if (verboten != end(reserved)) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::embed: label reserved by libeep" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::embed: label reserved by libeep" };
     }
 
     const auto already_present = [label](const external_file& x) -> bool { return x.label == label; };
     const auto used_up{ std::find_if(begin(user), end(user), already_present) };
     if (used_up != end(user)) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::embed: duplicate label" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::embed: duplicate label" };
     }
 
     user.emplace_back(label, fname);
@@ -118,7 +118,7 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
 
 auto cnt_writer_reflib_riff::commited() const -> measurement_count {
     if (!flat_writer) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::commited: invalid operation" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::commited: invalid operation" };
     }
 
     return flat_writer->commited();
@@ -126,7 +126,7 @@ auto cnt_writer_reflib_riff::commited() const -> measurement_count {
 
 auto cnt_writer_reflib_riff::range_row_major(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
     if (!flat_writer) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::range_row_major: invalid operation" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::range_row_major: invalid operation" };
     }
 
     return flat_writer->range_row_major(i, samples);
@@ -134,7 +134,7 @@ auto cnt_writer_reflib_riff::range_row_major(measurement_count i, measurement_co
 
 auto cnt_writer_reflib_riff::range_column_major(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
     if (!flat_writer) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::range_column_major: invalid operation" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::range_column_major: invalid operation" };
     }
 
     return flat_writer->range_column_major(i, samples);
@@ -142,7 +142,7 @@ auto cnt_writer_reflib_riff::range_column_major(measurement_count i, measurement
 
 auto cnt_writer_reflib_riff::flush() -> void {
     if (!flat_writer) {
-        throw api::v1::ctk_limit{ "cnt_writer_reflib_riff::flush: invalid operation" };
+        throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::flush: invalid operation" };
     }
 
     flat_writer->flush();
@@ -164,7 +164,7 @@ auto cnt_writer_reflib_riff::close() -> void {
     std::vector<std::filesystem::path> temporary_files(tokens.size());
     std::transform(begin(tokens), end(tokens), begin(temporary_files), get_fname);
     if (!delete_files(temporary_files)) {
-        throw api::v1::ctk_data{ "cnt_writer_reflib_riff::close: cannot delete temporary files" };
+        throw api::v1::CtkData{ "cnt_writer_reflib_riff::close: cannot delete temporary files" };
     }
 }
 

@@ -221,7 +221,7 @@ auto evaluate_histogram(measurement_count epoch_length, bit_count nexc, encoding
         const bit_count::value_type data{ plus(fixed_size, overhead, guarded{}) };
         const auto output{ bit_count{ plus(header, data, guarded{}) } };
         if (e.max_output_size < output) {
-            throw api::v1::ctk_bug{ "evaluate_histogram: initialization error, variable width" };
+            throw api::v1::CtkBug{ "evaluate_histogram: initialization error, variable width" };
         }
 
         output_sizes[i] = output;
@@ -233,7 +233,7 @@ auto evaluate_histogram(measurement_count epoch_length, bit_count nexc, encoding
     const bit_count::value_type data{ scale(nexc, length, guarded{}) };
     const auto output{ bit_count{ plus(header, data, guarded{}) } };
     if (e.max_output_size < output) {
-        throw api::v1::ctk_bug{ "evaluate_histogram: initialization error, fixed width" };
+        throw api::v1::CtkBug{ "evaluate_histogram: initialization error, fixed width" };
     }
 
     output_sizes[i] = output;
@@ -286,7 +286,7 @@ auto compressed_parameters(reduction<T, Format>& r, estimation<T>& e) -> void {
     const auto first{ begin(residual_sizes) };
     const auto last{ end(residual_sizes) };
     if (std::transform(begin(residuals), end(residuals), first, count_raw3{}) != last) {
-        throw api::v1::ctk_bug{ "compressed_parameters: can not count bits" };
+        throw api::v1::CtkBug{ "compressed_parameters: can not count bits" };
     }
 
     constexpr const Format format;
@@ -337,7 +337,7 @@ auto restore_magnitude(I previous, I first, I last, I buffer, encoding_method me
         case encoding_method::time: return restore_row_time(first, last);
         case encoding_method::time2: return restore_row_time2(first, last);
         case encoding_method::chan: return restore_row_chan(previous, first, last, buffer);
-        default: throw api::v1::ctk_bug{ "restore_magnitude: invalid method" };
+        default: throw api::v1::CtkBug{ "restore_magnitude: invalid method" };
     }
 }
 
@@ -381,7 +381,7 @@ auto build_encoding_map(reduction<T, Format>& r) -> void {
 
     // variable width encoding
     if (std::transform(first_residual, last_residual, first_size, first_map, is_exception{ r.n }) != last_map) {
-        throw api::v1::ctk_bug{ "build_encoding_map: can not compute exception map" };
+        throw api::v1::CtkBug{ "build_encoding_map: can not compute exception map" };
     }
 }
 
@@ -389,7 +389,7 @@ auto build_encoding_map(reduction<T, Format>& r) -> void {
 template<typename I, typename T, typename IByte, typename Format>
 auto encode_residuals(I first, I last, const reduction<T, Format>& r, bit_writer<IByte>& bits, T, Format format) -> IByte {
     if (!valid_block_encoding(r.data_size, r.method, r.n, r.nexc, T{}, format)) {
-        throw api::v1::ctk_bug{ "encode_residuals: invalid input" };
+        throw api::v1::CtkBug{ "encode_residuals: invalid input" };
     }
 
     const auto first_map{ begin(r.encoding_map) };
@@ -397,7 +397,7 @@ auto encode_residuals(I first, I last, const reduction<T, Format>& r, bit_writer
     const auto last_out{ encode_block(first, last, first_map, bits, r.data_size, r.method, r.n, r.nexc, format) };
 
     if (byte_count{ cast(std::distance(first_out, last_out), byte_count::value_type{}, ok{}) } != r.output_size) {
-        throw api::v1::ctk_bug{ "encode_residuals: encoding failed" };
+        throw api::v1::CtkBug{ "encode_residuals: encoding failed" };
     }
 
     return last_out;
@@ -496,7 +496,7 @@ public:
         crunch();
         const auto best{ select_reduction(begin(reductions), end(reductions)) };
         if (max_block_size(first, last, Format{}) < best->output_size) {
-            throw api::v1::ctk_bug{ "compress: reduction failed" };
+            throw api::v1::CtkBug{ "compress: reduction failed" };
         }
 
         auto f{ begin(best->residuals) };
@@ -523,19 +523,19 @@ private:
         const auto ft{ begin(residuals_time) };
         const auto lt{ reduce_row_time(first, last, ft) };
         if (lt != end(residuals_time)) {
-            throw api::v1::ctk_bug{ "reduce_magnitude: reduction time failed" };
+            throw api::v1::CtkBug{ "reduce_magnitude: reduction time failed" };
         }
 
         const auto ft2{ begin(residuals_time2) };
         const auto lt2{ reduce_row_time2_from_time(ft, lt, ft2) };
         if (lt2 != end(residuals_time2)) {
-            throw api::v1::ctk_bug{ "reduce_magnitude: reduction time2 failed" };
+            throw api::v1::CtkBug{ "reduce_magnitude: reduction time2 failed" };
         }
 
         const auto fch{ begin(residuals_chan) };
         const auto lch{ reduce_row_chan_from_time(previous, first, ft, lt, fch) };
         if (lch != end(residuals_chan)) {
-            throw api::v1::ctk_bug{ "reduce_magnitude: reduction chan failed" };
+            throw api::v1::CtkBug{ "reduce_magnitude: reduction chan failed" };
         }
     }
 
@@ -553,7 +553,7 @@ auto decode_row(bit_reader<IByteConst>& bits, I previous, I first, I last, I buf
     const auto [next, method]{ decode_block(bits, first, last, format) };
 
     if (restore_magnitude(previous, first, last, buffer, method) != last) {
-        throw api::v1::ctk_bug{ "decode_row: can not restore magnitude" };
+        throw api::v1::CtkBug{ "decode_row: can not restore magnitude" };
     }
 
     return next;
@@ -573,7 +573,7 @@ struct dimensions
     : height{ height }
     , length{ length } {
         if (length < 1 || height < 1) {
-            throw api::v1::ctk_data{ "dimensions constructor: invalid dimensions" };
+            throw api::v1::CtkData{ "dimensions constructor: invalid dimensions" };
         }
     }
 
@@ -602,7 +602,7 @@ auto matrix_size(sensor_count, byte_count) -> byte_count;
 template<typename Format, typename T>
 auto max_encoded_size(const dimensions& x, Format format, T type_tag) -> byte_count {
     if (x.height < 1 || x.length < 1) {
-        throw api::v1::ctk_bug{ "max_encoded_size: invalid dimensions" };
+        throw api::v1::CtkBug{ "max_encoded_size: invalid dimensions" };
     }
 
     return matrix_size(x.height, max_block_size(x.length, format, type_tag));
@@ -643,7 +643,7 @@ public:
 
     auto reserve(sensor_count height, measurement_count epoch_length) -> void {
         if(height <= 0 || epoch_length <= 0) {
-            throw api::v1::ctk_limit{ "matrix_buffer::reserve: invalid dimensions" };
+            throw api::v1::CtkLimit{ "matrix_buffer::reserve: invalid dimensions" };
         }
 
         const auto [l, a, size]{ buffer_size(height, epoch_length) };
@@ -716,7 +716,7 @@ struct matrix_common
         data.resize(height, epoch_length);
 
         if (!matrix_size(height, epoch_length)) {
-            throw api::v1::ctk_limit{ "matrix_common::resize: upper bound for buffer multiplex" };
+            throw api::v1::CtkLimit{ "matrix_common::resize: upper bound for buffer multiplex" };
         }
 
         initialized_for = dimensions{ height, epoch_length };
@@ -783,7 +783,7 @@ public:
         const auto app_size{ std::distance(first_client, last_client) };
         const auto mat_size{ matrix_size(sensor_count{ vsize(order) }, epoch_length) };
         if (lib_size != app_size || lib_size != mat_size) {
-            throw api::v1::ctk_limit{ "dma_array::app2lib: invalid dimensions" };
+            throw api::v1::CtkLimit{ "dma_array::app2lib: invalid dimensions" };
         }
 
         multiplex.from_client(first_client, first, order, epoch_length);
@@ -800,7 +800,7 @@ public:
         const auto app_size{ std::distance(first_client, last_client) };
         const auto mat_size{ matrix_size(sensor_count{ vsize(order) }, epoch_length) };
         if (lib_size != app_size || lib_size != mat_size) {
-            throw api::v1::ctk_bug{ "dma_array::lib2app: invalid dimensions" };
+            throw api::v1::CtkBug{ "dma_array::lib2app: invalid dimensions" };
         }
 
         multiplex.to_client(first, first_client, order, epoch_length);
@@ -822,7 +822,7 @@ auto dma2vector(const Dma& transfer, Encoder& encode, const dimensions& x, Forma
 
     const auto output_size{ as_sizet_unchecked(std::distance(first, next)) };
     if (bytes.size() < output_size) {
-        throw api::v1::ctk_bug{ "dma2vector: write memory access violation" };
+        throw api::v1::CtkBug{ "dma2vector: write memory access violation" };
     }
 
     bytes.resize(output_size);
@@ -869,7 +869,7 @@ public:
     // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (multiplex.h)
     auto operator()(const std::vector<uint8_t>& bytes, measurement_count epoch_length, Multiplex multiplex) -> std::vector<T> {
         if (epoch_length < 1 || common.height < 1) {
-            throw api::v1::ctk_limit{ "matrix_decoder_general: invalid dimensions" };
+            throw api::v1::CtkLimit{ "matrix_decoder_general: invalid dimensions" };
         }
         const auto area{ matrix_size(common.height, epoch_length) };
         std::vector<T> output(as_sizet_unchecked(area));
@@ -890,7 +890,7 @@ public:
 
         const sensor_count height{ common.height };
         if (epoch_length < 1 || height < 1) {
-            throw api::v1::ctk_limit{ "matrix_decoder_general: invalid dimensions" };
+            throw api::v1::CtkLimit{ "matrix_decoder_general: invalid dimensions" };
         }
 
         if (!common.initialized(epoch_length)) {
@@ -913,7 +913,7 @@ public:
         }
 
         if (first_in != last_in) {
-            throw api::v1::ctk_data{ "matrix_decoder_general: partial input consumption" };
+            throw api::v1::CtkData{ "matrix_decoder_general: partial input consumption" };
         }
 
         dma.lib2app(common.data.matrix(), common.data.buffer(), common.order, epoch_length); // unsigned -> signed conversion

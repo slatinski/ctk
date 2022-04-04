@@ -25,56 +25,60 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace api { namespace v1 {
 
-    struct exception : public std::runtime_error
+    // base class
+    struct CtkException : public std::runtime_error
     {
-        explicit exception(const std::string& msg)
+        explicit CtkException(const std::string& msg)
         : std::runtime_error{ msg } {
         }
 
-        explicit exception(const char* msg)
+        explicit CtkException(const char* msg)
         : std::runtime_error{ msg } {
         }
 
-        virtual ~exception() = default;
+        virtual ~CtkException() = default;
     };
 
-    struct ctk_data : public exception
+    // garbage data
+    struct CtkData : public CtkException
     {
-        explicit ctk_data(const std::string& msg)
-        : exception{ msg } {
+        explicit CtkData(const std::string& msg)
+        : CtkException{ msg } {
         }
 
-        explicit ctk_data(const char* msg)
-        : exception{ msg } {
+        explicit CtkData(const char* msg)
+        : CtkException{ msg } {
         }
 
-        virtual ~ctk_data() = default;
+        virtual ~CtkData() = default;
     };
 
-    struct ctk_limit : public exception
+    // not possible to fullfill the request
+    struct CtkLimit : public CtkException
     {
-        explicit ctk_limit(const std::string& msg)
-        : exception{ msg } {
+        explicit CtkLimit(const std::string& msg)
+        : CtkException{ msg } {
         }
 
-        explicit ctk_limit(const char* msg)
-        : exception{ msg } {
+        explicit CtkLimit(const char* msg)
+        : CtkException{ msg } {
         }
 
-        virtual ~ctk_limit() = default;
+        virtual ~CtkLimit() = default;
     };
 
-    struct ctk_bug : public exception
+    // inconsistent state, detected a bug in this library
+    struct CtkBug : public CtkException
     {
-        explicit ctk_bug(const std::string& msg)
-        : exception{ msg } {
+        explicit CtkBug(const std::string& msg)
+        : CtkException{ msg } {
         }
 
-        explicit ctk_bug(const char* msg)
-        : exception{ msg } {
+        explicit CtkBug(const char* msg)
+        : CtkException{ msg } {
         }
 
-        virtual ~ctk_bug() = default;
+        virtual ~CtkBug() = default;
     };
 
 } /* namespace v1 */ } /* namespace api */ } /* namespace ctk */

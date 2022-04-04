@@ -19,10 +19,10 @@ struct buf_win
     , height{ h }
     , length{ e } {
         if (std::distance(first, last) != length * height) {
-            throw api::v1::ctk_bug{ "buf_win: invalid size" };
+            throw api::v1::CtkBug{ "buf_win: invalid size" };
         }
         if (length < 0 || height < 0) {
-            throw api::v1::ctk_bug{ "buf_win: negative dimension" };
+            throw api::v1::CtkBug{ "buf_win: negative dimension" };
         }
     }
 
@@ -40,7 +40,7 @@ auto valid_i(const buf_win<I>& x, ptrdiff_t offset) -> bool {
 template<typename I>
 auto first_i(const buf_win<I>& x, ptrdiff_t offset) -> I {
     if (!valid_i(x, offset)) {
-        throw api::v1::ctk_bug{ "first_i: invalid offset" };
+        throw api::v1::CtkBug{ "first_i: invalid offset" };
     }
 
     return x.first + offset;
@@ -49,7 +49,7 @@ auto first_i(const buf_win<I>& x, ptrdiff_t offset) -> I {
 template<typename I>
 auto last_i(const buf_win<I>& x, ptrdiff_t offset, ptrdiff_t length) -> I {
     if (!valid_i(x, offset + length - 1)) {
-        throw api::v1::ctk_bug{ "last_i: invalid offset + length" };
+        throw api::v1::CtkBug{ "last_i: invalid offset + length" };
     }
 
     return x.first + offset + length;
@@ -62,7 +62,7 @@ auto submatrix(ptrdiff_t amount, const buf_win<I>& input, ptrdiff_t i_offset, co
         return output.first;
     }
     if (input.height != output.height) {
-        throw api::v1::ctk_bug{ "submatrix: incompatible" };
+        throw api::v1::CtkBug{ "submatrix: incompatible" };
     }
 
     auto fi{ first_i(input, i_offset) };
@@ -72,7 +72,7 @@ auto submatrix(ptrdiff_t amount, const buf_win<I>& input, ptrdiff_t i_offset, co
     auto lo{ last_i(output, o_offset, amount) };
 
     if (fi == li || std::distance(fi, li) != std::distance(fo, lo)) {
-        throw api::v1::ctk_bug{ "submatrix: invalid distance" };
+        throw api::v1::CtkBug{ "submatrix: invalid distance" };
     }
 
     const IOut result{ std::copy(fi, li, fo) };
@@ -466,14 +466,14 @@ using cnt_reader_reflib_flat = reflib_reader_common<epoch_reader_flat>;
 template<typename T>
 auto signal_length(const std::vector<T>& v, sensor_count height) -> measurement_count {
     if (height < 1) {
-        throw api::v1::ctk_bug{ "signal_length: not initialized" };
+        throw api::v1::CtkBug{ "signal_length: not initialized" };
     }
 
     const sint area{ vsize(v) };
     const sint channels{ height };
     const auto[quot, rem]{ std::div(area, channels) };
     if (rem != 0) {
-        throw api::v1::ctk_limit{ "signal_length: invalid input dimensions" };
+        throw api::v1::CtkLimit{ "signal_length: invalid input dimensions" };
     }
 
     return measurement_count{ cast(quot, sint{}, guarded{}) };
@@ -521,7 +521,7 @@ public:
     } */
     auto range_row_major(const std::vector<T>& xs) -> void {
         if (closed) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::range_row_major: already closed" };
+            throw api::v1::CtkBug{ "cnt_writer_flat::range_row_major: already closed" };
         }
 
         constexpr const row_major2row_major copy;
@@ -535,7 +535,7 @@ public:
 
     auto range_row_major_scaled(const std::vector<double>& xs) -> void {
         if (closed) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::range_row_major: already closed" };
+            throw api::v1::CtkBug{ "cnt_writer_flat::range_row_major: already closed" };
         }
 
         constexpr const row_major2row_major copy;
@@ -560,7 +560,7 @@ public:
     } */
     auto range_column_major(const std::vector<T>& xs) -> void {
         if (closed) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::range_column_major: already closed" };
+            throw api::v1::CtkBug{ "cnt_writer_flat::range_column_major: already closed" };
         }
 
         constexpr const column_major2row_major transpose;
@@ -574,7 +574,7 @@ public:
 
     auto range_column_major_scaled(const std::vector<double>& xs) -> void {
         if (closed) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::range_column_major: already closed" };
+            throw api::v1::CtkBug{ "cnt_writer_flat::range_column_major: already closed" };
         }
 
         const auto length{ signal_length(xs, height) };
@@ -720,13 +720,13 @@ private:
 
     auto commit(const std::vector<T>& input, measurement_count length) -> void {
         if (closed) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::commit: already closed" };
+            throw api::v1::CtkBug{ "cnt_writer_flat::commit: already closed" };
         }
         const auto epoch_length{ epoch_writer.epoch_length() };
         closed = length < epoch_length;
 
         if (cache.size() < input.size() || length < 1 || epoch_length < length) {
-            throw api::v1::ctk_bug{ "cnt_writer_flat::commit: invalid input" };
+            throw api::v1::CtkBug{ "cnt_writer_flat::commit: invalid input" };
         }
 
         constexpr const row_major2row_major copy;

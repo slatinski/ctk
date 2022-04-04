@@ -60,7 +60,7 @@ auto read(const std::filesystem::path& fname) -> bool {
             x = read_leb128(f.get(), int64_t{});
         }
         // garbage input
-        catch (const ctk::api::v1::ctk_data& e) {
+        catch (const ctk::api::v1::CtkData& e) {
             std::cerr << " " << e.what() << "\n";
             return false;
         }

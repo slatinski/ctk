@@ -290,7 +290,7 @@ namespace ctk { namespace impl {
                 return throw_cast<T, U>(x);
             }
             catch(std::overflow_error&) {
-                throw api::v1::ctk_bug{ invalid_cast(x, U{}) };
+                throw api::v1::CtkBug{ invalid_cast(x, U{}) };
             }
         }
 
@@ -299,7 +299,7 @@ namespace ctk { namespace impl {
         auto plus(T a, T b) const -> T {
             const auto [result, valid]{ signed_addition(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_bug{ invalid_addition(a, b, valid) };
+                throw api::v1::CtkBug{ invalid_addition(a, b, valid) };
             }
 
             return result;
@@ -309,7 +309,7 @@ namespace ctk { namespace impl {
         auto minus(T a, T b) const -> T {
             const auto [result, valid]{ signed_subtraction(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_bug{ invalid_subtraction(a, b, valid) };
+                throw api::v1::CtkBug{ invalid_subtraction(a, b, valid) };
             }
 
             return result;
@@ -320,7 +320,7 @@ namespace ctk { namespace impl {
         auto mul(T a, T b) const -> T {
             const auto [result, valid]{ signed_multiplication_impl(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_bug{ invalid_multiplication(a, b, valid) };
+                throw api::v1::CtkBug{ invalid_multiplication(a, b, valid) };
             }
 
             return result;
@@ -330,7 +330,7 @@ namespace ctk { namespace impl {
         auto div(T a, T b) const -> T {
             const auto [result, valid]{ signed_division(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_bug{ invalid_division(a, b, valid) };
+                throw api::v1::CtkBug{ invalid_division(a, b, valid) };
             }
 
             return result;
@@ -347,7 +347,7 @@ namespace ctk { namespace impl {
                 return throw_cast<T, U>(x);
             }
             catch(std::overflow_error&) {
-                throw api::v1::ctk_limit{ invalid_cast(x, U{}) };
+                throw api::v1::CtkLimit{ invalid_cast(x, U{}) };
             }
         }
 
@@ -356,7 +356,7 @@ namespace ctk { namespace impl {
         auto plus(T a, T b) const -> T {
             const auto [result, valid]{ signed_addition(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_limit{ invalid_addition(a, b, valid) };
+                throw api::v1::CtkLimit{ invalid_addition(a, b, valid) };
             }
 
             return result;
@@ -366,7 +366,7 @@ namespace ctk { namespace impl {
         auto minus(T a, T b) const -> T {
             const auto [result, valid]{ signed_subtraction(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_limit{ invalid_subtraction(a, b, valid) };
+                throw api::v1::CtkLimit{ invalid_subtraction(a, b, valid) };
             }
 
             return result;
@@ -377,7 +377,7 @@ namespace ctk { namespace impl {
         auto mul(T a, T b) const -> T {
             const auto [result, valid]{ signed_multiplication_impl(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_limit{ invalid_multiplication(a, b, valid) };
+                throw api::v1::CtkLimit{ invalid_multiplication(a, b, valid) };
             }
 
             return result;
@@ -387,7 +387,7 @@ namespace ctk { namespace impl {
         auto div(T a, T b) const -> T {
             const auto [result, valid]{ signed_division(a, b) };
             if (valid != arithmetic_error::none) {
-                throw api::v1::ctk_limit{ invalid_division(a, b, valid) };
+                throw api::v1::CtkLimit{ invalid_division(a, b, valid) };
             }
 
             return result;

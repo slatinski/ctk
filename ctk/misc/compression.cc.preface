@@ -47,12 +47,12 @@ namespace ctk { namespace api {
                 return;
             }
             // thrown by ctk
-            catch (const ctk_limit& e) {
+            catch (const CtkLimit& e) {
                 std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
                 return;
             }
             // not expected
-            catch (const ctk_bug& e) {
+            catch (const CtkBug& e) {
                 std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
             }
             catch (std::exception& e) {
@@ -80,16 +80,16 @@ namespace ctk { namespace api {
                 return;
             }
             // thrown by ctk
-            catch (const ctk_data& e) {
+            catch (const CtkData& e) {
                 std::cerr << "excepion " << e.what() << "\n"; // garbage data block
                 return;
             }
-            catch (const ctk_limit& e) {
+            catch (const CtkLimit& e) {
                 std::cerr << "exception: "<< e.what() << "\n"; // preventable user error
                 return;
             }
             // not expected
-            catch (const ctk_bug& e) {
+            catch (const CtkBug& e) {
                 std::cerr << "unexpected exception: "<< e.what() << ". aborting.\n"; // bug in this library
             }
             catch (std::exception& e) {

@@ -70,7 +70,7 @@ void encode_decode(T, Encoder encode, Decoder decode, ptrdiff_t input_size, rand
     catch (const std::length_error& e) {
         std::cerr << ": " << e.what();
     }
-    catch (const ctk::api::v1::ctk_limit& e) {
+    catch (const ctk::api::v1::CtkLimit& e) {
         std::cerr << ": " << e.what();
     }
 

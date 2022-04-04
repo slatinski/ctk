@@ -126,7 +126,7 @@ int main(int, char* []) {
         column_major_first_matrix_layout();
         row_major_first_matrix_layout();
     }
-    catch(const ctk::exception& e) {
+    catch(const ctk::CtkException& e) {
         std::cerr << e.what() << "\n";
         return 1;
     }

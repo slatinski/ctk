@@ -42,7 +42,7 @@ namespace ctk { namespace impl {
         const auto result{ ::ftello(f) };
 #endif
         if (result < 0) {
-            throw api::v1::ctk_bug{ "tell: can not tell position" };
+            throw api::v1::CtkBug{ "tell: can not tell position" };
         }
 
         return result;
@@ -54,7 +54,7 @@ namespace ctk { namespace impl {
         if (!p) {
             std::ostringstream oss;
             oss << "open_r: can not open " << fname << " for reading";
-            throw api::v1::ctk_data{ oss.str() };
+            throw api::v1::CtkData{ oss.str() };
         }
         assert(p);
         return p;
@@ -66,7 +66,7 @@ namespace ctk { namespace impl {
         if (!p) {
             std::ostringstream oss;
             oss << "open_w: can not open " << fname << " for writing";
-            throw api::v1::ctk_data{ oss.str() };
+            throw api::v1::CtkData{ oss.str() };
         }
         assert(p);
         return p;
@@ -75,7 +75,7 @@ namespace ctk { namespace impl {
 
     auto copy_file_portion(FILE* fin, file_range x, FILE* fout) -> void {
         if (!seek(fin, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "copy_file_portion: can not seek" };
+            throw api::v1::CtkData{ "copy_file_portion: can not seek" };
         }
 
         constexpr const int64_t stride{ 1024 * 4 }; // arbitrary. TODO
@@ -94,12 +94,12 @@ namespace ctk { namespace impl {
 
     auto file_size(FILE* f) -> int64_t {
         if (!seek(f, 0, SEEK_END)) {
-            throw api::v1::ctk_data{ "file_size: can not seek to end" };
+            throw api::v1::CtkData{ "file_size: can not seek to end" };
         }
         const auto result{ tell(f) };
 
         if (!seek(f, 0, SEEK_SET)) {
-            throw api::v1::ctk_data{ "file_size: can not seek to begin" };
+            throw api::v1::CtkData{ "file_size: can not seek to begin" };
         }
         return result;
     }

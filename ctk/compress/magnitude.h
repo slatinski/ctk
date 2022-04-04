@@ -133,7 +133,7 @@ namespace ctk { namespace impl {
 
         const I second{ std::next(first) };
         if (std::partial_sum(second, last, second) != last) {
-            throw api::v1::ctk_bug{ "restore_row_time2: cannot sum" };
+            throw api::v1::CtkBug{ "restore_row_time2: cannot sum" };
         }
 
         return std::partial_sum(first, last, first);

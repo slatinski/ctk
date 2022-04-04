@@ -128,7 +128,7 @@ namespace ctk { namespace impl {
 
             constexpr unsigned size{ sizeof(T) * 8 };
             if (size <= shift) {
-                throw api::v1::ctk_data{ "leb128::decode_byte: invalid encoding" };
+                throw api::v1::CtkData{ "leb128::decode_byte: invalid encoding" };
             }
 
             const T byte{ static_cast<T>(x) };
@@ -168,7 +168,7 @@ namespace ctk { namespace impl {
             }
 
             if (more) {
-                throw api::v1::ctk_bug{ "leb128::encode: insufficient output buffer" };
+                throw api::v1::CtkBug{ "leb128::encode: insufficient output buffer" };
             }
 
             return first;
@@ -198,7 +198,7 @@ namespace ctk { namespace impl {
             }
 
             if (more) {
-                throw api::v1::ctk_data{ "leb128::decode: invalid encoding" };
+                throw api::v1::CtkData{ "leb128::decode: invalid encoding" };
             }
 
             return { x, first };
@@ -248,7 +248,7 @@ namespace ctk { namespace impl {
             }
 
             if (more) {
-                throw api::v1::ctk_data{ "leb128::from_file: invalid encoding" };
+                throw api::v1::CtkData{ "leb128::from_file: invalid encoding" };
             }
 
             return x;
@@ -399,7 +399,7 @@ namespace ctk { namespace impl {
         const auto last{ end(xs) };
         const auto [x, next]{ decode_leb128(first, last, type_tag) };
         if (next != last) {
-            throw api::v1::ctk_data{ "decode_leb128_v: invalid encoding" };
+            throw api::v1::CtkData{ "decode_leb128_v: invalid encoding" };
         }
         return x;
     }

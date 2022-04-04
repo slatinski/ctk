@@ -180,7 +180,7 @@ namespace ctk { namespace impl {
             : current{ first }
             , common{ first, last } {
             if (current == last) {
-                throw api::v1::ctk_limit{ "bit_stream_reader: empty input" };
+                throw api::v1::CtkLimit{ "bit_stream_reader: empty input" };
             }
             assert(common.total != 0);
 
@@ -219,7 +219,7 @@ namespace ctk { namespace impl {
         assert(stream.common.available <= one_byte());
 
         if (stream.common.total < n) {
-            throw api::v1::ctk_data{ "read_n: not enough bits" };
+            throw api::v1::CtkData{ "read_n: not enough bits" };
         }
 
         while (stream.common.available < n) {
@@ -254,7 +254,7 @@ namespace ctk { namespace impl {
         assert(stream.common.available <= one_byte());
 
         if (stream.common.total < n) {
-            throw api::v1::ctk_data{ "write_n: not enough bits" };
+            throw api::v1::CtkData{ "write_n: not enough bits" };
         }
 
         const bit_count::value_type sn{ n };

@@ -235,7 +235,7 @@ namespace ctk { namespace impl {
             switch(data_size) {
                 case encoding_size::two_bytes: return bit_count{ 4 }; // value interval [0, 15], 0 interpreted as 16
                 case encoding_size::four_bytes: return bit_count{ 6 };
-                default: throw api::v1::ctk_bug{ "reflib::field_width_n: invalid data size" };
+                default: throw api::v1::CtkBug{ "reflib::field_width_n: invalid data size" };
             }
         }
 
@@ -273,7 +273,7 @@ namespace ctk { namespace impl {
         auto decode_size(unsigned pattern) -> encoding_size {
             if (static_cast<unsigned>(encoding_size::eight_bytes) < pattern) {
                 static_assert(field_width_encoding() == 2);
-                throw api::v1::ctk_bug{ "extended::decode_size: 2 bits = 4 possible interpretations" };
+                throw api::v1::CtkBug{ "extended::decode_size: 2 bits = 4 possible interpretations" };
             }
 
             return encoding_size(pattern);
@@ -282,7 +282,7 @@ namespace ctk { namespace impl {
         static
         auto encode_size(encoding_size data_size) -> unsigned {
             if (data_size == encoding_size::length) {
-                throw api::v1::ctk_bug{ "extended::encode_size: invalid data size" };
+                throw api::v1::CtkBug{ "extended::encode_size: invalid data size" };
             }
 
             return static_cast<unsigned>(data_size);
@@ -304,7 +304,7 @@ namespace ctk { namespace impl {
                 case encoding_size::two_bytes: return bit_count{ 4 };   // value interval [0, 15], 0 interpreted as 16
                 case encoding_size::four_bytes: return bit_count{ 5 };  // value interval [0, 31], 0 interpreted as 32
                 case encoding_size::eight_bytes: return bit_count{ 6 }; // value interval [0, 63], 0 interpreted as 64
-                default: throw api::v1::ctk_bug{ "extended::field_width_n: invalid data size" };
+                default: throw api::v1::CtkBug{ "extended::field_width_n: invalid data size" };
             }
         }
 
@@ -318,7 +318,7 @@ namespace ctk { namespace impl {
                 case sizeof(uint16_t): return encoding_size::two_bytes;
                 case sizeof(uint32_t): return encoding_size::four_bytes;
                 case sizeof(uint64_t): return encoding_size::eight_bytes;
-                default: throw api::v1::ctk_bug{ "extended::as size: invalid data size" };
+                default: throw api::v1::CtkBug{ "extended::as size: invalid data size" };
             }
         }
 
@@ -481,11 +481,11 @@ namespace ctk { namespace impl {
         using T = typename std::iterator_traits<I>::value_type;
 
         if (size_in_bits<T>() < field_width_master(data_size)) {
-            throw api::v1::ctk_data{ "read_encoding_compressed, invalid master field width for this data size" };
+            throw api::v1::CtkData{ "read_encoding_compressed, invalid master field width for this data size" };
         }
 
         if (first == last) {
-            throw api::v1::ctk_bug{ "read_encoding_compressed, precondition violation: empty output range" };
+            throw api::v1::CtkBug{ "read_encoding_compressed, precondition violation: empty output range" };
         }
 
         const auto n_width{ Format::field_width_n(data_size) };
@@ -542,7 +542,7 @@ namespace ctk { namespace impl {
 
         using T = typename std::iterator_traits<I>::value_type;
         if (!valid_block_encoding(data_size, method, n, nexc, T{}, format)) {
-            throw api::v1::ctk_data{ invalid_row_header(data_size, method, n, nexc, sizeof(T)) };
+            throw api::v1::CtkData{ invalid_row_header(data_size, method, n, nexc, sizeof(T)) };
         }
 
         return { next, n, nexc, method};

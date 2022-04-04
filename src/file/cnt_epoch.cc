@@ -235,7 +235,7 @@ namespace ctk { namespace impl {
     static
     auto offsets2ranges(const file_range& data, const std::vector<int64_t>& offsets) -> std::vector<file_range> {
         if (data.size < 1 || offsets.empty()) {
-            throw api::v1::ctk_bug{ "offsets2ranges: invalid input" };
+            throw api::v1::CtkBug{ "offsets2ranges: invalid input" };
         }
 
         std::vector<file_range> ranges(offsets.size());
@@ -243,20 +243,20 @@ namespace ctk { namespace impl {
 
         for (size_t i{ 0 }; i < border; ++i) {
             if (offsets[i + 1] <= offsets[i]) {
-                throw api::v1::ctk_data{ "offsets2ranges: invalid compressed epoch size" };
+                throw api::v1::CtkData{ "offsets2ranges: invalid compressed epoch size" };
             }
 
             const auto fpos{ data.fpos + offsets[i] };
             const auto length{ offsets[i + 1] - offsets[i] };
             if (data.size < length) {
-                throw api::v1::ctk_data{ "offsets2ranges: invalid file position" };
+                throw api::v1::CtkData{ "offsets2ranges: invalid file position" };
             }
 
             ranges[i] = { fpos, length };
         }
 
         if (data.size <= offsets[border]) {
-            throw api::v1::ctk_data{ "offsets2ranges: invalid compressed epoch size (last chunk)" };
+            throw api::v1::CtkData{ "offsets2ranges: invalid compressed epoch size (last chunk)" };
         }
         ranges[border] = { data.fpos + offsets[border], data.size - offsets[border] };
 
@@ -268,21 +268,21 @@ namespace ctk { namespace impl {
     auto read_ep_content(FILE* f, const file_range& x, T type_tag) -> ep_content {
         const size_t items{ cast(x.size, size_t{}, guarded{}) / sizeof(T) };
         if (items < 2) {
-            throw api::v1::ctk_data{ "chunk ep: empty" };
+            throw api::v1::CtkData{ "chunk ep: empty" };
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "read_ep_content: invalid file position" };
+            throw api::v1::CtkData{ "read_ep_content: invalid file position" };
         }
 
         const T l{ read(f, type_tag) };
-        const measurement_count epoch_length{ cast(l, measurement_count::value_type{}, ok{}) }; // ctk_data
+        const measurement_count epoch_length{ cast(l, measurement_count::value_type{}, ok{}) }; // CtkData
 
         std::vector<T> v(items - 1 /* epoch length */);
         read(f, begin(v), end(v));
 
         std::vector<int64_t> offsets(v.size());
-        std::transform(begin(v), end(v), begin(offsets), [](T x) -> int64_t { return cast(x, int64_t{}, ok{}); }); // ctk_data
+        std::transform(begin(v), end(v), begin(offsets), [](T x) -> int64_t { return cast(x, int64_t{}, ok{}); }); // CtkData
         return { epoch_length, offsets };
     }
 
@@ -320,7 +320,7 @@ namespace ctk { namespace impl {
         const size_t items{ cast(x.size, size_t{}, guarded{}) / (api::v1::evt_label_size + sizeof(T)) };
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "read_evt_content: invalid file position" };
+            throw api::v1::CtkData{ "read_evt_content: invalid file position" };
         }
 
         std::vector<api::v1::Trigger> result;
@@ -330,7 +330,7 @@ namespace ctk { namespace impl {
         std::array<char, api::v1::evt_label_size> code;
 
         for (size_t i{ 0 }; i < items; ++i) {
-            sample = cast(read(f, type_tag), int64_t{}, ok{}); // ctk_data
+            sample = cast(read(f, type_tag), int64_t{}, ok{}); // CtkData
             read(f, begin(code), end(code));
 
             result.emplace_back(sample, code);
@@ -343,7 +343,7 @@ namespace ctk { namespace impl {
     auto write_evt_record(FILE* f, const api::v1::Trigger& x, T type_tag) -> void {
         assert(f);
 
-        write(f, cast(x.sample, type_tag, ok{})); // ctk_data? ctk_bug?
+        write(f, cast(x.sample, type_tag, ok{})); // CtkData? CtkBug?
 
         const auto first{ begin(x.code) };
         const auto last{ first + api::v1::evt_label_size };
@@ -394,7 +394,7 @@ namespace ctk { namespace impl {
 
         virtual
         auto read_entity(FILE* f) const -> int64_t final {
-            return cast(read(f, SizeType{}), int64_t{}, ok{}); // ctk_data
+            return cast(read(f, SizeType{}), int64_t{}, ok{}); // CtkData
         }
 
         virtual
@@ -436,7 +436,7 @@ namespace ctk { namespace impl {
             return ctk::api::v1::RiffType::riff64;
         }
 
-        throw ctk::api::v1::ctk_data{ "string2riff: unknown type" };
+        throw ctk::api::v1::CtkData{ "string2riff: unknown type" };
     }
 
     static
@@ -454,7 +454,7 @@ namespace ctk { namespace impl {
                 using riff64_type = riff_type<size_type, evt_type>;
                 return std::make_unique<riff64_type>(root_id_riff64());
             }
-            default: throw api::v1::ctk_bug{ "make_cnt_field_size: unknown type" };
+            default: throw api::v1::CtkBug{ "make_cnt_field_size: unknown type" };
         }
     }
 
@@ -576,7 +576,7 @@ namespace ctk { namespace impl {
         try {
             return read_chunk(f, x);
         }
-        catch(const api::v1::ctk_data&) {
+        catch(const api::v1::CtkData&) {
             return empty_chunk(x);
         }
     }
@@ -590,7 +590,7 @@ namespace ctk { namespace impl {
     static
     auto parse_int(const std::string& line) -> int64_t {
         if (line.empty()) {
-            throw api::v1::ctk_data{ "parse_int: no input" };
+            throw api::v1::CtkData{ "parse_int: no input" };
         }
         return std::stoll(line);
     }
@@ -599,12 +599,12 @@ namespace ctk { namespace impl {
     static
     auto parse_double(const std::string& line) -> double {
         if (line.empty()) {
-            throw api::v1::ctk_data{ "parse_double: no input" };
+            throw api::v1::CtkData{ "parse_double: no input" };
         }
 
         const auto result{ std::stod(line) };
         if (!std::isfinite(result)) {
-            throw api::v1::ctk_data{ "parse_double: not finite" };
+            throw api::v1::CtkData{ "parse_double: not finite" };
         }
 
         return result;
@@ -676,7 +676,7 @@ namespace ctk { namespace impl {
             std::istringstream iss{ line };
             iss >> e.label >> e.iscale >> e.rscale >> e.unit;
             if (iss.fail() || e.label.empty() || e.unit.empty()) {
-                throw api::v1::ctk_data{ "invalid electrode" };
+                throw api::v1::CtkData{ "invalid electrode" };
             }
             // compatibility
             e.label.resize(std::min(e.label.size(), size_t{ 9 }));
@@ -781,12 +781,12 @@ namespace ctk { namespace impl {
         const status_tm status{ is_valid(x) };
         switch (status) {
             case status_tm::ok: return;
-            case status_tm::year: throw api::v1::ctk_data{ "validate(struct tm): negative year" };
-            case status_tm::month: throw api::v1::ctk_data{ "validate(struct tm): invalid month" };
-            case status_tm::day: throw api::v1::ctk_data{ "validate(struct tm): invalid day" };
-            case status_tm::hour: throw api::v1::ctk_data{ "validate(struct tm): invalid hour" };
-            case status_tm::min: throw api::v1::ctk_data{ "validate(struct tm): invalid minute" };
-            case status_tm::sec: throw api::v1::ctk_data{ "validate(struct tm): invalid seconds" };
+            case status_tm::year: throw api::v1::CtkData{ "validate(struct tm): negative year" };
+            case status_tm::month: throw api::v1::CtkData{ "validate(struct tm): invalid month" };
+            case status_tm::day: throw api::v1::CtkData{ "validate(struct tm): invalid day" };
+            case status_tm::hour: throw api::v1::CtkData{ "validate(struct tm): invalid hour" };
+            case status_tm::min: throw api::v1::CtkData{ "validate(struct tm): invalid minute" };
+            case status_tm::sec: throw api::v1::CtkData{ "validate(struct tm): invalid seconds" };
         }
     }
 
@@ -795,7 +795,7 @@ namespace ctk { namespace impl {
         constexpr const time_t t{ 0 };
         const tm* x{ gmtime(&t) };
         if (!x) {
-            throw api::v1::ctk_limit{ "make_tm: can not invoke gmtime(0)" };
+            throw api::v1::CtkLimit{ "make_tm: can not invoke gmtime(0)" };
         }
         tm y{ *x };
 
@@ -812,7 +812,7 @@ namespace ctk { namespace impl {
         const days x_days{ floor<days>(x_s) };
         const date::year_month_day ymd{ date::sys_days{ x_days } };
         if (!ymd.ok()) {
-            //throw api::v1::ctk_data{ "timepoint2tm: invalid date" };
+            //throw api::v1::CtkData{ "timepoint2tm: invalid date" };
             assert(false);
         }
 
@@ -825,7 +825,7 @@ namespace ctk { namespace impl {
 
         const seconds s{ floor<seconds>(reminder) };
         if (h < 0h || 23h < h || m < 0min || 59min < m || s < 0s || 59s < s) {
-            //throw api::v1::ctk_data{ "timepoint2tm: invalid time" };
+            //throw api::v1::CtkData{ "timepoint2tm: invalid time" };
             assert(false);
         }
 
@@ -847,7 +847,7 @@ namespace ctk { namespace impl {
         const int sy{ plus(x.tm_year, 1900, ok{}) };
         const int sm{ plus(x.tm_mon, 1, ok{}) };
         if (!in_clock_range(sy, cast(sm, unsigned{}, ok{}), cast(x.tm_mday, unsigned{}, ok{}))) {
-            throw api::v1::ctk_data{ "tm2timepoint: invalid date" };
+            throw api::v1::CtkData{ "tm2timepoint: invalid date" };
         }
 
         const auto yyyy{ date::year{ sy } };
@@ -873,7 +873,7 @@ namespace ctk { namespace impl {
         iss >> x.tm_sec >> x.tm_min >> x.tm_hour >> x.tm_mday >> x.tm_mon >> x.tm_year >> x.tm_wday >> x.tm_yday >> x.tm_isdst;
 
         if (iss.fail()) {
-            throw api::v1::ctk_data{ "parse_info_dob: can not load all fileds" };
+            throw api::v1::CtkData{ "parse_info_dob: can not load all fileds" };
         }
         return tm2timepoint(x);
     }
@@ -883,11 +883,11 @@ namespace ctk { namespace impl {
         try {
             return parse_info_dob_impl(line);
         }
-        catch(const api::v1::ctk_limit& e) {
+        catch(const api::v1::CtkLimit& e) {
             std::cerr << e.what();
             return tm2timepoint(make_tm());
         }
-        catch(const api::v1::ctk_data& e) {
+        catch(const api::v1::CtkData& e) {
             std::cerr << e.what();
             return tm2timepoint(make_tm());
         }
@@ -1240,16 +1240,16 @@ namespace ctk { namespace impl {
     static
     auto read_chan(FILE* f, const file_range& x) -> std::vector<int16_t> {
         if (x.size < 0) {
-            throw api::v1::ctk_bug{ "read_chan: negative size" };
+            throw api::v1::CtkBug{ "read_chan: negative size" };
         }
 
         const size_t items{ static_cast<size_t>(x.size) / sizeof(int16_t) };
         if (items == 0) {
-            throw api::v1::ctk_data{ "chunk chan: empty" };
+            throw api::v1::CtkData{ "chunk chan: empty" };
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "read_chan: invalid file position" };
+            throw api::v1::CtkData{ "read_chan: invalid file position" };
         }
 
         std::vector<int16_t> row_order(items);
@@ -1270,7 +1270,7 @@ namespace ctk { namespace impl {
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "read_info: invalid file position" };
+            throw api::v1::CtkData{ "read_info: invalid file position" };
         }
 
         std::string s;
@@ -1282,7 +1282,7 @@ namespace ctk { namespace impl {
         // compatibility
         if (!is_ascii && version.major == 0 && version.minor == 0) {
             if (!seek(f, x.fpos, SEEK_SET)) {
-                throw api::v1::ctk_bug{ "read_info: can not seek back to file position" };
+                throw api::v1::CtkBug{ "read_info: can not seek back to file position" };
             }
             start_time.date = read(f, double{});
             start_time.fraction = read(f, double{});
@@ -1303,7 +1303,7 @@ namespace ctk { namespace impl {
         int64_t fsize{ file_size(f) };
         read_part_header(f, file_tag::sample_count, as_label("eeph"), true);
         if (fsize < part_header_size + tsize) {
-            throw api::v1::ctk_data{ "read_sample_count: empty" };
+            throw api::v1::CtkData{ "read_sample_count: empty" };
         }
 
         const auto payload_size{ fsize - part_header_size };
@@ -1313,11 +1313,11 @@ namespace ctk { namespace impl {
         }
 
         if (!seek(f, fsize - tsize, SEEK_SET)) {
-            throw api::v1::ctk_data{ "read_sample_count: invalid file position" };
+            throw api::v1::CtkData{ "read_sample_count: invalid file position" };
         }
 
         const int64_t x{ read(f, int64_t{}) };
-        return measurement_count{ cast(x, measurement_count::value_type{}, ok{}) }; // ctk_data
+        return measurement_count{ cast(x, measurement_count::value_type{}, ok{}) }; // CtkData
     }
 
     static
@@ -1327,7 +1327,7 @@ namespace ctk { namespace impl {
 
         std::vector<chunk> result;
         if (!is_root_or_list(parent)) {
-            throw api::v1::ctk_bug{ "sub_chunks: no sub chunks in a data chunk" };
+            throw api::v1::CtkBug{ "sub_chunks: no sub chunks in a data chunk" };
         }
 
         const int64_t hs{ header_size(parent) };
@@ -1339,7 +1339,7 @@ namespace ctk { namespace impl {
         first = plus(first, label_size(), ok{});
 
         if (!seek(f, first, SEEK_SET)) {
-            throw api::v1::ctk_data{ "sub_chunks: can not seek to payload" };
+            throw api::v1::CtkData{ "sub_chunks: can not seek to payload" };
         }
 
         while (first < last) {
@@ -1402,17 +1402,17 @@ namespace ctk { namespace impl {
         oss << x << ": ";
         switch (elcectrode_status) {
         case status_elc::ok: assert(false); break;
-        case status_elc::label_empty: oss << "validate(Electrode): empty active label"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::unit_empty: oss << "validate(Electrode): empty unit"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::label_trunc: oss << "validate(Electrode): active label longer than 9"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::ref_trunc: oss << "validate(Electrode): reference label longer than 9"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::unit_trunc: oss << "validate(Electrode): unit longer than 8"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::stat_trunc: oss << "validate(Electrode): status longer than 9"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::type_trunc: oss << "validate(Electrode): type longer than 9"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::label_brace: oss << "validate(Electrode): active label starts with ["; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::label_semicolon: oss << "validate(Electrode): active label starts with ;"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::iscale: oss << "validate(Electrode): infinite instrument scale"; throw api::v1::ctk_limit{ oss.str() };
-        case status_elc::rscale: oss << "validate(Electrode): infinite range scale"; throw api::v1::ctk_limit{ oss.str() };
+        case status_elc::label_empty: oss << "validate(Electrode): empty active label"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::unit_empty: oss << "validate(Electrode): empty unit"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::label_trunc: oss << "validate(Electrode): active label longer than 9"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::ref_trunc: oss << "validate(Electrode): reference label longer than 9"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::unit_trunc: oss << "validate(Electrode): unit longer than 8"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::stat_trunc: oss << "validate(Electrode): status longer than 9"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::type_trunc: oss << "validate(Electrode): type longer than 9"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::label_brace: oss << "validate(Electrode): active label starts with ["; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::label_semicolon: oss << "validate(Electrode): active label starts with ;"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::iscale: oss << "validate(Electrode): infinite instrument scale"; throw api::v1::CtkLimit{ oss.str() };
+        case status_elc::rscale: oss << "validate(Electrode): infinite range scale"; throw api::v1::CtkLimit{ oss.str() };
         }
     }
 
@@ -1447,10 +1447,10 @@ namespace ctk { namespace impl {
         const status_ts time_series_status{ valid_time_series(x) };
         switch (time_series_status) {
             case status_ts::ok: return;
-            case status_ts::epochl: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid epoch length" };
-            case status_ts::sfreq: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid sampling frequency" };
-            case status_ts::stamp: throw api::v1::ctk_limit{ "validate(TimeSeries): invalid start time" };
-            case status_ts::no_elc: throw api::v1::ctk_limit{ "validate(TimeSeries): no electrodes" };
+            case status_ts::epochl: throw api::v1::CtkLimit{ "validate(TimeSeries): invalid epoch length" };
+            case status_ts::sfreq: throw api::v1::CtkLimit{ "validate(TimeSeries): invalid sampling frequency" };
+            case status_ts::stamp: throw api::v1::CtkLimit{ "validate(TimeSeries): invalid start time" };
+            case status_ts::no_elc: throw api::v1::CtkLimit{ "validate(TimeSeries): no electrodes" };
             case status_ts::invalid_elc: /* fall trough */;
         }
 
@@ -1578,13 +1578,13 @@ namespace ctk { namespace impl {
             }
             // temp
             else if (is_average(top_level_chunk)) {
-                throw api::v1::ctk_data{ "not implemented: average" };
+                throw api::v1::CtkData{ "not implemented: average" };
             }
             else if (is_stddev(top_level_chunk)) {
-                throw api::v1::ctk_data{ "not implemented: stddev" };
+                throw api::v1::CtkData{ "not implemented: stddev" };
             }
             else if (is_wavelet(top_level_chunk)) {
-                throw api::v1::ctk_data{ "not implemented: wavelet" };
+                throw api::v1::CtkData{ "not implemented: wavelet" };
             }
             // TODO: maybe skip "refh" and "imp " as well
             // end temp
@@ -1616,7 +1616,7 @@ namespace ctk { namespace impl {
     static
     auto read_reflib_cnt(const chunk& root, FILE* f) -> amorph {
         if (!is_root(root)) {
-            throw api::v1::ctk_bug{ "read_reflib_cnt: invalid file" };
+            throw api::v1::CtkBug{ "read_reflib_cnt: invalid file" };
         }
 
         chunk ep{ empty_chunk(root) };
@@ -1631,21 +1631,21 @@ namespace ctk { namespace impl {
         //scan_broken_reflib(f, ep, chan, data, eeph, inf, evt);
 
         if (ep.storage.size == 0 || chan.storage.size == 0 || data.storage.size == 0 || eeph.storage.size == 0) {
-            throw api::v1::ctk_data{ "read_reflib_cnt: missing chunk eeph, raw3/ep, raw3/chan or raw3/data" };
+            throw api::v1::CtkData{ "read_reflib_cnt: missing chunk eeph, raw3/ep, raw3/chan or raw3/data" };
         }
 
         const auto eep_h{ read_eeph(eeph, f) };
         if (eep_h.sample_count == 0 || eep_h.electrodes.empty()) {
-            throw api::v1::ctk_data{ "read_reflib_cnt: corrupt eeph" };
+            throw api::v1::CtkData{ "read_reflib_cnt: corrupt eeph" };
         }
 
         const auto order{ read_chan(f, chan) };
         if (order.size() != eep_h.electrodes.size()) {
-            throw api::v1::ctk_data{ "read_reflib_cnt: order != electrodes" };
+            throw api::v1::CtkData{ "read_reflib_cnt: order != electrodes" };
         }
         const sint channel_count{ eep_h.channel_count };
         if (vsize(order) != channel_count) {
-            throw api::v1::ctk_data{ "read_reflib_cnt: order != channels" };
+            throw api::v1::CtkData{ "read_reflib_cnt: order != channels" };
         }
 
         const auto [length, offsets]{ read_ep_riff(f, ep)  };
@@ -1677,7 +1677,7 @@ namespace ctk { namespace impl {
         assert(f && 0 <= x.fpos && 0 < x.size);
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::ctk_data{ "read_compressed_epoch: can not seek" };
+            throw api::v1::CtkData{ "read_compressed_epoch: can not seek" };
         }
 
         std::vector<uint8_t> storage;
@@ -1777,7 +1777,7 @@ namespace ctk { namespace impl {
     auto epoch_n(FILE* f, epoch_count i, const std::vector<file_range>& epoch_ranges, measurement_count sample_count, measurement_count epoch_length) -> compressed_epoch {
         const epoch_count total{ vsize(epoch_ranges) };
         if (i < 0 || total <= i) {
-            throw api::v1::ctk_data{ "epoch_n: not accessible" };
+            throw api::v1::CtkData{ "epoch_n: not accessible" };
         }
         assert(0 <= i);
         assert(f);
@@ -1805,7 +1805,7 @@ namespace ctk { namespace impl {
         const int64_t size_position{ c.storage.fpos + label_size() };
         assert(is_even(size_position));
         if (!seek(f, size_position, SEEK_SET)) {
-            throw api::v1::ctk_bug{ "update_size_field: can not seek back to the chunk position field" };
+            throw api::v1::CtkBug{ "update_size_field: can not seek back to the chunk position field" };
         }
 
         c.riff->write_entity(f, c.storage.size);
@@ -1862,7 +1862,7 @@ namespace ctk { namespace impl {
         assert(is_even(tell(f)));
 
         if (!x.fname.has_filename()) {
-            throw api::v1::ctk_bug{ "copy_common: empty file name" };
+            throw api::v1::CtkBug{ "copy_common: empty file name" };
         }
 
         auto fin{ open_r(x.fname) };
@@ -1878,7 +1878,7 @@ namespace ctk { namespace impl {
 
         if (l.subnodes.empty()) {
             // TODO: are there use cases for non-throwing return here?
-            throw api::v1::ctk_bug{ "content2chunk riff_list: empty list" };
+            throw api::v1::CtkBug{ "content2chunk riff_list: empty list" };
         }
 
         riff_chunk_writer raii{ f, l.c };
@@ -1905,7 +1905,7 @@ namespace ctk { namespace impl {
     riff_list::riff_list(const chunk& list)
     : c{ list } {
         if (!is_root_or_list(c)) {
-            throw api::v1::ctk_bug{ "riff_list: chunk is not a list" };
+            throw api::v1::CtkBug{ "riff_list: chunk is not a list" };
         }
     }
 
@@ -2092,14 +2092,14 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             switch (status) {
                 case status_amorph::ok: assert(false);
-                case status_amorph::samples: oss << "epoch_reader_common: invalid sample count " << d.sample_count; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::samples: oss << "epoch_reader_common: invalid sample count " << d.sample_count; throw api::v1::CtkData{ oss.str() };
                 case status_amorph::ts: validate(d.header); break;
-                case status_amorph::order: oss << "epoch_reader_common: invalid row order"; throw api::v1::ctk_data{ oss.str() };
-                case status_amorph::order_elc: oss << "epoch_reader_common: electrode count != channel count"; throw api::v1::ctk_data{ oss.str() };
-                case status_amorph::ranges: oss << "epoch_reader_common: no epoch data"; throw api::v1::ctk_data{ oss.str() };
-                case status_amorph::fpos: oss << "epoch_reader_common: invalid file position"; throw api::v1::ctk_data{ oss.str() };
-                case status_amorph::increasing: oss << "epoch_reader_common: non increasing epochs"; throw api::v1::ctk_data{ oss.str() };
-                case status_amorph::content: oss << "epoch_reader_common: epoch without content"; throw api::v1::ctk_data{ oss.str() };
+                case status_amorph::order: oss << "epoch_reader_common: invalid row order"; throw api::v1::CtkData{ oss.str() };
+                case status_amorph::order_elc: oss << "epoch_reader_common: electrode count != channel count"; throw api::v1::CtkData{ oss.str() };
+                case status_amorph::ranges: oss << "epoch_reader_common: no epoch data"; throw api::v1::CtkData{ oss.str() };
+                case status_amorph::fpos: oss << "epoch_reader_common: invalid file position"; throw api::v1::CtkData{ oss.str() };
+                case status_amorph::increasing: oss << "epoch_reader_common: non increasing epochs"; throw api::v1::CtkData{ oss.str() };
+                case status_amorph::content: oss << "epoch_reader_common: epoch without content"; throw api::v1::CtkData{ oss.str() };
             }
         }
 
@@ -2119,7 +2119,7 @@ namespace ctk { namespace impl {
         try {
             return epoch(i);
         }
-        catch (const api::v1::ctk_data&) {
+        catch (const api::v1::CtkData&) {
             return compressed_epoch{};
         }
     }
@@ -2341,7 +2341,7 @@ namespace ctk { namespace impl {
         const auto last{ end(tokens) };
         const auto found{ std::find_if(first, last, match_id) };
         if (found == last) {
-            throw api::v1::ctk_data{ "epoch_reader_flat::get_name: no file of this type" };
+            throw api::v1::CtkData{ "epoch_reader_flat::get_name: no file of this type" };
         }
 
         return found->file_name;
@@ -2455,14 +2455,14 @@ namespace ctk { namespace impl {
             return api::v1::RiffType::riff64;
         }
 
-        throw api::v1::ctk_data{ "epoch_reader_riff::cnt_type: neither RIFF nor RF64" };
+        throw api::v1::CtkData{ "epoch_reader_riff::cnt_type: neither RIFF nor RF64" };
     }
 
     auto epoch_reader_riff::init() -> amorph {
         rewind(f.get());
         const auto x{ read_root(f.get(), string2riff(riff->root_id())) };
         if (!is_root(x)) {
-            throw api::v1::ctk_data{ "epoch_reader_riff::init: not a root chunk" };
+            throw api::v1::CtkData{ "epoch_reader_riff::init: not a root chunk" };
         }
 
         return read_reflib_cnt(x, f.get());

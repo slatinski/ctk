@@ -30,15 +30,15 @@ namespace ctk { namespace impl {
             std::cerr << " " << e.what() << "\n"; // garbage data. stol, stod
         }
         // thrown by ctk
-        catch (const ctk_limit& e) {
+        catch (const CtkLimit& e) {
             std::cerr << " " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
         }
-        catch (const ctk_data& e) {
+        catch (const CtkData& e) {
             std::cerr << " " << e.what() << "\n"; // garbage data
         }
 
         // not expected
-        catch (const ctk_bug& e) {
+        catch (const CtkBug& e) {
             std::cerr << " " << e.what() << "\n"; // bug in this library
             throw;
         }

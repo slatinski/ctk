@@ -226,7 +226,7 @@ namespace ctk { namespace api {
             case RiffType::riff64:
                 os << ctk::impl::root_id_riff64();
                 break;
-            default: throw ctk_bug{ "operator<<(RiffType): invalid" };
+            default: throw CtkBug{ "operator<<(RiffType): invalid" };
             }
             return os;
         }
@@ -357,7 +357,7 @@ namespace ctk { namespace api {
     static
     auto regular(const v1::DcDate& x) -> v1::DcDate {
         if (x.fraction < 0) {
-            throw ctk::api::v1::ctk_limit{ "regular: negative sub seconds" };
+            throw ctk::api::v1::CtkLimit{ "regular: negative sub seconds" };
         }
         const double i_fraction{ floor(x.fraction) };
 
@@ -365,7 +365,7 @@ namespace ctk { namespace api {
         const double subseconds{ x.fraction - i_fraction };
         const double days{ seconds2days(seconds) };
         if (!std::isfinite(days) || !std::isfinite(subseconds)) {
-            throw ctk::api::v1::ctk_limit{ "regular: infinite dcdate" };
+            throw ctk::api::v1::CtkLimit{ "regular: infinite dcdate" };
         }
         assert(std::fabs(subseconds) < 1);
 
@@ -403,7 +403,7 @@ namespace ctk { namespace api {
 
         x = regular(x);
         if (!clock_guard(x)) {
-            throw v1::ctk_limit{ "dcdate2timepoint: out of clock range" };
+            throw v1::CtkLimit{ "dcdate2timepoint: out of clock range" };
         }
 
         const double sec{ std::round(days2seconds(x.date)) };

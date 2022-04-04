@@ -64,7 +64,7 @@ namespace ctk { namespace impl {
         write(f, label);
 
         if (tell(f) != part_header_size) {
-            throw api::v1::ctk_bug{ "write_part_header: invalid size / not the first record in a file" };
+            throw api::v1::CtkBug{ "write_part_header: invalid size / not the first record in a file" };
         }
     }
 
@@ -91,12 +91,12 @@ namespace ctk { namespace impl {
 
         const file_tag tag_id{ static_cast<file_tag>(id) };
         if (tag_id != expected_tag) {
-            throw api::v1::ctk_bug{ "read_part_header_impl: invalid part file tag" };
+            throw api::v1::CtkBug{ "read_part_header_impl: invalid part file tag" };
         }
 
         const label_type chunk_id{ read(f, label_type{}) };
         if (compare_label && chunk_id != expected_label) {
-            throw api::v1::ctk_bug{ "read_part_header_impl: invalid part file cnt label" };
+            throw api::v1::CtkBug{ "read_part_header_impl: invalid part file cnt label" };
         }
 
         return { chunk_id, part_error::ok };
@@ -113,16 +113,16 @@ namespace ctk { namespace impl {
             return x;
         }
         else if (e == part_error::not_ctk_part) {
-            throw api::v1::ctk_data{ "read_part_header: not a ctk part file" };
+            throw api::v1::CtkData{ "read_part_header: not a ctk part file" };
         }
         else if (e == part_error::unknown_version) {
-            throw api::v1::ctk_data{ "read_part_header: unknown version" };
+            throw api::v1::CtkData{ "read_part_header: unknown version" };
         }
         else if (e == part_error::invalid_tag) {
-            throw api::v1::ctk_data{ "read_part_header: invalid file_tag enumeration" };
+            throw api::v1::CtkData{ "read_part_header: invalid file_tag enumeration" };
         }
 
-        throw api::v1::ctk_bug{ "read_part_header: unknown error code" };
+        throw api::v1::CtkBug{ "read_part_header: unknown error code" };
     }
 
 
@@ -139,7 +139,7 @@ namespace ctk { namespace impl {
             case file_tag::cnt_type: os << "cnt type"; break;
             case file_tag::history: os << "history"; break;
             case file_tag::satellite_evt: os << "evt data"; break;
-            default: throw api::v1::ctk_bug{ "operator<<(file_tag): invalid" };
+            default: throw api::v1::CtkBug{ "operator<<(file_tag): invalid" };
         }
         return os;
     }

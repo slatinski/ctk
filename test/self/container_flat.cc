@@ -103,7 +103,7 @@ auto write_in_chunks(cnt_reader_reflib_riff& reader_reflib, const std::filesyste
         const sint amount{ std::min(chunk_size, sint(sample_count - i)) };
         const measurement_count epoch_length{ amount };
         if (amount < 0) {
-            throw ctk_bug("test: write_in_chunks: negative amount");
+            throw CtkBug("test: write_in_chunks: negative amount");
         }
         if (amount == 0) {
             std::cerr << "test: write_in_chunks: not encoding 0 samples\n";

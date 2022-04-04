@@ -32,7 +32,7 @@ namespace ctk { namespace impl {
             case encoding_size::two_bytes: return sizeof(uint16_t);
             case encoding_size::four_bytes: return sizeof(uint32_t);
             case encoding_size::eight_bytes: return sizeof(uint64_t);
-            default: throw api::v1::ctk_bug{ "sizeof_word: 2 bits = 4 possible interpretations" };
+            default: throw api::v1::CtkBug{ "sizeof_word: 2 bits = 4 possible interpretations" };
         }
     }
 
@@ -46,7 +46,7 @@ namespace ctk { namespace impl {
     auto decode_method(unsigned pattern) -> encoding_method {
         if (static_cast<unsigned>(encoding_method::chan) < pattern) {
             static_assert(field_width_encoding() == 2);
-            throw api::v1::ctk_bug{ "decode_method: 2 bits = 4 possible interpretations" };
+            throw api::v1::CtkBug{ "decode_method: 2 bits = 4 possible interpretations" };
         }
 
         return encoding_method(pattern);
@@ -80,7 +80,7 @@ namespace ctk { namespace impl {
     auto is_valid_uncompressed(bit_count n, bit_count nexc, encoding_size data_size) -> bool {
         // constructed by the implementation
         if(n != nexc) {
-            throw api::v1::ctk_bug{ "is_valid_uncompressed: constructed by the implementation" };
+            throw api::v1::CtkBug{ "is_valid_uncompressed: constructed by the implementation" };
         }
 
         return n == field_width_master(data_size);
