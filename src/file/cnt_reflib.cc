@@ -153,11 +153,14 @@ auto cnt_writer_reflib_riff::close() -> void {
         return;
     }
 
-    const auto tokens{ flat_writer->file_tokens() };
     flat_writer->close();
+    const auto tokens{ flat_writer->file_tokens() };
+    const auto written{ flat_writer->sample_count() };
     flat_writer.reset(nullptr);
 
-    flat2riff(fname_flat(file_name), file_name, tokens, user);
+    if (written != 0) {
+        flat2riff(fname_flat(file_name), file_name, tokens, user);
+    }
 
     const auto get_fname = [](const auto& x) -> std::filesystem::path { return x.file_name; };
 
