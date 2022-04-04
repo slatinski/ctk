@@ -19,11 +19,9 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #pragma once
 
-#include <cassert>
-#include <vector>
-#include <variant>
-#include <algorithm>
 #include <array>
+#include <algorithm>
+#include <cassert>
 
 #include "arithmetic.h"
 
@@ -215,7 +213,7 @@ namespace ctk { namespace impl {
         static_assert(std::is_unsigned<T>::value);
         static_assert(std::is_unsigned<A>::value);
         assert(0 <= n);
-        assert(n <= size_in_bits<T>());
+        assert(n <= size_in_bits(T{}));
         assert(stream.common.available <= one_byte());
 
         if (stream.common.total < n) {
@@ -250,7 +248,7 @@ namespace ctk { namespace impl {
         static_assert(std::is_unsigned<T>::value);
         static_assert(std::is_unsigned<A>::value);
         assert(0 <= n);
-        assert(n <= size_in_bits<T>());
+        assert(n <= size_in_bits(T{}));
         assert(stream.common.available <= one_byte());
 
         if (stream.common.total < n) {
@@ -303,7 +301,7 @@ namespace ctk { namespace impl {
 
     template<typename IByteConst>
     auto read_64(bit_stream_reader<IByteConst>& stream, bit_count n) -> uint64_t {
-        constexpr const bit_count half_size{ size_in_bits<uint32_t>() };
+        constexpr const bit_count half_size{ size_in_bits(uint32_t{}) };
         constexpr const uint32_t half_type{ 0 };
 
         if (n <= half_size) {
@@ -314,14 +312,14 @@ namespace ctk { namespace impl {
         const uint32_t low_word{ read_n(stream, half_size, half_type) };
 
         const uint64_t high_word{ hw };
-        constexpr const auto shift{ as_sizet_unchecked(half_size) };
+        const auto shift{ as_sizet_unchecked(half_size) };
         return (high_word << shift) | low_word;
     }
 
 
     template<typename IByte>
     auto write_64(bit_stream_writer<IByte>& stream, bit_count n, uint64_t input) -> void {
-        constexpr const bit_count half_size{ size_in_bits<uint32_t>() };
+        constexpr const bit_count half_size{ size_in_bits(uint32_t{}) };
         const auto low_word{ static_cast<uint32_t>(mask_msb(input, half_size)) };
 
         if (n <= half_size) {
@@ -329,7 +327,7 @@ namespace ctk { namespace impl {
             return;
         }
 
-        constexpr const auto shift{ as_sizet_unchecked(half_size) };
+        const auto shift{ as_sizet_unchecked(half_size) };
         const auto high_word{ static_cast<uint32_t>(input >> shift) };
 
         write_n(stream, n - half_size, high_word);

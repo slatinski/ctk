@@ -64,6 +64,7 @@ add_library(ctk_static
         ctk/maybe_cast.h
         src/maybe_cast.cc
         ctk/arithmetic.h
+        src/arithmetic.cc
         ctk/exception.h
         src/exception.cc
         ctk/compress/bit_stream.h

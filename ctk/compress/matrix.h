@@ -73,7 +73,7 @@ struct count_raw3 final
         static_assert(std::is_integral<T>::value);
         static_assert(std::is_unsigned<T>::value);
 
-        constexpr const auto msb{ size_in_bits<T>() };
+        const auto msb{ size_in_bits(x) };
         if (is_set(x, msb)) {
             x = static_cast<T>(~x);
         }
@@ -117,7 +117,7 @@ struct estimation {
         // allows evaluate_histogram to perform unguarded arithmetic.
         const encoding_size data_size{ Format::as_size(T{}) };
         const bit_count header{ compressed_header_width(data_size, format) };
-        constexpr const bit_count nexc{ size_in_bits<T>() };
+        constexpr const bit_count nexc{ size_in_bits(T{}) };
         // maximum variable length encoding size in bits: 2 * size_in_bits(T) - 1.
         // 2 * size_in_bits(T) is not possible because this is fixed width encoding (n == nexc), encoded in size_in_bits(T) bits.
         const bit_count data{ scale(nexc + nexc - bit_count{ 1 }, epoch_length, ok{}) };
@@ -305,7 +305,7 @@ auto compressed_parameters(reduction<T, Format>& r, estimation<T>& e) -> void {
     assert(second != last);
     const auto nexc{ *std::max_element(second, last) };
     assert(pattern_size_min() <= nexc);
-    assert(nexc <= size_in_bits<T>());
+    assert(nexc <= size_in_bits(T{}));
 
     const auto data_size{ min_data_size(nexc, residual_sizes[0], format) };
     assert(sizeof_word(data_size) <= sizeof(T));
@@ -321,9 +321,9 @@ template<typename I, typename T, typename Format>
 //     - ValueType(I) is unsigned integral type with two's complement implementation
 auto reduce_row_uncompressed(I first, I last, reduction<T, Format>& r, estimation<T>&) -> void {
     r.data_size = Format::as_size(T{});
-    r.n = size_in_bits<T>();
-    r.nexc = size_in_bits<T>();
     r.output_size = max_block_size(first, last, Format{});
+    r.n = size_in_bits(T{});
+    r.nexc = r.n;
     assert(valid_block_encoding(r.data_size, r.method, r.n, r.nexc, T{}, Format{}));
 }
 

@@ -552,7 +552,7 @@ namespace ctk { namespace impl {
 
     template<typename T>
     constexpr
-    auto size_in_bits() -> bit_count {
+    auto size_in_bits(T /* type tag */) -> bit_count {
         return as_bits( byte_count{ static_cast<bit_count::value_type>(sizeof(T)) }, unguarded{} );
     }
 
@@ -564,7 +564,7 @@ namespace ctk { namespace impl {
 
         const auto l{ std::distance(first, last) };
         const auto length{ cast(l, bit_count::value_type{}, guard) };
-        return scale(size_in_bits<T>(), length, guard);
+        return scale(size_in_bits(T{}), length, guard);
     }
 
 
@@ -578,47 +578,25 @@ namespace ctk { namespace impl {
     }
 
 
-    constexpr
-    auto as_sizet_unchecked(sint x) -> size_t {
-        assert(0 <= x);
-        return static_cast<size_t>(x);
-    }
-
-    constexpr
-    auto as_sizet_unchecked(sensor_count x) -> size_t {
-        const sensor_count::value_type ix{ x };
-        return as_sizet_unchecked(ix);
-    }
-
-    constexpr
-    auto as_sizet_unchecked(measurement_count x) -> size_t {
-        const measurement_count::value_type ix{ x };
-        return as_sizet_unchecked(ix);
-    }
-
-    constexpr
-    auto as_sizet_unchecked(epoch_count x) -> size_t {
-        const epoch_count::value_type ix{ x };
-        return as_sizet_unchecked(ix);
-    }
-
-    constexpr
-    auto as_sizet_unchecked(bit_count x) -> size_t {
-        const bit_count::value_type ix{ x };
-        return as_sizet_unchecked(ix);
-    }
-
-    constexpr
-    auto as_sizet_unchecked(byte_count x) -> size_t {
-        const byte_count::value_type ix{ x };
-        return as_sizet_unchecked(ix);
-    }
-
-
     template<typename T>
     auto vsize(const std::vector<T>& v) -> sint {
         return cast(v.size(), sint{}, ok{});
     }
+
+
+    auto as_sizet(sint) -> size_t;
+    auto as_sizet(sensor_count) -> size_t;
+    auto as_sizet(measurement_count) -> size_t;
+    auto as_sizet(epoch_count) -> size_t;
+    auto as_sizet(bit_count) -> size_t;
+    auto as_sizet(byte_count) -> size_t;
+
+    auto as_sizet_unchecked(sint) -> size_t;
+    auto as_sizet_unchecked(sensor_count) -> size_t;
+    auto as_sizet_unchecked(measurement_count) -> size_t;
+    auto as_sizet_unchecked(epoch_count) -> size_t;
+    auto as_sizet_unchecked(bit_count) -> size_t;
+    auto as_sizet_unchecked(byte_count) -> size_t;
 
 } /* namespace impl */ } /* namespace ctk */
 

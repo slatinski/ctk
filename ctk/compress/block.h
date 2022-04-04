@@ -20,7 +20,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <tuple>
-#include <iosfwd>
 
 #include "type_wrapper.h"
 #include "compress/bit_stream.h"
@@ -158,7 +157,7 @@ namespace ctk { namespace impl {
     //     - T is signed integral type with two-complement implementation
     constexpr
     auto is_set(T pattern, bit_count n) -> bool {
-        assert(0 < n && n <= size_in_bits<T>());
+        assert(0 < n && n <= size_in_bits(pattern));
         const bit_count::value_type sn{ n };
         return (pattern & (T{ 1 } << (sn - 1))) != 0;
     }
@@ -168,7 +167,7 @@ namespace ctk { namespace impl {
     // requirements
     //     - T is integral type with two-complement implementation
     auto restore_sign(T pattern, bit_count n) -> T {
-        constexpr const auto word_size{ size_in_bits<T>() };
+        const auto word_size{ size_in_bits(pattern) };
         assert(nbits_min <= n);
         assert(n <= word_size);
 
@@ -348,16 +347,14 @@ namespace ctk { namespace impl {
     template<typename T>
     // requirements
     //     - T is integral type with two-complement implementation
-    constexpr
     auto exception_marker(bit_count n) -> T {
-        assert(0 < n && n <= size_in_bits<T>());
+        assert(0 < n && n <= size_in_bits(T{}));
         const bit_count::value_type sn{ n };
         return static_cast<T>(T{ 1 } << (sn - 1));
     }
 
     
     template<typename T>
-    constexpr
     auto is_exception_marker(T pattern, bit_count n) -> bool {
         return mask_msb(pattern, n) == exception_marker<T>(n);
     }
@@ -372,8 +369,8 @@ namespace ctk { namespace impl {
 
         template<typename IByte, typename T>
         auto encode(bit_writer<IByte>& bits, T pattern, bool is_exceptional) const -> void {
-            assert(0 < n && n <= size_in_bits<T>());
-            assert(0 < nexc && nexc <= size_in_bits<T>());
+            assert(0 < n && n <= size_in_bits(pattern));
+            assert(0 < nexc && nexc <= size_in_bits(pattern));
 
             if (!is_exceptional) {
                 bits.write(n, pattern);
@@ -386,8 +383,8 @@ namespace ctk { namespace impl {
 
         template<typename IByteConst, typename T>
         auto decode(bit_reader<IByteConst>& bits, T pattern) const -> T {
-            assert(0 < n && n <= size_in_bits<T>());
-            assert(0 < nexc && nexc <= size_in_bits<T>());
+            assert(0 < n && n <= size_in_bits(pattern));
+            assert(0 < nexc && nexc <= size_in_bits(pattern));
 
             pattern = bits.read(n, pattern);
             if (!is_exception_marker(pattern, n)) {
@@ -409,7 +406,7 @@ namespace ctk { namespace impl {
 
         template<typename IByte, typename T>
         auto encode(bit_writer<IByte>& bits, T pattern, bool /* is_exceptional */) const -> void {
-            assert(0 < n && n <= size_in_bits<T>());
+            assert(0 < n && n <= size_in_bits(pattern));
             bits.write(n, pattern);
         }
 
@@ -417,7 +414,7 @@ namespace ctk { namespace impl {
         // requirements
         //     - T is unsigned integral type with two's complement implementation
         auto decode(bit_reader<IByteConst>& bits, T type_tag) const -> T {
-            assert(0 < n && n <= size_in_bits<T>());
+            assert(0 < n && n <= size_in_bits(type_tag));
             return restore_sign(bits.read(n, type_tag), n);
         }
     };
@@ -480,7 +477,7 @@ namespace ctk { namespace impl {
     auto read_encoding_compressed(I first, I last, bit_reader<IByteConst>& bits, encoding_size data_size, Format) -> std::tuple<I, bit_count, bit_count> {
         using T = typename std::iterator_traits<I>::value_type;
 
-        if (size_in_bits<T>() < field_width_master(data_size)) {
+        if (size_in_bits(T{}) < field_width_master(data_size)) {
             throw api::v1::CtkData{ "read_encoding_compressed, invalid master field width for this data size" };
         }
 
@@ -556,9 +553,9 @@ namespace ctk { namespace impl {
     //  - ValueType(IConst) is unsigned integral type with two-complement implementation
     auto write_header_compressed(IConst first, IBoolConst encoding_map, bit_writer<IByte>& bits, encoding_size data_size, encoding_method m, bit_count n, bit_count nexc, Format) -> std::pair<IConst, IBoolConst> {
         assert(pattern_size_min() <= n);
-        assert(n <= size_in_bits<typename std::iterator_traits<IConst>::value_type>());
+        assert(n <= size_in_bits(typename std::iterator_traits<IConst>::value_type{}));
         assert(n <= nexc);
-        assert(nexc <= size_in_bits<typename std::iterator_traits<IConst>::value_type>());
+        assert(nexc <= size_in_bits(typename std::iterator_traits<IConst>::value_type{}));
 
         const auto un{ as_sizet_unchecked(n) };
         const auto unexc{ as_sizet_unchecked(nexc) };
@@ -600,7 +597,7 @@ namespace ctk { namespace impl {
     constexpr
     auto max_block_size(measurement_count length, Format, T) -> byte_count {
         const bit_count header{ uncompressed_header_width() };
-        const bit_count data{ scale(size_in_bits<T>(), length, ok{}) };
+        const bit_count data{ scale(size_in_bits(T{}), length, ok{}) };
         const bit_count::value_type h{ header };
         const bit_count::value_type d{ data };
 
