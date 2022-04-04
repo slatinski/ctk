@@ -57,11 +57,11 @@ auto generate_input_file(const std::string& fname) -> void {
 
 
 auto read(const std::string& fname) -> void {
-    file_ptr f{ open_r(fname) };
-    const int64_t fsize{ file_size(f.get()) };
-
+    const int64_t fsize{ content_size(fname) };
     std::string xs;
-    xs.resize(fsize);
+    xs.resize(static_cast<size_t>(fsize));
+
+    file_ptr f{ open_r(fname) };
     read(f.get(), begin(xs), end(xs));
     parse_info(xs);
 }

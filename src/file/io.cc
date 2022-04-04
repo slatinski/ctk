@@ -102,17 +102,8 @@ namespace ctk { namespace impl {
         }
     }
 
-
-    auto file_size(FILE* f) -> int64_t {
-        if (!seek(f, 0, SEEK_END)) {
-            throw api::v1::CtkData{ "file_size: can not seek to end" };
-        }
-        const auto result{ tell(f) };
-
-        if (!seek(f, 0, SEEK_SET)) {
-            throw api::v1::CtkData{ "file_size: can not seek to begin" };
-        }
-        return result;
+    auto content_size(const std::filesystem::path& x) -> int64_t {
+        return cast(std::filesystem::file_size(x), int64_t{}, ok{});
     }
 
 } /* namespace impl */ } /* namespace ctk */

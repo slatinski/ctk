@@ -123,7 +123,7 @@ namespace ctk { namespace impl {
     auto operator<<(std::ostream&, const file_range&) -> std::ostream&;
 
     auto copy_file_portion(FILE* fin, file_range x, FILE* fout) -> void;
-    auto file_size(FILE*) -> int64_t; // at exit sets the file position at the file start
+    auto content_size(const std::filesystem::path&) -> int64_t;
 
 } /* namespace impl */ } /* namespace ctk */
 

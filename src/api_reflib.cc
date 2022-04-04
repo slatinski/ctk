@@ -610,8 +610,8 @@ namespace ctk { namespace api {
             const auto tmp{ fname_archive_bin(p->fname_evt) };
 
             if (0 < p->events) {
+                const int64_t fsize{ content_size(tmp) };
                 file_ptr f_in{ open_r(tmp) };
-                const int64_t fsize{ file_size(f_in.get()) };
                 read_part_header(f_in.get(), file_tag::satellite_evt, as_label("sevt"), true);
                 // TODO: read the events sequentially in order to ensure that the data is consitent?
 

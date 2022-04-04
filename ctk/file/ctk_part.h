@@ -53,7 +53,7 @@ namespace ctk { namespace impl {
 
     auto operator<<(std::ostream&, const file_tag&) -> std::ostream&;
 
-    auto is_part_header(FILE*, file_tag expected_tag, label_type expected_label, bool compare_label) -> bool;
+    auto skip_part_header(FILE*) -> void;
     auto read_part_header(FILE*, file_tag expected_tag, label_type expected_label, bool compare_label) -> label_type;
     auto write_part_header(FILE*, file_tag, label_type) -> void;
 

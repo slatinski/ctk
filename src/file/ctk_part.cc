@@ -17,11 +17,13 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "file/ctk_part.h"
+
+#include <array>
 #include <cassert>
 #include <cstring>
 
 #include "exception.h"
-#include "file/ctk_part.h"
 #include "file/io.h"
 
 namespace ctk { namespace impl {
@@ -64,7 +66,8 @@ namespace ctk { namespace impl {
         write(f, label);
 
         if (tell(f) != part_header_size) {
-            throw api::v1::CtkBug{ "write_part_header: invalid size / not the first record in a file" };
+            const std::string e{ "[write_part_header, ctk_part] invalid size or not the first record in a file" };
+            throw api::v1::CtkBug{ e };
         }
     }
 
@@ -91,20 +94,30 @@ namespace ctk { namespace impl {
 
         const file_tag tag_id{ static_cast<file_tag>(id) };
         if (tag_id != expected_tag) {
-            throw api::v1::CtkBug{ "read_part_header_impl: invalid part file tag" };
+            std::ostringstream oss;
+            oss << "[read_part_header_impl, ctk_part] invalid part file tag " << tag_id << ", expected " << expected_tag;
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         const label_type chunk_id{ read(f, label_type{}) };
         if (compare_label && chunk_id != expected_label) {
-            throw api::v1::CtkBug{ "read_part_header_impl: invalid part file cnt label" };
+            std::ostringstream oss;
+            oss << "[read_part_header_impl, ctk_part] invalid part file cnt label " << chunk_id << ", expected " << expected_label;
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         return { chunk_id, part_error::ok };
     }
 
-    auto is_part_header(FILE* f, file_tag expected_tag, label_type expected_label, bool compare_label) -> bool {
-        const auto[x, e]{ read_part_header_impl(f, expected_tag, expected_label, compare_label) };
-        return e == part_error::ok;
+    auto skip_part_header(FILE* f) -> void {
+        if (seek(f, part_header_size, SEEK_SET)) {
+            return;
+        }
+
+        const std::string msg{ "[skip_part_header, ctk_part] can not seek" };
+        throw api::v1::CtkData{ msg };
     }
 
     auto read_part_header(FILE* f, file_tag expected_tag, label_type expected_label, bool compare_label) -> label_type {
@@ -113,16 +126,20 @@ namespace ctk { namespace impl {
             return x;
         }
         else if (e == part_error::not_ctk_part) {
-            throw api::v1::CtkData{ "read_part_header: not a ctk part file" };
+            const std::string msg{ "[read_part_header, ctk_part] not a ctk part file" };
+            throw api::v1::CtkData{ msg };
         }
         else if (e == part_error::unknown_version) {
-            throw api::v1::CtkData{ "read_part_header: unknown version" };
+            const std::string msg{ "[read_part_header, ctk_part] unknown version" };
+            throw api::v1::CtkData{ msg };
         }
         else if (e == part_error::invalid_tag) {
-            throw api::v1::CtkData{ "read_part_header: invalid file_tag enumeration" };
+            const std::string msg{ "[read_part_header, ctk_part] invalid file_tag enumeration" };
+            throw api::v1::CtkData{ msg };
         }
 
-        throw api::v1::CtkBug{ "read_part_header: unknown error code" };
+        const std::string msg{ "[read_part_header, ctk_part] unknown error code" };
+        throw api::v1::CtkBug{ msg };
     }
 
 
@@ -139,7 +156,10 @@ namespace ctk { namespace impl {
             case file_tag::cnt_type: os << "cnt type"; break;
             case file_tag::history: os << "history"; break;
             case file_tag::satellite_evt: os << "evt data"; break;
-            default: throw api::v1::CtkBug{ "operator<<(file_tag): invalid" };
+            default: {
+                const std::string e{ "[operator<<(file_tag), ctk_part] invalid" };
+                throw api::v1::CtkBug{ e };
+            }
         }
         return os;
     }

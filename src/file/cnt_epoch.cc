@@ -208,6 +208,15 @@ namespace ctk { namespace impl {
     }
 
 
+    static
+    auto flat_payload(const std::filesystem::path& fname) -> file_range {
+        const int64_t fsize{ content_size(fname) - part_header_size };
+        assert(0 <= fsize);
+        return { part_header_size, fsize };
+    }
+
+
+
 
     ep_content::ep_content(measurement_count length, const std::vector<int64_t>& offsets)
     : length{ length }
@@ -223,12 +232,11 @@ namespace ctk { namespace impl {
 
 
     static
-    auto read_ep_flat(FILE* f, api::v1::RiffType t) -> ep_content {
-        const int64_t size{ file_size(f) };
-        read_part_header(f, file_tag::ep, as_label("raw3"), true);
-
+    auto read_ep_flat(const std::filesystem::path& fname, api::v1::RiffType t) -> ep_content {
         const chunk ep{ t };
-        return ep.riff->read_ep(f, { part_header_size, size - part_header_size });
+
+        file_ptr f{ open_r(fname) };
+        return ep.riff->read_ep(f.get(), flat_payload(fname));
     }
 
 
@@ -403,7 +411,17 @@ namespace ctk { namespace impl {
 
         virtual
         auto maybe_read_entity(FILE* f) const -> std::optional<int64_t> {
-            return cast(read(f, SizeType{}), int64_t{}, ok{}); // CtkData
+            const auto maybe_x{ maybe_read(f, SizeType{}) };
+            if (!maybe_x) {
+                return std::nullopt;
+            }
+
+            const auto maybe_y{ maybe_cast(*maybe_x, int64_t{}) };
+            if (!maybe_y) {
+                return std::nullopt;
+            }
+
+            return *maybe_y;
         }
 
         virtual
@@ -559,9 +577,15 @@ namespace ctk { namespace impl {
 
 
     static
-    auto offsets2ranges(const chunk& raw3_data, const std::vector<int64_t>& offsets) -> std::vector<file_range> {
+    auto offsets2ranges_riff(const chunk& raw3_data, const std::vector<int64_t>& offsets) -> std::vector<file_range> {
         return offsets2ranges(chunk_payload(raw3_data), offsets);
     }
+
+    static
+    auto offsets2ranges_flat(const std::filesystem::path& data, const std::vector<int64_t>& offsets) -> std::vector<file_range> {
+        return offsets2ranges(flat_payload(data), offsets);
+    }
+
 
     static
     auto maybe_read_chunk(FILE* f, chunk scratch) -> std::optional<chunk> {
@@ -1082,7 +1106,7 @@ namespace ctk { namespace impl {
 
 
     static
-    auto read_eeph(const chunk& eeph, FILE* f) -> eeph_data {
+    auto read_eeph_riff(FILE* f, const chunk& eeph) -> eeph_data {
         const auto x{ chunk_payload(eeph) };
         if (x.size == 0) {
             return eeph_data{};
@@ -1134,7 +1158,7 @@ namespace ctk { namespace impl {
     }
 
     static
-    auto write_electrode(FILE* f, const api::v1::Electrode& x) -> void {
+    auto write_electrode_bin(FILE* f, const api::v1::Electrode& x) -> void {
         write_string_bin(f, x.ActiveLabel);
         write_string_bin(f, x.Reference);
         write_string_bin(f, x.Unit);
@@ -1145,7 +1169,7 @@ namespace ctk { namespace impl {
     }
 
     static
-    auto read_electrode(FILE* f) -> api::v1::Electrode {
+    auto read_electrode_bin(FILE* f) -> api::v1::Electrode {
         api::v1::Electrode x;
         x.ActiveLabel = read_string_bin(f);
         x.Reference = read_string_bin(f);
@@ -1158,50 +1182,52 @@ namespace ctk { namespace impl {
     }
 
 
-    auto write_electrodes(FILE* f, const std::vector<api::v1::Electrode>& xs) -> void {
+    auto write_electrodes_bin(FILE* f, const std::vector<api::v1::Electrode>& xs) -> void {
         const int64_t size{ cast(xs.size(), int64_t{}, ok{}) };
         write_leb128(f, size);
 
         for (const auto& x : xs) {
-            write_electrode(f, x);
+            write_electrode_bin(f, x);
         }
     }
 
-    auto read_electrodes(FILE* f) -> std::vector<api::v1::Electrode> {
+    auto read_electrodes_bin(FILE* f) -> std::vector<api::v1::Electrode> {
         const int64_t size{ read_leb128(f, int64_t{}) };
         const size_t count{ cast(size, size_t{}, ok{}) };
 
         std::vector<api::v1::Electrode> xs;
         xs.reserve(count);
         for (size_t i{ 0 }; i < count; ++i) {
-            xs.push_back(read_electrode(f));
+            xs.push_back(read_electrode_bin(f));
         }
         return xs;
     }
 
 
     static
-    auto read_electrodes_flat(FILE* f) -> std::vector<api::v1::Electrode> {
-        read_part_header(f, file_tag::electrodes, as_label("eeph"), true);
-        return read_electrodes(f);
+    auto read_electrodes_flat(const std::filesystem::path& fname) -> std::vector<api::v1::Electrode> {
+        file_ptr f{ open_r(fname) };
+        skip_part_header(f.get());
+
+        return read_electrodes_bin(f.get());
     }
 
     auto make_electrodes_content(const std::vector<api::v1::Electrode>& electrodes) -> std::string {
         std::ostringstream oss;
 
         for (const auto& e : electrodes) {
-            oss << truncate(e.ActiveLabel, 10) << " ";
+            oss << truncate(e.ActiveLabel, api::v1::sizes::eeph_electrode_active) << " ";
             oss << d2s(e.IScale, 11) << " ";
             oss << d2s(e.RScale, 11) << " ";
-            oss << truncate(e.Unit, 10);
+            oss << truncate(e.Unit, api::v1::sizes::eeph_electrode_unit);
             if (!e.Reference.empty()) {
-                oss << " REF:" << truncate(e.Reference, 10);
+                oss << " REF:" << truncate(e.Reference, api::v1::sizes::eeph_electrode_reference);
             }
             if (!e.Status.empty()) {
-                oss << " STAT:" << truncate(e.Status, 10);
+                oss << " STAT:" << truncate(e.Status, api::v1::sizes::eeph_electrode_status);
             }
             if (!e.Type.empty()) {
-                oss << " TYPE:" << truncate(e.Type, 10);
+                oss << " TYPE:" << truncate(e.Type, api::v1::sizes::eeph_electrode_type);
             }
             oss << "\n";
         }
@@ -1283,15 +1309,21 @@ namespace ctk { namespace impl {
         return row_order;
     }
 
-
     static
-    auto read_chan(FILE* f, const chunk& chan) -> std::vector<int16_t> {
+    auto read_chan_riff(FILE* f, const chunk& chan) -> std::vector<int16_t> {
         return read_chan(f, chunk_payload(chan));
     }
 
+    static
+    auto read_chan_flat(const std::filesystem::path& fname) -> std::vector<int16_t> {
+        file_ptr f{ open_r(fname) };
+        return read_chan(f.get(), flat_payload(fname));
+    }
+
+
     auto read_info(FILE* f, const file_range& x, const api::v1::FileVersion& version) -> std::pair<std::chrono::system_clock::time_point, api::v1::Info> {
         if (x.size == 0) {
-            return { api::v1::dcdate2timepoint({ 0, 0 }), api::v1::Info{} };
+            return { api::v1::dcdate2timepoint(api::v1::DcDate{}), api::v1::Info{} };
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
@@ -1322,28 +1354,71 @@ namespace ctk { namespace impl {
         return read_info(f, chunk_payload(info), version);
     }
 
-    auto read_sample_count(FILE* f) -> measurement_count {
-        constexpr const int64_t tsize{ sizeof(int64_t) };
-
-        int64_t fsize{ file_size(f) };
-        read_part_header(f, file_tag::sample_count, as_label("eeph"), true);
-        if (fsize < part_header_size + tsize) {
-            throw api::v1::CtkData{ "read_sample_count: empty" };
-        }
-
-        const auto payload_size{ fsize - part_header_size };
-        const auto[quot, rem]{ std::div(payload_size, tsize) };
-        if (rem != 0) {
-            fsize = quot * tsize;
-        }
-
-        if (!seek(f, fsize - tsize, SEEK_SET)) {
-            throw api::v1::CtkData{ "read_sample_count: invalid file position" };
-        }
-
-        const int64_t x{ read(f, int64_t{}) };
-        return measurement_count{ cast(x, measurement_count::value_type{}, ok{}) }; // CtkData
+    static
+    auto read_info_flat(const std::filesystem::path& fname, const api::v1::FileVersion& version) -> std::pair<std::chrono::system_clock::time_point, api::v1::Info> {
+        file_ptr f{ open_r(fname) };
+        return read_info(f.get(), flat_payload(fname), version);
     }
+
+
+
+    static
+    auto read_sample_count_flat(const std::filesystem::path& fname) -> measurement_count {
+        using Int = measurement_count::value_type;
+
+        constexpr const int64_t tsize{ sizeof(Int) };
+        const int64_t fsize{ content_size(fname) };
+        if (fsize < part_header_size + tsize) {
+            std::ostringstream oss;
+            oss << "[read_sample_count_flat, cnt_epoch] empty, file_size < part_header_size + part_tag_size: " << fsize
+                << " < " << part_header_size
+                << " + " << tsize;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
+        }
+        auto payload{ fsize - part_header_size };
+        const auto[quot, rem]{ std::div(payload, tsize) };
+        if (rem != 0) {
+            std::ostringstream oss;
+            oss << "[read_sample_count_flat, cnt_epoch] odd payload " << payload << " % " << tsize << " = " << rem << " (!= 0)";
+            oss << ", correcting to " << (quot * tsize);
+            const auto e{ oss.str() };
+
+            payload = quot * tsize;
+        }
+        const auto latest{ part_header_size + payload - tsize };
+
+        file_ptr f{ open_r(fname) };
+        if (!seek(f.get(), latest, SEEK_SET)) {
+            std::ostringstream oss;
+            oss << "[read_sample_count_flat, cnt_epoch] can not seek to file position " << latest;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
+        }
+        return measurement_count{ read(f.get(), Int{}) };
+    }
+
+
+    static
+    auto read_sampling_frequency_flat(const std::filesystem::path& fname) -> double {
+        file_ptr f{ open_r(fname) };
+        skip_part_header(f.get());
+        return read(f.get(), double{});
+    }
+
+
+    static
+    auto read_history_flat(const std::filesystem::path& fname) -> std::string {
+        file_ptr f{ open_r(fname) };
+        skip_part_header(f.get());
+        const auto payload{ flat_payload(fname) };
+
+        std::string xs;
+        xs.resize(as_sizet(payload.size));
+        read(f.get(), begin(xs), end(xs));
+        return xs;
+    }
+
 
     static
     auto sub_chunks(const chunk& parent, FILE* f) -> std::vector<chunk> {
@@ -1526,6 +1601,7 @@ namespace ctk { namespace impl {
     }
 
 
+    /*
     static
     auto guess_data_chunk(label_type id, int64_t fpos, int64_t fsize, chunk& x, chunk* previous) -> void {
         const int64_t riff_header_size{ header_size(x) };
@@ -1541,7 +1617,7 @@ namespace ctk { namespace impl {
     }
 
 
-    //static
+    static
     auto scan_broken_reflib(FILE* f, chunk& chunk_ep, chunk& chunk_chan, chunk& chunk_data, chunk& chunk_eeph, chunk& chunk_info, chunk& chunk_evt) -> void {
         chunk* previous{ nullptr };
 
@@ -1584,6 +1660,7 @@ namespace ctk { namespace impl {
             }
         }
     }
+    */
 
 
     static
@@ -1640,9 +1717,35 @@ namespace ctk { namespace impl {
 
 
     static
+    auto validate_eeph_dimensions(measurement_count sample_count, size_t electrodes, size_t order, sint channel_count) -> void {
+        if (electrodes < 1 || sample_count < 1) {
+            std::ostringstream oss;
+            oss << "[validate_eeph_dimensions, cnt_epoch] invalid " << electrodes << " x " << sample_count;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
+        }
+
+        if (order != electrodes) {
+            std::ostringstream oss;
+            oss << "[validate_eeph_dimensions, cnt_epoch] order != electrodes: " << order << " != " << electrodes;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
+        }
+
+        if (channel_count != cast(order, sint{}, ok{})) {
+            std::ostringstream oss;
+            oss << "[validate_eeph_dimensions, cnt_epoch] order != channels: " << order << " != " << channel_count;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
+        }
+    }
+
+
+    static
     auto read_reflib_cnt(const chunk& root, FILE* f) -> amorph {
         if (!is_root(root)) {
-            throw api::v1::CtkBug{ "read_reflib_cnt: invalid file" };
+            const std::string e{ "[read_reflib_cnt] invalid file" };
+            throw api::v1::CtkBug{ e };
         }
 
         chunk ep{ empty_chunk(root) };
@@ -1657,44 +1760,43 @@ namespace ctk { namespace impl {
         //scan_broken_reflib(f, ep, chan, data, eeph, inf, evt);
 
         if (ep.storage.size == 0 || chan.storage.size == 0 || data.storage.size == 0 || eeph.storage.size == 0) {
-            throw api::v1::CtkData{ "read_reflib_cnt: missing chunk eeph, raw3/ep, raw3/chan or raw3/data" };
+            const std::string ep_str{ ep.storage.size == 0 ? " raw3/ep" : "" };
+            const std::string chan_str{ ep.storage.size == 0 ? " raw3/chan" : "" };
+            const std::string data_str{ ep.storage.size == 0 ? " raw3/data" : "" };
+            const std::string eeph_str{ ep.storage.size == 0 ? " eeph" : "" };
+
+            std::ostringstream oss;
+            oss << "[read_reflib_cnt, cnt_epoch] missing chunks:" << eeph_str << ep_str << data_str << chan_str;
+            const auto e { oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
-        const auto eep_h{ read_eeph(eeph, f) };
-        if (eep_h.sample_count == 0 || eep_h.electrodes.empty()) {
-            throw api::v1::CtkData{ "read_reflib_cnt: corrupt eeph" };
-        }
-
-        const auto order{ read_chan(f, chan) };
-        if (order.size() != eep_h.electrodes.size()) {
-            throw api::v1::CtkData{ "read_reflib_cnt: order != electrodes" };
-        }
+        const auto eep_h{ read_eeph_riff(f, eeph) };
+        const auto order{ read_chan_riff(f, chan) };
         const sint channel_count{ eep_h.channel_count };
-        if (vsize(order) != channel_count) {
-            throw api::v1::CtkData{ "read_reflib_cnt: order != channels" };
-        }
+        validate_eeph_dimensions(eep_h.sample_count, eep_h.electrodes.size(), order.size(), channel_count);
 
         const auto [length, offsets]{ read_ep_riff(f, ep)  };
         const auto[start_time, information]{ read_info_riff(f, inf, eep_h.version) };
 
-        amorph result;
-        result.header.StartTime = start_time;
-        result.header.EpochLength = static_cast<measurement_count::value_type>(length);
-        result.header.Electrodes = eep_h.electrodes;
-        result.header.SamplingFrequency = eep_h.sampling_frequency;
-        result.sample_count = eep_h.sample_count;
-        result.version = eep_h.version;
-        result.history = eep_h.history;
-        result.epoch_ranges = offsets2ranges(data, offsets);
-        result.trigger_range = chunk_payload(evt);
-        result.order = order;
-        result.information = information;
+        amorph x;
+        x.header.StartTime = start_time;
+        x.header.EpochLength = static_cast<measurement_count::value_type>(length);
+        x.header.Electrodes = eep_h.electrodes;
+        x.header.SamplingFrequency = eep_h.sampling_frequency;
+        x.sample_count = eep_h.sample_count;
+        x.version = eep_h.version;
+        x.history = eep_h.history;
+        x.epoch_ranges = offsets2ranges_riff(data, offsets);
+        x.trigger_range = chunk_payload(evt);
+        x.order = order;
+        x.information = information;
 
         const auto chunk2content = [](const chunk& x) -> user_content { return user_chunk(x); };
-        result.user.resize(user.size());
-        std::transform(begin(user), end(user), begin(result.user), chunk2content);
+        x.user.resize(user.size());
+        std::transform(begin(user), end(user), begin(x.user), chunk2content);
 
-        return result;
+        return x;
     }
 
 
@@ -1891,8 +1993,8 @@ namespace ctk { namespace impl {
             throw api::v1::CtkBug{ "copy_common: empty file name" };
         }
 
-        auto fin{ open_r(x.fname) };
-        const int64_t fsize{ file_size(fin.get()) };
+        file_ptr fin{ open_r(x.fname) };
+        const int64_t fsize{ content_size(x.fname) };
 
         riff_chunk_writer raii{ f, x.c };
         copy_file_portion(fin.get(), { x.offset, fsize - x.offset }, f);
@@ -2002,20 +2104,20 @@ namespace ctk { namespace impl {
         // written only once
         const sensor_count c{ vsize(x.Electrodes) };
         const auto o{ natural_row_order(c) };
-        auto f_chan{ add_file(fname_chan(fname), file_tag::chan, "raw3") };
+        FILE* f_chan{ add_file(fname_chan(fname), file_tag::chan, "raw3") };
         write(f_chan, begin(o), end(o));
         close_last();
 
         ascii_parseable(x.SamplingFrequency); // compatibility: stored in eeph
-        auto f_sampling_frequency{ add_file(fname_sampling_frequency(fname), file_tag::sampling_frequency, "eeph") };
+        FILE* f_sampling_frequency{ add_file(fname_sampling_frequency(fname), file_tag::sampling_frequency, "eeph") };
         write(f_sampling_frequency, x.SamplingFrequency);
         close_last();
 
-        auto f_electrodes{ add_file(fname_electrodes(fname), file_tag::electrodes, "eeph") };
-        write_electrodes(f_electrodes, x.Electrodes);
+        FILE* f_electrodes{ add_file(fname_electrodes(fname), file_tag::electrodes, "eeph") };
+        write_electrodes_bin(f_electrodes, x.Electrodes);
         close_last();
 
-        auto f_type{ add_file(fname_cnt_type(fname), file_tag::cnt_type, "cntt") };
+        FILE* f_type{ add_file(fname_cnt_type(fname), file_tag::cnt_type, "cntt") };
         const auto t{ riff->root_id() };
         write(f_type, begin(t), end(t));
         close_last();
@@ -2207,80 +2309,44 @@ namespace ctk { namespace impl {
 
 
     static
-    auto has_ctk_part(const std::filesystem::path& fname, file_tag tag, label_type label, bool compare_label) -> bool {
-        if (!std::filesystem::exists(fname)) {
-            return false;
-        }
+    auto add_ctk_part(const std::filesystem::path& fname, file_tag tag, std::string label, std::string ui_name, std::vector<tagged_file>& xs) -> void {
+        constexpr const bool compare_label{ true };
 
         file_ptr f{ open_r(fname) };
-        return is_part_header(f.get(), tag, label, compare_label);
+        read_part_header(f.get(), tag, as_label(label), compare_label);
+        xs.emplace_back(tag, fname);
+
+        std::ostringstream oss;
+        oss << "[add_ctk_part, cnt_epoch] found " << ui_name << " file " << fname.string();
     }
 
 
     static
-    auto find_ctk_parts(const std::filesystem::path& cnt) -> std::vector<tagged_file> {
-        constexpr const bool compare_label{ true };
-        std::vector<tagged_file> result;
+    auto ctk_parts(const std::filesystem::path& cnt) -> std::vector<tagged_file> {
+        const auto flat_cnt{ fname_flat(cnt) };
+        std::vector<tagged_file> xs;
+        xs.reserve(10);
 
-        const auto name_data{ fname_data(cnt) };
-        if (has_ctk_part(name_data, file_tag::data, as_label("raw3"), compare_label)) {
-            result.emplace_back(file_tag::data, name_data);
-        }
+        add_ctk_part(fname_data(flat_cnt), file_tag::data, "raw3", "raw3/data", xs);
+        add_ctk_part(fname_ep(flat_cnt), file_tag::ep, "raw3", "raw3/ep", xs);
+        add_ctk_part(fname_chan(flat_cnt), file_tag::chan, "raw3", "raw3/chan", xs);
+        add_ctk_part(fname_sample_count(flat_cnt), file_tag::sample_count, "eeph", "eeph/sample_count", xs);
+        add_ctk_part(fname_electrodes(flat_cnt), file_tag::electrodes, "eeph", "eeph/electrodes", xs);
+        add_ctk_part(fname_sampling_frequency(flat_cnt), file_tag::sampling_frequency, "eeph", "eeph/sampling_frequency", xs);
+        add_ctk_part(fname_triggers(flat_cnt), file_tag::triggers, "evt ", "evt", xs);
+        add_ctk_part(fname_cnt_type(flat_cnt), file_tag::cnt_type, "cntt", "cnt_type", xs);
+        add_ctk_part(fname_info(flat_cnt), file_tag::info, "info", "info", xs);
+        add_ctk_part(fname_history(flat_cnt), file_tag::history, "eeph", "eeph/history", xs);
 
-        const auto name_ep{ fname_ep(cnt) };
-        if (has_ctk_part(name_ep, file_tag::ep, as_label("raw3"), compare_label)) {
-            result.emplace_back(file_tag::ep, name_ep);
-        }
-
-        const auto name_chan{ fname_chan(cnt) };
-        if (has_ctk_part(name_chan, file_tag::chan, as_label("raw3"), compare_label)) {
-            result.emplace_back(file_tag::chan, name_chan);
-        }
-
-        const auto name_sample_count{ fname_sample_count(cnt) };
-        if (has_ctk_part(name_sample_count, file_tag::sample_count, as_label("eeph"), compare_label)) {
-            result.emplace_back(file_tag::sample_count, name_sample_count);
-        }
-
-        const auto name_electrodes{ fname_electrodes(cnt) };
-        if (has_ctk_part(name_electrodes, file_tag::electrodes, as_label("eeph"), compare_label)) {
-            result.emplace_back(file_tag::electrodes, name_electrodes);
-        }
-
-        const auto name_sampling_frequency{ fname_sampling_frequency(cnt) };
-        if (has_ctk_part(name_sampling_frequency, file_tag::sampling_frequency, as_label("eeph"), compare_label)) {
-            result.emplace_back(file_tag::sampling_frequency, name_sampling_frequency);
-        }
-
-        const auto name_triggers{ fname_triggers(cnt) };
-        if (has_ctk_part(name_triggers, file_tag::triggers, as_label("evt "), compare_label)) {
-            result.emplace_back(file_tag::triggers, name_triggers);
-        }
-
-        const auto name_info{ fname_info(cnt) };
-        if (has_ctk_part(name_info, file_tag::info, as_label("info"), compare_label)) {
-            result.emplace_back(file_tag::info, name_info);
-        }
-
-        const auto name_cnt_type{ fname_cnt_type(cnt) };
-        if (has_ctk_part(name_cnt_type, file_tag::cnt_type, as_label("cntt"), compare_label)) {
-            result.emplace_back(file_tag::cnt_type, name_cnt_type);
-        }
-
-        const auto name_history{ fname_history(cnt) };
-        if (has_ctk_part(name_history, file_tag::history, as_label("eeph"), compare_label)) {
-            result.emplace_back(file_tag::history, name_history);
-        }
-
-        return result;
+        return xs;
     }
 
 
     // NB: the initialization order in this constructor is important
     epoch_reader_flat::epoch_reader_flat(const std::filesystem::path& cnt)
-    : tokens{ find_ctk_parts(cnt) }
+    : tokens{ ctk_parts(cnt) }
     , f_data{ open_r(data_file_name()) }
-    , f_triggers{ open_r(trigger_file_name()) } // TODO: try_open_r or create the file always
+    , f_triggers{ open_r(trigger_file_name()) }
     , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
     , a{ init() }
@@ -2291,7 +2357,7 @@ namespace ctk { namespace impl {
     epoch_reader_flat::epoch_reader_flat(const std::filesystem::path& cnt, const std::vector<tagged_file>& available)
     : tokens{ available }
     , f_data{ open_r(data_file_name()) }
-    , f_triggers{ open_r(trigger_file_name()) } // TODO: try_open_r or create the file always
+    , f_triggers{ open_r(trigger_file_name()) }
     , file_name{ cnt }
     , riff{ make_cnt_field_size(cnt_type()) }
     , a{ init() }
@@ -2302,7 +2368,7 @@ namespace ctk { namespace impl {
     epoch_reader_flat::epoch_reader_flat(const epoch_reader_flat& x)
     : tokens{ x.tokens }
     , f_data{ open_r(data_file_name()) }
-    , f_triggers{ open_r(trigger_file_name()) } // TODO: try_open_r or create the file always
+    , f_triggers{ open_r(trigger_file_name()) }
     , file_name{ x.file_name }
     , riff{ make_cnt_field_size(x.common.cnt_type()) }
     , a{ x.a }
@@ -2323,7 +2389,7 @@ namespace ctk { namespace impl {
         root.push_back(riff_node{ riff_text{ data_chunk(t, "info"), make_info_content(a) } });
 
         riff_list raw3{ list_chunk(t, "raw3") };
-        raw3.push_back(riff_node{ riff_file{ data_chunk(t, "ep  "), ep_file_name(), offset } });
+        raw3.push_back(riff_node{ riff_file{ data_chunk(t, "ep  "), ep_file_name(),   offset } });
         raw3.push_back(riff_node{ riff_file{ data_chunk(t, "chan"), chan_file_name(), offset } });
         raw3.push_back(riff_node{ riff_file{ data_chunk(t, "data"), data_file_name(), offset } });
         root.push_back(raw3);
@@ -2365,56 +2431,33 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_flat::cnt_type() const -> api::v1::RiffType {
-        auto f_type{ open_r(get_name(file_tag::cnt_type)) };
-        read_part_header(f_type.get(), file_tag::cnt_type, as_label("cntt"), true);
+        auto f{ open_r(get_name(file_tag::cnt_type)) };
+        skip_part_header(f.get());
 
         std::string s("1234");
-        read(f_type.get(), begin(s), end(s));
+        read(f.get(), begin(s), end(s));
         return string2riff(s);
     }
 
     auto epoch_reader_flat::init() -> amorph {
-        auto f_ep{ open_r(ep_file_name()) };
-        auto f_chan{ open_r(chan_file_name()) };
-        auto f_sample_count{ open_r(get_name(file_tag::sample_count)) };
-        auto f_sampling_frequency{ open_r(get_name(file_tag::sampling_frequency)) };
-        auto f_electrodes{ open_r(get_name(file_tag::electrodes)) };
-        auto f_info{ open_r(get_name(file_tag::info)) };
-        auto f_type{ open_r(get_name(file_tag::cnt_type)) };
-        auto f_history{ open_r(get_name(file_tag::history)) };
+        const auto [epoch, offsets]{ read_ep_flat(ep_file_name(), cnt_type()) };
+        const auto [stamp, information]{ read_info_flat(get_name(file_tag::info), { 4, 4 }) };
 
-        const auto data_size{ file_size(f_data.get()) - part_header_size };
-        const auto trigger_size{ file_size(f_triggers.get()) - part_header_size };
-        const auto chan_size{ file_size(f_chan.get()) - part_header_size };
-        const auto info_size{ file_size(f_info.get()) - part_header_size };
-        const auto history_size{ file_size(f_history.get()) - part_header_size };
+        amorph x;
+        x.header.StartTime = stamp;
+        x.header.EpochLength = static_cast<measurement_count::value_type>(epoch);
+        x.header.SamplingFrequency = read_sampling_frequency_flat(get_name(file_tag::sampling_frequency));
+        x.header.Electrodes = read_electrodes_flat(get_name(file_tag::electrodes));
+        x.order = read_chan_flat(chan_file_name());
+        x.sample_count = read_sample_count_flat(get_name(file_tag::sample_count));
+        x.epoch_ranges = offsets2ranges_flat(data_file_name(), offsets);
+        x.trigger_range = flat_payload(trigger_file_name());
+        x.history = read_history_flat(get_name(file_tag::history));
+        x.information = information;
+        //x.version = { CTK_FILE_VERSION_MAJOR, CTK_FILE_VERSION_MINOR };
 
-        read_part_header(f_ep.get(), file_tag::ep, as_label("raw3"), true);
-        const auto [length, offsets]{ read_ep_flat(f_ep.get(), cnt_type()) };
-        const auto [start_time, information]{ read_info(f_info.get(), { part_header_size, info_size }, { 4, 4 }) };
-        read_part_header(f_sampling_frequency.get(), file_tag::sampling_frequency, as_label("eeph"), true);
-        read_part_header(f_chan.get(), file_tag::chan, as_label("raw3"), true);
-        read_part_header(f_history.get(), file_tag::history, as_label("eeph"), true);
-
-        std::string history;
-        history.resize(as_sizet_unchecked(history_size));
-        read(f_history.get(), begin(history), end(history));
-
-        amorph result;
-        result.header.EpochLength = static_cast<measurement_count::value_type>(length);
-        result.sample_count = read_sample_count(f_sample_count.get());
-        result.header.SamplingFrequency = read(f_sampling_frequency.get(), double{});
-        result.header.Electrodes = read_electrodes_flat(f_electrodes.get());
-        result.header.StartTime = start_time;
-        result.order = read_chan(f_chan.get(), { part_header_size, chan_size });
-        result.epoch_ranges = offsets2ranges({ part_header_size, data_size }, offsets);
-        result.trigger_range = { part_header_size, trigger_size };
-        result.information = information;
-        //result.version = { CTK_FILE_VERSION_MAJOR, CTK_FILE_VERSION_MINOR };
-        result.history = history;
-        // TODO: chan.size == electrodes.size, etc
-
-        return result;
+        validate_eeph_dimensions(x.sample_count, x.header.Electrodes.size(), x.order.size(), cast(x.order.size(), sint{}, ok{}));
+        return x;
     }
 
 

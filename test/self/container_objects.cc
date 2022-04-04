@@ -32,11 +32,11 @@ auto binary_file(const std::vector<api::v1::Electrode>& xs) -> void {
     const std::filesystem::path temporary{ "container_objects.bin" };
     {
         file_ptr f{ open_w(temporary) };
-        write_electrodes(f.get(), xs);
+        write_electrodes_bin(f.get(), xs);
     }
     {
         file_ptr f{ open_r(temporary) };
-        const auto ys{ read_electrodes(f.get()) };
+        const auto ys{ read_electrodes_bin(f.get()) };
         REQUIRE(xs == ys);
     }
     std::filesystem::remove(temporary);
