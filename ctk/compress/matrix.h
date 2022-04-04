@@ -128,7 +128,7 @@ struct estimation {
 };
 
 
-template<typename T, typename Format>
+template<typename T>
 struct reduction
 {
     encoding_size data_size;
@@ -158,8 +158,8 @@ struct reduction
 };
 
 // populates the histogram bins in the closed interval [2, nexc]
-template<typename T, typename Format>
-auto create_histogram(reduction<T, Format>& r, estimation<T>& e) -> void {
+template<typename T>
+auto create_histogram(reduction<T>& r, estimation<T>& e) -> void {
     auto& histogram{ e.histogram };
     std::fill(begin(histogram), end(histogram), bucket{ 0, 0 });
 
@@ -257,12 +257,11 @@ auto select_n(const Array& output_sizes, bit_count nexc) -> std::pair<bit_count,
 
 
 template<typename T, typename Format>
-auto pick_parameters(reduction<T, Format>& r, estimation<T>& e, bit_count nexc, encoding_size data_size) -> void {
-    constexpr const Format format;
-    const measurement_count epoch_length{ vsize(r.residuals) };
+auto pick_parameters(reduction<T>& r, estimation<T>& e, bit_count nexc, encoding_size data_size, Format format) -> void {
+    const measurement_count samples{ vsize(r.residuals) };
 
     create_histogram(r, e);
-    evaluate_histogram(epoch_length, nexc, data_size, e, format);
+    evaluate_histogram(samples, nexc, data_size, e, format);
     const auto [n, compressed_size]{ select_n(e.output_sizes, nexc) };
 
     r.data_size = data_size;
@@ -278,7 +277,7 @@ auto min_data_size(bit_count nexc, bit_count master, extended) -> encoding_size;
 
 
 template<typename T, typename Format>
-auto compressed_parameters(reduction<T, Format>& r, estimation<T>& e) -> void {
+auto compressed_parameters(reduction<T>& r, estimation<T>& e, Format format) -> void {
     const auto& residuals{ r.residuals };
     assert(0 < residuals.size());
     auto& residual_sizes{ r.residual_sizes };
@@ -288,8 +287,6 @@ auto compressed_parameters(reduction<T, Format>& r, estimation<T>& e) -> void {
     if (std::transform(begin(residuals), end(residuals), first, count_raw3{}) != last) {
         throw api::v1::CtkBug{ "compressed_parameters: can not count bits" };
     }
-
-    constexpr const Format format;
 
     // epoch length == 1: master value only. encoded as part of the header.
     const auto second{ std::next(first) };
@@ -310,7 +307,7 @@ auto compressed_parameters(reduction<T, Format>& r, estimation<T>& e) -> void {
     const auto data_size{ min_data_size(nexc, residual_sizes[0], format) };
     assert(sizeof_word(data_size) <= sizeof(T));
 
-    pick_parameters(r, e, nexc, data_size);
+    pick_parameters(r, e, nexc, data_size, format);
 }
 
 
@@ -319,12 +316,12 @@ template<typename I, typename T, typename Format>
 // requirements
 //     - I is ForwardIterator
 //     - ValueType(I) is unsigned integral type with two's complement implementation
-auto reduce_row_uncompressed(I first, I last, reduction<T, Format>& r, estimation<T>&) -> void {
+auto reduce_row_uncompressed(I first, I last, reduction<T>& r, estimation<T>&, Format format) -> void {
     r.data_size = Format::as_size(T{});
-    r.output_size = max_block_size(first, last, Format{});
     r.n = size_in_bits(T{});
     r.nexc = r.n;
-    assert(valid_block_encoding(r.data_size, r.method, r.n, r.nexc, T{}, Format{}));
+    r.output_size = max_block_size(first, last, format);
+    assert(valid_block_encoding(r.data_size, r.method, r.n, r.nexc, T{}, format));
 }
 
 
@@ -363,8 +360,8 @@ struct is_exception
 };
 
 
-template<typename T, typename Format>
-auto build_encoding_map(reduction<T, Format>& r) -> void {
+template<typename T>
+auto build_encoding_map(reduction<T>& r) -> void {
     // fixed width encoding: no exceptions.
     // the map is ignored by entity_fixed_width::encode() in block.h.
     if (r.n == r.nexc) {
@@ -381,15 +378,17 @@ auto build_encoding_map(reduction<T, Format>& r) -> void {
 
     // variable width encoding
     if (std::transform(first_residual, last_residual, first_size, first_map, is_exception{ r.n }) != last_map) {
-        throw api::v1::CtkBug{ "build_encoding_map: can not compute exception map" };
+        const std::string e{ "[build_encoding_map, matrix] can not compute exception map" };
+        throw api::v1::CtkBug{ e };
     }
 }
 
 
 template<typename I, typename T, typename IByte, typename Format>
-auto encode_residuals(I first, I last, const reduction<T, Format>& r, bit_writer<IByte>& bits, T, Format format) -> IByte {
-    if (!valid_block_encoding(r.data_size, r.method, r.n, r.nexc, T{}, format)) {
-        throw api::v1::CtkBug{ "encode_residuals: invalid input" };
+auto encode_residuals(I first, I last, const reduction<T>& r, bit_writer<IByte>& bits, T type_tag, Format format) -> IByte {
+    if (!valid_block_encoding(r.data_size, r.method, r.n, r.nexc, type_tag, format)) {
+        const auto e{ invalid_row_header(r.data_size, r.method, r.n, r.nexc, sizeof(T)) };
+        throw api::v1::CtkBug{ e };
     }
 
     const auto first_map{ begin(r.encoding_map) };
@@ -452,7 +451,7 @@ class row_encoder final
 {
     static constexpr const unsigned array_size{ static_cast<unsigned>(encoding_method::length) };
 
-    std::array<reduction<T, Format>, array_size> reductions;
+    std::array<reduction<T>, array_size> reductions;
     estimation<T> scratch;
 
 public:
@@ -514,7 +513,7 @@ private:
 
     template<typename I>
     auto reduce_magnitude(I previous, I first, I last) -> void {
-        reduce_row_uncompressed(first, last, reductions[unsigned(encoding_method::copy)], scratch);
+        reduce_row_uncompressed(first, last, reductions[unsigned(encoding_method::copy)], scratch, Format{});
 
         auto& residuals_time { reductions[unsigned(encoding_method::time)].residuals };
         auto& residuals_time2{ reductions[unsigned(encoding_method::time2)].residuals };
@@ -541,9 +540,11 @@ private:
 
 
     auto crunch() -> void {
-        compressed_parameters(reductions[unsigned(encoding_method::time)], scratch);
-        compressed_parameters(reductions[unsigned(encoding_method::time2)], scratch);
-        compressed_parameters(reductions[unsigned(encoding_method::chan)], scratch);
+        constexpr const Format format;
+
+        compressed_parameters(reductions[unsigned(encoding_method::time)], scratch, format);
+        compressed_parameters(reductions[unsigned(encoding_method::time2)], scratch, format);
+        compressed_parameters(reductions[unsigned(encoding_method::chan)], scratch, format);
     }
 };
 

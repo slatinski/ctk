@@ -37,9 +37,9 @@ auto calculate_compressed_block_size(std::vector<bool>::const_iterator first, st
 
 
 template<typename T, typename Format>
-auto histogram_n(reduction<T, Format>& dut, estimation<T>& e, Format) -> bit_count {
+auto histogram_n(reduction<T>& dut, estimation<T>& e, Format) -> bit_count {
     dut.method = encoding_method::time; // any compressed method
-    compressed_parameters(dut, e);
+    compressed_parameters(dut, e, Format{});
     return dut.n;
 }
 
@@ -93,7 +93,7 @@ TEST_CASE("histogram", "[correct]") {
     const Format format;
 
     for (S length{ 2 }; length < 512; length += 1) {
-        reduction<T, Format> dut;
+        reduction<T> dut;
         estimation<T> e;
         dut.resize(measurement_count{ length });
         e.resize(measurement_count{ length }, format);
