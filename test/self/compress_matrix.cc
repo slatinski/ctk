@@ -47,18 +47,18 @@ void encode_decode(T, Encoder encode, Decoder decode, ptrdiff_t input_size, rand
 
             for (auto length : row_lengths) {
                 const auto height = input_size / length;
-                REQUIRE(encode.sensors(height));
-                REQUIRE(decode.sensors(height));
+                REQUIRE(encode.Sensors(height));
+                REQUIRE(decode.Sensors(height));
 
-                bytes = encode.column_major(input, length);
+                bytes = encode.ColumnMajor(input, length);
                 REQUIRE(!bytes.empty());
-                output = decode.column_major(bytes, length);
+                output = decode.ColumnMajor(bytes, length);
                 REQUIRE(!output.empty());
                 REQUIRE(input == output);
 
-                bytes = encode.row_major(input, length);
+                bytes = encode.RowMajor(input, length);
                 REQUIRE(!bytes.empty());
-                output = decode.row_major(bytes, length);
+                output = decode.RowMajor(bytes, length);
                 REQUIRE(!output.empty());
                 REQUIRE(input == output);
             }

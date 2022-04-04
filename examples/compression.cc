@@ -35,13 +35,13 @@ auto column_major_first_matrix_layout() -> void {
     std::vector<uint8_t> bytes;
 
     ctk::CompressInt16 encoder;
-    if (!encoder.sensors(columns)) {
+    if (!encoder.Sensors(columns)) {
         std::cerr << "cannot set the sensor count for the encoder\n";
         return;
     }
 
     ctk::DecompressInt16 decoder;
-    if (!decoder.sensors(columns)) {
+    if (!decoder.Sensors(columns)) {
         std::cerr << "cannot set the sensor count for the decoder\n";
         return;
     }
@@ -49,7 +49,7 @@ auto column_major_first_matrix_layout() -> void {
     // data processing
     for (int i = 0; i < 3; ++i) {
         // producer
-        bytes = encoder.column_major(input, rows);
+        bytes = encoder.ColumnMajor(input, rows);
         if (bytes.empty()) {
             std::cerr << "encoding failed\n";
             return;
@@ -58,7 +58,7 @@ auto column_major_first_matrix_layout() -> void {
         // ...
 
         // consumer
-        output = decoder.column_major(bytes, rows);
+        output = decoder.ColumnMajor(bytes, rows);
         if (output.empty()) {
             std::cerr << "decoding failed\n";
             return;
@@ -88,15 +88,15 @@ auto row_major_first_matrix_layout() -> void {
     std::vector<uint8_t> bytes;
 
     ctk::CompressInt64 encoder;
-    encoder.sensors(rows);
+    encoder.Sensors(rows);
 
     ctk::DecompressInt64 decoder;
-    decoder.sensors(rows);
+    decoder.Sensors(rows);
 
     // data processing
     for (int i = 0; i < 3; ++i) {
         // producer
-        bytes = encoder.row_major(input, columns);
+        bytes = encoder.RowMajor(input, columns);
         if (bytes.empty()) {
             std::cerr << "encoding failed\n";
             return;
@@ -105,7 +105,7 @@ auto row_major_first_matrix_layout() -> void {
         // ...
 
         // consumer
-        output = decoder.row_major(bytes, columns);
+        output = decoder.RowMajor(bytes, columns);
         if (output.empty()) {
             std::cerr << "decoding failed\n";
             return;

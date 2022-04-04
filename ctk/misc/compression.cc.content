@@ -1,7 +1,7 @@
 
         struct CompressCLASS::impl
         {
-            compress_wrapper<ctk::matrix_encoderINST> encode;
+            ctk::matrix_encoderINST encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -36,54 +36,26 @@
             return *this;
         }
 
-        auto CompressCLASS::sensors(int64_t height) -> bool {
+        auto CompressCLASS::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressCLASS::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressCLASS::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressCLASS::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressCLASS::ColumnMajor(const std::vector<DATATYPE>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressCLASS::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressCLASS::RowMajor(const std::vector<DATATYPE>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressCLASS::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressCLASS::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressCLASS::column_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressCLASS::column_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressCLASS::row_major(const std::vector<DATATYPE>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressCLASS::row_major(const std::vector<DATATYPE>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressCLASS() -> std::unique_ptr<CompressCLASS> {
@@ -98,7 +70,7 @@
 
         struct DecompressCLASS::impl
         {
-            decompress_wrapper<ctk::matrix_decoderINST> decode;
+            ctk::matrix_decoderINST decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -133,54 +105,26 @@
             return *this;
         }
 
-        auto DecompressCLASS::sensors(int64_t height) -> bool {
+        auto DecompressCLASS::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressCLASS::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressCLASS::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressCLASS::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressCLASS::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<DATATYPE> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressCLASS::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressCLASS::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<DATATYPE> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressCLASS::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressCLASS::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressCLASS::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<DATATYPE> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressCLASS::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<DATATYPE> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressCLASS::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<DATATYPE> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressCLASS::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<DATATYPE> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressCLASS() -> std::unique_ptr<DecompressCLASS> {

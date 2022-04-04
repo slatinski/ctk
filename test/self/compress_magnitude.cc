@@ -347,9 +347,9 @@ auto reduction_time(const compressed_epoch& e, const std::vector<int16_t>& order
     data.resize(height, e.length);
 
     api::v1::DecompressReflib reader;
-    reader.sensors(order);
+    reader.Sensors(order);
     const int64_t epoch_length{ static_cast<measurement_count::value_type>(e.length) };
-    const auto input{ reader.column_major(e.data, epoch_length) };
+    const auto input{ reader.ColumnMajor(e.data, epoch_length) };
     assert(input.size() == size_t(std::distance(data.matrix(), data.buffer())));
     std::copy(begin(input), end(input), data.matrix());
 
@@ -403,9 +403,9 @@ auto restore_time(const compressed_epoch& e, const std::vector<int16_t>& order, 
     data.resize(height, e.length);
 
     api::v1::DecompressReflib reader;
-    reader.sensors(order);
+    reader.Sensors(order);
     const int64_t epoch_length{ static_cast<measurement_count::value_type>(e.length) };
-    const auto input{ reader.column_major(e.data, epoch_length) };
+    const auto input{ reader.ColumnMajor(e.data, epoch_length) };
     assert(input.size() == size_t(std::distance(data.matrix(), data.buffer())));
     std::copy(begin(input), end(input), data.matrix());
 

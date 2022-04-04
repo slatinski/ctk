@@ -41,24 +41,18 @@ namespace ctk { namespace api {
             auto operator=(CompressReflib&&) -> CompressReflib& = default;
             ~CompressReflib();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressReflib&, CompressReflib&) -> void;
         };
-        // CompressReflib::CompressReflib() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressReflib can not be created instead of throwing an exception
         auto MakeCompressReflib() -> std::unique_ptr<CompressReflib>;
 
         struct DecompressReflib
@@ -72,24 +66,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressReflib&&) -> DecompressReflib& = default;
             ~DecompressReflib();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressReflib&, DecompressReflib&) -> void;
         };
-        // DecompressReflib::DecompressReflib() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressReflib can not be created instead of throwing an exception
         auto MakeDecompressReflib() -> std::unique_ptr<DecompressReflib>;
 
 
@@ -106,24 +94,18 @@ namespace ctk { namespace api {
             auto operator=(CompressInt16&&) -> CompressInt16& = default;
             ~CompressInt16();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressInt16&, CompressInt16&) -> void;
         };
-        // CompressInt16::CompressInt16() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressInt16 can not be created instead of throwing an exception
         auto MakeCompressInt16() -> std::unique_ptr<CompressInt16>;
 
         struct DecompressInt16
@@ -137,24 +119,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressInt16&&) -> DecompressInt16& = default;
             ~DecompressInt16();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressInt16&, DecompressInt16&) -> void;
         };
-        // DecompressInt16::DecompressInt16() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressInt16 can not be created instead of throwing an exception
         auto MakeDecompressInt16() -> std::unique_ptr<DecompressInt16>;
 
 
@@ -171,24 +147,18 @@ namespace ctk { namespace api {
             auto operator=(CompressInt32&&) -> CompressInt32& = default;
             ~CompressInt32();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressInt32&, CompressInt32&) -> void;
         };
-        // CompressInt32::CompressInt32() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressInt32 can not be created instead of throwing an exception
         auto MakeCompressInt32() -> std::unique_ptr<CompressInt32>;
 
         struct DecompressInt32
@@ -202,24 +172,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressInt32&&) -> DecompressInt32& = default;
             ~DecompressInt32();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressInt32&, DecompressInt32&) -> void;
         };
-        // DecompressInt32::DecompressInt32() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressInt32 can not be created instead of throwing an exception
         auto MakeDecompressInt32() -> std::unique_ptr<DecompressInt32>;
 
 
@@ -236,24 +200,18 @@ namespace ctk { namespace api {
             auto operator=(CompressInt64&&) -> CompressInt64& = default;
             ~CompressInt64();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressInt64&, CompressInt64&) -> void;
         };
-        // CompressInt64::CompressInt64() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressInt64 can not be created instead of throwing an exception
         auto MakeCompressInt64() -> std::unique_ptr<CompressInt64>;
 
         struct DecompressInt64
@@ -267,24 +225,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressInt64&&) -> DecompressInt64& = default;
             ~DecompressInt64();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressInt64&, DecompressInt64&) -> void;
         };
-        // DecompressInt64::DecompressInt64() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressInt64 can not be created instead of throwing an exception
         auto MakeDecompressInt64() -> std::unique_ptr<DecompressInt64>;
 
 
@@ -301,24 +253,18 @@ namespace ctk { namespace api {
             auto operator=(CompressUInt16&&) -> CompressUInt16& = default;
             ~CompressUInt16();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressUInt16&, CompressUInt16&) -> void;
         };
-        // CompressUInt16::CompressUInt16() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressUInt16 can not be created instead of throwing an exception
         auto MakeCompressUInt16() -> std::unique_ptr<CompressUInt16>;
 
         struct DecompressUInt16
@@ -332,24 +278,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressUInt16&&) -> DecompressUInt16& = default;
             ~DecompressUInt16();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressUInt16&, DecompressUInt16&) -> void;
         };
-        // DecompressUInt16::DecompressUInt16() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressUInt16 can not be created instead of throwing an exception
         auto MakeDecompressUInt16() -> std::unique_ptr<DecompressUInt16>;
 
 
@@ -366,24 +306,18 @@ namespace ctk { namespace api {
             auto operator=(CompressUInt32&&) -> CompressUInt32& = default;
             ~CompressUInt32();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressUInt32&, CompressUInt32&) -> void;
         };
-        // CompressUInt32::CompressUInt32() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressUInt32 can not be created instead of throwing an exception
         auto MakeCompressUInt32() -> std::unique_ptr<CompressUInt32>;
 
         struct DecompressUInt32
@@ -397,24 +331,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressUInt32&&) -> DecompressUInt32& = default;
             ~DecompressUInt32();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressUInt32&, DecompressUInt32&) -> void;
         };
-        // DecompressUInt32::DecompressUInt32() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressUInt32 can not be created instead of throwing an exception
         auto MakeDecompressUInt32() -> std::unique_ptr<DecompressUInt32>;
 
 
@@ -431,24 +359,18 @@ namespace ctk { namespace api {
             auto operator=(CompressUInt64&&) -> CompressUInt64& = default;
             ~CompressUInt64();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto column_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
-            auto row_major(const std::vector<value_type>& matrix, int64_t length, std::nothrow_t) -> std::vector<uint8_t>;
+            auto ColumnMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
+            auto RowMajor(const std::vector<value_type>& matrix, int64_t length) -> std::vector<uint8_t>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(CompressUInt64&, CompressUInt64&) -> void;
         };
-        // CompressUInt64::CompressUInt64() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of CompressUInt64 can not be created instead of throwing an exception
         auto MakeCompressUInt64() -> std::unique_ptr<CompressUInt64>;
 
         struct DecompressUInt64
@@ -462,24 +384,18 @@ namespace ctk { namespace api {
             auto operator=(DecompressUInt64&&) -> DecompressUInt64& = default;
             ~DecompressUInt64();
 
-            auto sensors(int64_t height) -> bool;
-            auto sensors(int64_t height, std::nothrow_t) -> bool;
-            auto sensors(const std::vector<int16_t>& order) -> bool; // compatibility
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool; // compatibility
+            auto Sensors(int64_t height) -> bool;
+            auto Sensors(const std::vector<int16_t>& order) -> bool; // left for compatibility
 
-            auto reserve(int64_t length) -> void;
-            auto reserve(int64_t length, std::nothrow_t) -> bool;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto column_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
-            auto row_major(const std::vector<uint8_t>& encoded, int64_t length, std::nothrow_t) -> std::vector<value_type>;
+            auto ColumnMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
+            auto RowMajor(const std::vector<uint8_t>& encoded, int64_t length) -> std::vector<value_type>;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(DecompressUInt64&, DecompressUInt64&) -> void;
         };
-        // DecompressUInt64::DecompressUInt64() might throw. if this is not desired this function returns NULL instead.
+        // returns NULL if an instance of DecompressUInt64 can not be created instead of throwing an exception
         auto MakeDecompressUInt64() -> std::unique_ptr<DecompressUInt64>;
 
 

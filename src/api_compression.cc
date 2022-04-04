@@ -22,279 +22,16 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "api_compression.h"
 #include "compress/matrix.h"
 
-#include <exception>
-#include <algorithm>
-#include <iostream>
-
-
 namespace ctk { namespace api {
 
     namespace v1 {
 
         using namespace ctk::impl;
 
-        auto acceptable_allocation_exception() -> void {
-            try {
-                throw;
-            }
-            // thrown by stl
-            catch (const std::bad_alloc& e) {
-                std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
-                return;
-            }
-            catch (const std::length_error& e) {
-                std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
-                return;
-            }
-            // thrown by ctk
-            catch (const CtkLimit& e) {
-                std::cerr << "exception: " << e.what() << "\n"; // internal library limitation. preventable by input size reduction.
-                return;
-            }
-            // not expected
-            catch (const CtkBug& e) {
-                std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
-            }
-            catch (std::exception& e) {
-                std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
-            }
-
-            abort();
-        }
-
-        auto acceptable_compression_exception() -> void {
-            try {
-                throw;
-            }
-            // thrown by stl
-            catch (const std::bad_alloc& e) {
-                std::cerr << "exception: "<< e.what() << "\n";
-                return;
-            }
-            catch (const std::length_error& e) {
-                std::cerr << "exception: "<< e.what() << "\n";
-                return;
-            }
-            catch (const std::ios_base::failure& e) {
-                std::cerr << "exception: "<< e.what() << "\n";
-                return;
-            }
-            // thrown by ctk
-            catch (const CtkData& e) {
-                std::cerr << "excepion " << e.what() << "\n"; // garbage data block
-                return;
-            }
-            catch (const CtkLimit& e) {
-                std::cerr << "exception: "<< e.what() << "\n"; // preventable user error
-                return;
-            }
-            // not expected
-            catch (const CtkBug& e) {
-                std::cerr << "unexpected exception: "<< e.what() << ". aborting.\n"; // bug in this library
-            }
-            catch (std::exception& e) {
-                std::cerr << "unexpected exception: " << e.what() << ". aborting.\n"; // bug in this library
-            }
-
-            abort();
-        }
-
-        template<typename MatrixEncoder>
-        // MatrixEncoder has an interface compatible with matrix_encoder_reflib or matrix_encoder<T> from compress/matrix.h
-        struct compress_wrapper
-        {
-            using T = typename MatrixEncoder::value_type;
-
-            MatrixEncoder encoder;
-            std::vector<uint8_t> empty_bytes;
-
-            compress_wrapper() = default;
-            compress_wrapper(const compress_wrapper&) = default;
-            compress_wrapper(compress_wrapper&&) = default;
-            auto operator=(const compress_wrapper&) -> compress_wrapper& = default;
-            auto operator=(compress_wrapper&&) -> compress_wrapper& = default;
-            ~compress_wrapper() = default;
-
-            auto sensors(int64_t height) -> bool {
-                return encoder.row_count(sensor_count{ height });
-            }
-
-            auto sensors(int64_t height, std::nothrow_t) -> bool {
-                try {
-                    return sensors(height);
-                }
-                catch(const std::exception&) {
-                    acceptable_allocation_exception(); 
-                }
-
-                return false;
-            }
-
-            auto sensors(const std::vector<int16_t>& order) -> bool {
-                return encoder.row_order(order);
-            }
-
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool {
-                try {
-                    return sensors(order);
-                }
-                catch(const std::exception&) {
-                    acceptable_allocation_exception(); 
-                }
-
-                return false;
-            }
-
-            auto reserve(int64_t length) -> void {
-                return encoder.reserve(measurement_count{ length });
-            }
-
-            auto reserve(int64_t length, std::nothrow_t) -> bool {
-                try {
-                    reserve(length);
-                }
-                catch(const std::exception&) {
-                    acceptable_allocation_exception(); 
-                    return false;
-                }
-
-                return true;
-            }
-
-            auto column_major(const std::vector<T>& input, int64_t length) -> std::vector<uint8_t> {
-                constexpr const column_major2row_major transpose{};
-                return encoder(input, measurement_count{ length }, transpose);
-            }
-
-            auto column_major(const std::vector<T>& input, int64_t length, std::nothrow_t) -> std::vector<uint8_t> {
-                try {
-                    return column_major(input, length);
-                }
-                catch (const std::exception&) {
-                    acceptable_compression_exception();
-                }
-
-                return empty_bytes;
-            }
-
-            auto row_major(const std::vector<T>& input, int64_t length) -> std::vector<uint8_t> {
-                constexpr const row_major2row_major copy{};
-                return encoder(input, measurement_count{ length }, copy);
-            }
-
-            auto row_major(const std::vector<T>& input, int64_t length, std::nothrow_t) -> std::vector<uint8_t> {
-                try {
-                    return row_major(input, length);
-                }
-                catch (const std::exception&) {
-                    acceptable_compression_exception();
-                }
-
-                return empty_bytes;
-            }
-        };
-
-
-        template<typename MatrixDecoder>
-        // MatrixDecoder has an interface compatible with matrix_decoder_reflib or matrix_decoder<T> from compress/matrix.h
-        struct decompress_wrapper
-        {
-            using T = typename MatrixDecoder::value_type;
-
-            MatrixDecoder decoder;
-            std::vector<T> empty_words;
-
-            decompress_wrapper() = default;
-            decompress_wrapper(const decompress_wrapper&) = default;
-            decompress_wrapper(decompress_wrapper&&) = default;
-            auto operator=(const decompress_wrapper&) -> decompress_wrapper& = default;
-            auto operator=(decompress_wrapper&&) -> decompress_wrapper& = default;
-            ~decompress_wrapper() = default;
-
-            auto sensors(int64_t height) -> bool {
-                return decoder.row_count(sensor_count{ height });
-            }
-
-            auto sensors(int64_t height, std::nothrow_t) -> bool {
-                try {
-                    return sensors(height);
-                }
-                catch(const std::exception&) {
-                    acceptable_allocation_exception(); 
-                }
-
-                return false;
-            }
-
-            auto sensors(const std::vector<int16_t>& order) -> bool {
-                return decoder.row_order(order);
-            }
-
-            auto sensors(const std::vector<int16_t>& order, std::nothrow_t) -> bool {
-                try {
-                    return sensors(order);
-                }
-                catch(const std::exception&) {
-                    acceptable_allocation_exception(); 
-                }
-
-                return false;
-            }
-
-            auto reserve(int64_t length) -> void {
-                return decoder.reserve(measurement_count{ length });
-            }
-
-            auto reserve(int64_t length, std::nothrow_t) -> bool {
-                try {
-                    reserve(length);
-                }
-                catch(const std::exception&) {
-                    acceptable_allocation_exception(); 
-                    return false;
-                }
-
-                return true;
-            }
-
-            auto column_major(const std::vector<uint8_t>& input, int64_t length) -> std::vector<T> {
-                constexpr const column_major2row_major transpose{};
-                return decoder(input, measurement_count{ length }, transpose);
-            }
-
-            auto column_major(const std::vector<uint8_t>& input, int64_t length, std::nothrow_t) -> std::vector<T> {
-                try {
-                    return column_major(input, length);
-                }
-                catch (const std::exception&) {
-                    acceptable_compression_exception();
-                }
-
-                return empty_words;
-            }
-
-            auto row_major(const std::vector<uint8_t>& input, int64_t length) -> std::vector<T> {
-                constexpr const row_major2row_major copy{};
-                return decoder(input, measurement_count{ length }, copy);
-            }
-
-            auto row_major(const std::vector<uint8_t>& input, int64_t length, std::nothrow_t) -> std::vector<T> {
-                try {
-                    return row_major(input, length);
-                }
-                catch (const std::exception&) {
-                    acceptable_compression_exception();
-                }
-
-                return empty_words;
-            }
-        };
-
-
 
         struct CompressReflib::impl
         {
-            compress_wrapper<ctk::matrix_encoder_reflib> encode;
+            ctk::matrix_encoder_reflib encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -329,54 +66,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressReflib::sensors(int64_t height) -> bool {
+        auto CompressReflib::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressReflib::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressReflib::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressReflib::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressReflib::ColumnMajor(const std::vector<int32_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressReflib::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressReflib::RowMajor(const std::vector<int32_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressReflib::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressReflib::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressReflib::column_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressReflib::column_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressReflib::row_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressReflib::row_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressReflib() -> std::unique_ptr<CompressReflib> {
@@ -391,7 +100,7 @@ namespace ctk { namespace api {
 
         struct DecompressReflib::impl
         {
-            decompress_wrapper<ctk::matrix_decoder_reflib> decode;
+            ctk::matrix_decoder_reflib decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -426,54 +135,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressReflib::sensors(int64_t height) -> bool {
+        auto DecompressReflib::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressReflib::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressReflib::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressReflib::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressReflib::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int32_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressReflib::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressReflib::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int32_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressReflib::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressReflib::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressReflib::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressReflib::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressReflib::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressReflib::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressReflib() -> std::unique_ptr<DecompressReflib> {
@@ -492,7 +173,7 @@ namespace ctk { namespace api {
 
         struct CompressInt16::impl
         {
-            compress_wrapper<ctk::matrix_encoder<int16_t>> encode;
+            ctk::matrix_encoder<int16_t> encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -527,54 +208,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressInt16::sensors(int64_t height) -> bool {
+        auto CompressInt16::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressInt16::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressInt16::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressInt16::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressInt16::ColumnMajor(const std::vector<int16_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressInt16::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressInt16::RowMajor(const std::vector<int16_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressInt16::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressInt16::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressInt16::column_major(const std::vector<int16_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressInt16::column_major(const std::vector<int16_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressInt16::row_major(const std::vector<int16_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressInt16::row_major(const std::vector<int16_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressInt16() -> std::unique_ptr<CompressInt16> {
@@ -589,7 +242,7 @@ namespace ctk { namespace api {
 
         struct DecompressInt16::impl
         {
-            decompress_wrapper<ctk::matrix_decoder<int16_t>> decode;
+            ctk::matrix_decoder<int16_t> decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -624,54 +277,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressInt16::sensors(int64_t height) -> bool {
+        auto DecompressInt16::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressInt16::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressInt16::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressInt16::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressInt16::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int16_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressInt16::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressInt16::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int16_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressInt16::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressInt16::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressInt16::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int16_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressInt16::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int16_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressInt16::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int16_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressInt16::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int16_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressInt16() -> std::unique_ptr<DecompressInt16> {
@@ -690,7 +315,7 @@ namespace ctk { namespace api {
 
         struct CompressInt32::impl
         {
-            compress_wrapper<ctk::matrix_encoder<int32_t>> encode;
+            ctk::matrix_encoder<int32_t> encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -725,54 +350,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressInt32::sensors(int64_t height) -> bool {
+        auto CompressInt32::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressInt32::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressInt32::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressInt32::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressInt32::ColumnMajor(const std::vector<int32_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressInt32::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressInt32::RowMajor(const std::vector<int32_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressInt32::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressInt32::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressInt32::column_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressInt32::column_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressInt32::row_major(const std::vector<int32_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressInt32::row_major(const std::vector<int32_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressInt32() -> std::unique_ptr<CompressInt32> {
@@ -787,7 +384,7 @@ namespace ctk { namespace api {
 
         struct DecompressInt32::impl
         {
-            decompress_wrapper<ctk::matrix_decoder<int32_t>> decode;
+            ctk::matrix_decoder<int32_t> decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -822,54 +419,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressInt32::sensors(int64_t height) -> bool {
+        auto DecompressInt32::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressInt32::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressInt32::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressInt32::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressInt32::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int32_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressInt32::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressInt32::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int32_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressInt32::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressInt32::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressInt32::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressInt32::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressInt32::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressInt32::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int32_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressInt32() -> std::unique_ptr<DecompressInt32> {
@@ -888,7 +457,7 @@ namespace ctk { namespace api {
 
         struct CompressInt64::impl
         {
-            compress_wrapper<ctk::matrix_encoder<int64_t>> encode;
+            ctk::matrix_encoder<int64_t> encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -923,54 +492,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressInt64::sensors(int64_t height) -> bool {
+        auto CompressInt64::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressInt64::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressInt64::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressInt64::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressInt64::ColumnMajor(const std::vector<int64_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressInt64::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressInt64::RowMajor(const std::vector<int64_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressInt64::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressInt64::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressInt64::column_major(const std::vector<int64_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressInt64::column_major(const std::vector<int64_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressInt64::row_major(const std::vector<int64_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressInt64::row_major(const std::vector<int64_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressInt64() -> std::unique_ptr<CompressInt64> {
@@ -985,7 +526,7 @@ namespace ctk { namespace api {
 
         struct DecompressInt64::impl
         {
-            decompress_wrapper<ctk::matrix_decoder<int64_t>> decode;
+            ctk::matrix_decoder<int64_t> decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1020,54 +561,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressInt64::sensors(int64_t height) -> bool {
+        auto DecompressInt64::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressInt64::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressInt64::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressInt64::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressInt64::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int64_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressInt64::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressInt64::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<int64_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressInt64::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressInt64::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressInt64::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int64_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressInt64::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int64_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressInt64::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<int64_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressInt64::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<int64_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressInt64() -> std::unique_ptr<DecompressInt64> {
@@ -1086,7 +599,7 @@ namespace ctk { namespace api {
 
         struct CompressUInt16::impl
         {
-            compress_wrapper<ctk::matrix_encoder<uint16_t>> encode;
+            ctk::matrix_encoder<uint16_t> encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1121,54 +634,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressUInt16::sensors(int64_t height) -> bool {
+        auto CompressUInt16::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressUInt16::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressUInt16::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressUInt16::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressUInt16::ColumnMajor(const std::vector<uint16_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressUInt16::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressUInt16::RowMajor(const std::vector<uint16_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressUInt16::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressUInt16::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressUInt16::column_major(const std::vector<uint16_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressUInt16::column_major(const std::vector<uint16_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressUInt16::row_major(const std::vector<uint16_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressUInt16::row_major(const std::vector<uint16_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressUInt16() -> std::unique_ptr<CompressUInt16> {
@@ -1183,7 +668,7 @@ namespace ctk { namespace api {
 
         struct DecompressUInt16::impl
         {
-            decompress_wrapper<ctk::matrix_decoder<uint16_t>> decode;
+            ctk::matrix_decoder<uint16_t> decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1218,54 +703,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressUInt16::sensors(int64_t height) -> bool {
+        auto DecompressUInt16::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressUInt16::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressUInt16::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressUInt16::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressUInt16::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<uint16_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressUInt16::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressUInt16::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<uint16_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressUInt16::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressUInt16::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressUInt16::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<uint16_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressUInt16::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<uint16_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressUInt16::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<uint16_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressUInt16::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<uint16_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressUInt16() -> std::unique_ptr<DecompressUInt16> {
@@ -1284,7 +741,7 @@ namespace ctk { namespace api {
 
         struct CompressUInt32::impl
         {
-            compress_wrapper<ctk::matrix_encoder<uint32_t>> encode;
+            ctk::matrix_encoder<uint32_t> encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1319,54 +776,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressUInt32::sensors(int64_t height) -> bool {
+        auto CompressUInt32::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressUInt32::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressUInt32::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressUInt32::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressUInt32::ColumnMajor(const std::vector<uint32_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressUInt32::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressUInt32::RowMajor(const std::vector<uint32_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressUInt32::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressUInt32::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressUInt32::column_major(const std::vector<uint32_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressUInt32::column_major(const std::vector<uint32_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressUInt32::row_major(const std::vector<uint32_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressUInt32::row_major(const std::vector<uint32_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressUInt32() -> std::unique_ptr<CompressUInt32> {
@@ -1381,7 +810,7 @@ namespace ctk { namespace api {
 
         struct DecompressUInt32::impl
         {
-            decompress_wrapper<ctk::matrix_decoder<uint32_t>> decode;
+            ctk::matrix_decoder<uint32_t> decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1416,54 +845,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressUInt32::sensors(int64_t height) -> bool {
+        auto DecompressUInt32::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressUInt32::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressUInt32::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressUInt32::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressUInt32::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<uint32_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressUInt32::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressUInt32::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<uint32_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressUInt32::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressUInt32::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressUInt32::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<uint32_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressUInt32::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<uint32_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressUInt32::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<uint32_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressUInt32::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<uint32_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressUInt32() -> std::unique_ptr<DecompressUInt32> {
@@ -1482,7 +883,7 @@ namespace ctk { namespace api {
 
         struct CompressUInt64::impl
         {
-            compress_wrapper<ctk::matrix_encoder<uint64_t>> encode;
+            ctk::matrix_encoder<uint64_t> encode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1517,54 +918,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CompressUInt64::sensors(int64_t height) -> bool {
+        auto CompressUInt64::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->encode.sensors(height);
+            return p->encode.row_count(sensor_count{ x });
         }
 
-        auto CompressUInt64::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto CompressUInt64::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->encode.sensors(height, nothrow);
+            return p->encode.row_order(xs);
         }
 
-        auto CompressUInt64::sensors(const std::vector<int16_t>& order) -> bool {
+        auto CompressUInt64::ColumnMajor(const std::vector<uint64_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->encode(matrix, measurement_count{ n }, transpose);
         }
 
-        auto CompressUInt64::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto CompressUInt64::RowMajor(const std::vector<uint64_t>& matrix, int64_t n) -> std::vector<uint8_t> {
             assert(p);
-            return p->encode.sensors(order, nothrow);
-        }
-
-        auto CompressUInt64::reserve(int64_t length) -> void {
-            assert(p);
-            p->encode.reserve(length);
-        }
-
-        auto CompressUInt64::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->encode.reserve(length, nothrow);
-        }
-
-        auto CompressUInt64::column_major(const std::vector<uint64_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length);
-        }
-
-        auto CompressUInt64::column_major(const std::vector<uint64_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.column_major(matrix, length, nothrow);
-        }
-
-        auto CompressUInt64::row_major(const std::vector<uint64_t>& matrix, int64_t length) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length);
-        }
-
-        auto CompressUInt64::row_major(const std::vector<uint64_t>& matrix, int64_t length, std::nothrow_t nothrow) -> std::vector<uint8_t> {
-            assert(p);
-            return p->encode.row_major(matrix, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->encode(matrix, measurement_count{ n }, copy);
         }
 
         auto MakeCompressUInt64() -> std::unique_ptr<CompressUInt64> {
@@ -1579,7 +952,7 @@ namespace ctk { namespace api {
 
         struct DecompressUInt64::impl
         {
-            decompress_wrapper<ctk::matrix_decoder<uint64_t>> decode;
+            ctk::matrix_decoder<uint64_t> decode;
 
             impl() = default;
             impl(const impl&) = default;
@@ -1614,54 +987,26 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto DecompressUInt64::sensors(int64_t height) -> bool {
+        auto DecompressUInt64::Sensors(int64_t x) -> bool {
             assert(p);
-            return p->decode.sensors(height);
+            return p->decode.row_count(sensor_count{ x });
         }
 
-        auto DecompressUInt64::sensors(int64_t height, std::nothrow_t nothrow) -> bool {
+        auto DecompressUInt64::Sensors(const std::vector<int16_t>& xs) -> bool {
             assert(p);
-            return p->decode.sensors(height, nothrow);
+            return p->decode.row_order(xs);
         }
 
-        auto DecompressUInt64::sensors(const std::vector<int16_t>& order) -> bool {
+        auto DecompressUInt64::ColumnMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<uint64_t> {
             assert(p);
-            return p->decode.sensors(order);
+            constexpr const column_major2row_major transpose{};
+            return p->decode(xs, measurement_count{ n }, transpose);
         }
 
-        auto DecompressUInt64::sensors(const std::vector<int16_t>& order, std::nothrow_t nothrow) -> bool {
+        auto DecompressUInt64::RowMajor(const std::vector<uint8_t>& xs, int64_t n) -> std::vector<uint64_t> {
             assert(p);
-            return p->decode.sensors(order, nothrow);
-        }
-
-        auto DecompressUInt64::reserve(int64_t length) -> void {
-            assert(p);
-            p->decode.reserve(length);
-        }
-
-        auto DecompressUInt64::reserve(int64_t length, std::nothrow_t nothrow) -> bool {
-            assert(p);
-            return p->decode.reserve(length, nothrow);
-        }
-
-        auto DecompressUInt64::column_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<uint64_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length);
-        }
-
-        auto DecompressUInt64::column_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<uint64_t> {
-            assert(p);
-            return p->decode.column_major(compressed, length, nothrow);
-        }
-
-        auto DecompressUInt64::row_major(const std::vector<uint8_t>& compressed, int64_t length) -> std::vector<uint64_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length);
-        }
-
-        auto DecompressUInt64::row_major(const std::vector<uint8_t>& compressed, int64_t length, std::nothrow_t nothrow) -> std::vector<uint64_t> {
-            assert(p);
-            return p->decode.row_major(compressed, length, nothrow);
+            constexpr const row_major2row_major copy{};
+            return p->decode(xs, measurement_count{ n }, copy);
         }
 
         auto MakeDecompressUInt64() -> std::unique_ptr<DecompressUInt64> {

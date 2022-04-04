@@ -22,8 +22,8 @@ auto generate_input_file(const std::string& fname) -> void {
     constexpr const int64_t length{ 3 };
     const std::vector<int32_t> matrix{ 1, 2, 3, 4, 5, 6 };
     ctk::api::v1::CompressInt32 encoder;
-    encoder.sensors(height);
-    const std::vector<uint8_t> bytes{ encoder.column_major(matrix, length) };
+    encoder.Sensors(height);
+    const std::vector<uint8_t> bytes{ encoder.ColumnMajor(matrix, length) };
 
     file_ptr f{ fopen(fname.c_str(), "wb") };
     if (!f) {
@@ -90,16 +90,12 @@ auto main(int argc, char* argv[]) -> int {
         }
 
         ctk::api::v1::DecompressInt32 decoder;
-        if (!decoder.sensors(height, std::nothrow)) {
+        if (!decoder.Sensors(height)) {
             return 1;
         }
 
-        if (!decoder.reserve(max_length, std::nothrow)) {
-            return 1;
-        }
-
-        const std::vector<int32_t> v1{ decoder.column_major(bytes, length, std::nothrow) };
-        const std::vector<int32_t> v2{ decoder.row_major(bytes, length, std::nothrow) };
+        const std::vector<int32_t> v1{ decoder.ColumnMajor(bytes, length) };
+        const std::vector<int32_t> v2{ decoder.RowMajor(bytes, length) };
         assert(v1.size() == v2.size());
         return !v1.empty() && !v2.empty();
     }

@@ -557,25 +557,21 @@ namespace {
         ~enc_matrix() = default;
 
         auto sensors(int64_t height) -> bool {
-            return compress.sensors(height);
+            return compress.Sensors(height);
         }
 
         auto order(const std::vector<int16_t>& xs) -> bool {
-            return compress.sensors(xs);
-        }
-
-        auto reserve(int64_t length) -> void {
-            compress.reserve(length);
+            return compress.Sensors(xs);
         }
 
         auto column_major(const py::array_t<T>& xs) -> std::vector<uint8_t> {
             const int64_t length{ xs.shape()[0] };
-            return compress.row_major(from_column_major(xs), length);
+            return compress.RowMajor(from_column_major(xs), length);
         }
 
         auto row_major(const py::array_t<T>& xs) -> std::vector<uint8_t> {
             const int64_t length{ xs.shape()[1] };
-            return compress.row_major(from_row_major(xs), length);
+            return compress.RowMajor(from_row_major(xs), length);
         }
     };
 
@@ -594,15 +590,11 @@ namespace {
         ~dec_matrix() = default;
 
         auto sensors(int64_t height) -> bool {
-            return decompress.sensors(height);
+            return decompress.Sensors(height);
         }
 
         auto order(const std::vector<int16_t>& xs) -> bool {
-            return decompress.sensors(xs);
-        }
-
-        auto reserve(int64_t length) -> void {
-            decompress.reserve(length);
+            return decompress.Sensors(xs);
         }
 
         auto column_major(const std::vector<uint8_t>& xs, int64_t length) -> py::array_t<T> {
@@ -611,7 +603,7 @@ namespace {
             }
 
             // TODO: add height getter to the matrix interface and pass temporary to to_column_major
-            const auto ys{ decompress.column_major(xs, length) };
+            const auto ys{ decompress.ColumnMajor(xs, length) };
             const ssize_t h{ ctk::impl::cast(ctk::impl::vsize(ys) / length, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
             return to_column_major(ys, l, h);
@@ -623,7 +615,7 @@ namespace {
             }
 
             // TODO: add height getter to the matrix interface and pass temporary to to_row_major
-            const auto ys{ decompress.row_major(xs, length) };
+            const auto ys{ decompress.RowMajor(xs, length) };
             const ssize_t h{ ctk::impl::cast(ctk::impl::vsize(ys) / length, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
             return to_row_major(ys, l, h);
@@ -1035,7 +1027,6 @@ PYBIND11_MODULE(ctkpy, m) {
     cr.def(py::init<>())
       .def_property("sensors", nullptr, &enc_matrix<v1::CompressReflib>::sensors)
       .def_property("order", nullptr, &enc_matrix<v1::CompressReflib>::order)
-      .def("reserve", &enc_matrix<v1::CompressReflib>::reserve)
       .def("column_major", &enc_matrix<v1::CompressReflib>::column_major)
       .def("row_major", &enc_matrix<v1::CompressReflib>::row_major);
 
@@ -1043,7 +1034,6 @@ PYBIND11_MODULE(ctkpy, m) {
     dr.def(py::init<>())
       .def_property("sensors", nullptr, &dec_matrix<v1::DecompressReflib>::sensors)
       .def_property("order", nullptr, &dec_matrix<v1::DecompressReflib>::sensors)
-      .def("reserve", &dec_matrix<v1::DecompressReflib>::reserve)
       .def("column_major", &dec_matrix<v1::DecompressReflib>::column_major)
       .def("row_major", &dec_matrix<v1::DecompressReflib>::row_major);
 
@@ -1051,7 +1041,6 @@ PYBIND11_MODULE(ctkpy, m) {
     ci16.def(py::init<>())
         .def_property("sensors", nullptr, &enc_matrix<v1::CompressInt16>::sensors)
         .def_property("order", nullptr, &enc_matrix<v1::CompressInt16>::order)
-        .def("reserve", &enc_matrix<v1::CompressInt16>::reserve)
         .def("column_major", &enc_matrix<v1::CompressInt16>::column_major)
         .def("row_major", &enc_matrix<v1::CompressInt16>::row_major);
 
@@ -1059,7 +1048,6 @@ PYBIND11_MODULE(ctkpy, m) {
     di16.def(py::init<>())
         .def_property("sensors", nullptr, &dec_matrix<v1::DecompressInt16>::sensors)
         .def_property("order", nullptr, &dec_matrix<v1::DecompressInt16>::sensors)
-        .def("reserve", &dec_matrix<v1::DecompressInt16>::reserve)
         .def("column_major", &dec_matrix<v1::DecompressInt16>::column_major)
         .def("row_major", &dec_matrix<v1::DecompressInt16>::row_major);
 
@@ -1067,7 +1055,6 @@ PYBIND11_MODULE(ctkpy, m) {
     ci32.def(py::init<>())
         .def_property("sensors", nullptr, &enc_matrix<v1::CompressInt32>::sensors)
         .def_property("order", nullptr, &enc_matrix<v1::CompressInt32>::order)
-        .def("reserve", &enc_matrix<v1::CompressInt32>::reserve)
         .def("column_major", &enc_matrix<v1::CompressInt32>::column_major)
         .def("row_major", &enc_matrix<v1::CompressInt32>::row_major);
 
@@ -1075,7 +1062,6 @@ PYBIND11_MODULE(ctkpy, m) {
     di32.def(py::init<>())
         .def_property("sensors", nullptr, &dec_matrix<v1::DecompressInt32>::sensors)
         .def_property("order", nullptr, &dec_matrix<v1::DecompressInt32>::sensors)
-        .def("reserve", &dec_matrix<v1::DecompressInt32>::reserve)
         .def("column_major", &dec_matrix<v1::DecompressInt32>::column_major)
         .def("row_major", &dec_matrix<v1::DecompressInt32>::row_major);
 
@@ -1083,7 +1069,6 @@ PYBIND11_MODULE(ctkpy, m) {
     ci64.def(py::init<>())
         .def_property("sensors", nullptr, &enc_matrix<v1::CompressInt64>::sensors)
         .def_property("order", nullptr, &enc_matrix<v1::CompressInt64>::order)
-        .def("reserve", &enc_matrix<v1::CompressInt64>::reserve)
         .def("column_major", &enc_matrix<v1::CompressInt64>::column_major)
         .def("row_major", &enc_matrix<v1::CompressInt64>::row_major);
 
@@ -1091,7 +1076,6 @@ PYBIND11_MODULE(ctkpy, m) {
     di64.def(py::init<>())
         .def_property("sensors", nullptr, &dec_matrix<v1::DecompressInt64>::sensors)
         .def_property("order", nullptr, &dec_matrix<v1::DecompressInt64>::sensors)
-        .def("reserve", &dec_matrix<v1::DecompressInt64>::reserve)
         .def("column_major", &dec_matrix<v1::DecompressInt64>::column_major)
         .def("row_major", &dec_matrix<v1::DecompressInt64>::row_major);
 
@@ -1100,7 +1084,6 @@ PYBIND11_MODULE(ctkpy, m) {
     cu16.def(py::init<>())
         .def_property("sensors", nullptr, &enc_matrix<v1::CompressUInt16>::sensors)
         .def_property("order", nullptr, &enc_matrix<v1::CompressUInt16>::order)
-        .def("reserve", &enc_matrix<v1::CompressUInt16>::reserve)
         .def("column_major", &enc_matrix<v1::CompressUInt16>::column_major)
         .def("row_major", &enc_matrix<v1::CompressUInt16>::row_major);
 
@@ -1108,7 +1091,6 @@ PYBIND11_MODULE(ctkpy, m) {
     du16.def(py::init<>())
         .def_property("sensors", nullptr, &dec_matrix<v1::DecompressUInt16>::sensors)
         .def_property("order", nullptr, &dec_matrix<v1::DecompressUInt16>::sensors)
-        .def("reserve", &dec_matrix<v1::DecompressUInt16>::reserve)
         .def("column_major", &dec_matrix<v1::DecompressUInt16>::column_major)
         .def("row_major", &dec_matrix<v1::DecompressUInt16>::row_major);
 
@@ -1116,7 +1098,6 @@ PYBIND11_MODULE(ctkpy, m) {
     cu32.def(py::init<>())
         .def_property("sensors", nullptr, &enc_matrix<v1::CompressUInt32>::sensors)
         .def_property("order", nullptr, &enc_matrix<v1::CompressUInt32>::order)
-        .def("reserve", &enc_matrix<v1::CompressUInt32>::reserve)
         .def("column_major", &enc_matrix<v1::CompressUInt32>::column_major)
         .def("row_major", &enc_matrix<v1::CompressUInt32>::row_major);
 
@@ -1124,7 +1105,6 @@ PYBIND11_MODULE(ctkpy, m) {
     du32.def(py::init<>())
         .def_property("sensors", nullptr, &dec_matrix<v1::DecompressUInt32>::sensors)
         .def_property("order", nullptr, &dec_matrix<v1::DecompressUInt32>::sensors)
-        .def("reserve", &dec_matrix<v1::DecompressUInt32>::reserve)
         .def("column_major", &dec_matrix<v1::DecompressUInt32>::column_major)
         .def("row_major", &dec_matrix<v1::DecompressUInt32>::row_major);
 
@@ -1132,7 +1112,6 @@ PYBIND11_MODULE(ctkpy, m) {
     cu64.def(py::init<>())
         .def_property("sensors", nullptr, &enc_matrix<v1::CompressUInt64>::sensors)
         .def_property("order", nullptr, &enc_matrix<v1::CompressUInt64>::order)
-        .def("reserve", &enc_matrix<v1::CompressUInt64>::reserve)
         .def("column_major", &enc_matrix<v1::CompressUInt64>::column_major)
         .def("row_major", &enc_matrix<v1::CompressUInt64>::row_major);
 
@@ -1140,7 +1119,6 @@ PYBIND11_MODULE(ctkpy, m) {
     du64.def(py::init<>())
         .def_property("sensors", nullptr, &dec_matrix<v1::DecompressUInt64>::sensors)
         .def_property("order", nullptr, &dec_matrix<v1::DecompressUInt64>::sensors)
-        .def("reserve", &dec_matrix<v1::DecompressUInt64>::reserve)
         .def("column_major", &dec_matrix<v1::DecompressUInt64>::column_major)
         .def("row_major", &dec_matrix<v1::DecompressUInt64>::row_major);
 }
