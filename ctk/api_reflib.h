@@ -102,6 +102,10 @@ namespace ctk { namespace api {
         };
 
 
+        enum class WriterPhase{ Setup, Writing, Closed };
+        auto operator<<(std::ostream&, WriterPhase) -> std::ostream&;
+        auto validate_writer_phase(WriterPhase x, WriterPhase expected, const std::string& func) -> void;
+
         struct CntWriterReflib
         {
             CntWriterReflib(const std::filesystem::path&, RiffType);
@@ -115,6 +119,7 @@ namespace ctk { namespace api {
             // assemblies the generated files into a single RIFF file.
             // Close is the last function to call before destroying the object.
             auto Close() -> void;
+            auto IsClosed() const -> bool;
 
             auto RecordingInfo(const Info&) -> void;
             auto ParamEeg(const TimeSeries&) -> void;
@@ -144,6 +149,9 @@ namespace ctk { namespace api {
             } */
             auto RangeRowMajor(const std::vector<double>&) -> void;
             auto RangeRowMajorInt32(const std::vector<int32_t>&) -> void;
+
+            // libeep v4 interface: column major, float
+            auto RangeLibeep(const std::vector<float>&) -> void;
 
             auto AddTrigger(const Trigger&) -> void;
             auto AddTriggers(const std::vector<Trigger>&) -> void;

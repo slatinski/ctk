@@ -177,16 +177,33 @@ namespace ctk { namespace api {
         }
 
 
+        auto validate_writer_phase(WriterPhase x, WriterPhase expected, const std::string& func) -> void {
+            if (x == expected) {
+                return;
+            }
+
+            std::ostringstream oss;
+            oss << "[" << func << ", api_reflib] invalid phase '" << x << "', expected '" << expected << "'";
+            throw CtkLimit{ oss.str() };
+        }
 
 
         struct CntWriterReflib::impl
         {
             cnt_writer_reflib_riff writer;
             cnt_writer_reflib_flat *raw3;
+            WriterPhase phase;
 
             impl(const std::filesystem::path& fname, RiffType riff)
             : writer{ fname, riff }
-            , raw3{ nullptr } {
+            , raw3{ nullptr }
+            , phase{ WriterPhase::Setup } {
+                if (fname.empty() || !fname.has_filename()) {
+                    std::ostringstream oss;
+                    oss << "[CntWriterReflib, api_reflib] no filename '" << fname.string() << "'";
+                    const auto e{ oss.str() };
+                    throw CtkData{ e };
+                }
             }
         };
 
@@ -211,16 +228,31 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::Close() -> void {
             assert(p);
-            if (!p->raw3) {
+
+            if (p->phase == WriterPhase::Closed || !p->raw3) {
+                p->phase = WriterPhase::Closed;
                 return;
             }
 
             p->writer.close();
             p->raw3 = nullptr;
+            p->phase = WriterPhase::Closed;
+        }
+
+        auto CntWriterReflib::IsClosed() const -> bool {
+            assert(p);
+            return p->phase == WriterPhase::Closed;
         }
 
         auto CntWriterReflib::RecordingInfo(const Info& info) -> void {
             assert(p);
+            if (p->phase == WriterPhase::Closed) {
+                std::ostringstream oss;
+                oss << "[CntWriterReflib::RecordingInfo, api_reflib] invalid phase '" << p->phase << "'";
+                const auto e{ oss.str() };
+                throw CtkLimit{ e };
+            }
+
             p->writer.recording_info(info);
         }
 
@@ -230,12 +262,24 @@ namespace ctk { namespace api {
                 const std::string e{ "[CntWriterReflib::ParamEeg, api_reflib] one segment only" };
                 throw CtkLimit{ e };
             }
+            assert(p->raw3 == nullptr);
+
+            validate_writer_phase(p->phase, WriterPhase::Setup, "CntWriterReflib::TimeSignal");
 
             p->raw3 = p->writer.add_time_signal(param_eeg);
+            if (p->raw3 == nullptr) {
+                const std::string e{ "[CntWriterReflib::TimeSignal, api_reflib] add_time_signal failed" };
+                throw CtkLimit{ e };
+            }
+
+            p->phase = WriterPhase::Writing;
         }
 
         auto CntWriterReflib::RangeColumnMajorInt32(const std::vector<int32_t>& client) -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeColumnMajorInt32");
+
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
             }
@@ -245,6 +289,9 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::RangeRowMajorInt32(const std::vector<int32_t>& client) -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeRowMajorInt32");
+
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
             }
@@ -254,6 +301,9 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::RangeColumnMajor(const std::vector<double>& client) -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeColumnMajor");
+
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
             }
@@ -263,6 +313,9 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::RangeRowMajor(const std::vector<double>& client) -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeRowMajor");
+
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
             }
@@ -270,8 +323,24 @@ namespace ctk { namespace api {
             p->raw3->range_row_major_scaled(client);
         }
 
+        auto CntWriterReflib::RangeLibeep(const std::vector<float>& client) -> void {
+            assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeLibeep");
+
+            if (!p->raw3) {
+                const std::string e{ "[CntWriterReflib::RangeLibeep, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
+            }
+
+            p->raw3->range_libeep_v4(client);
+        }
+
         auto CntWriterReflib::AddTrigger(const Trigger& x) -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::Trigger");
+
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::trigger: addTimeSignal not invoked or close already invoked" };
             }
@@ -281,6 +350,9 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::AddTriggers(const std::vector<Trigger>& triggers) -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::Triggers");
+
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::triggers: addTimeSignal not invoked or close already invoked" };
             }
@@ -290,11 +362,21 @@ namespace ctk { namespace api {
 
         auto CntWriterReflib::History(const std::string& x) -> void {
             assert(p);
+            if (p->phase == WriterPhase::Closed) {
+                std::ostringstream oss;
+                oss << "[CntWriterReflib::History, api_reflib] invalid phase '" << p->phase << "'";
+                const auto e{ oss.str() };
+                throw CtkBug{ e };
+            }
+
             p->writer.history(x);
         }
 
         auto CntWriterReflib::Flush() -> void {
             assert(p);
+
+            validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::Flush");
+
             p->writer.flush();
         }
 
@@ -621,6 +703,16 @@ namespace ctk { namespace api {
             }
 
             return std::filesystem::remove(tmp);
+        }
+
+
+        auto operator<<(std::ostream& os, WriterPhase x) -> std::ostream& {
+            switch(x) {
+                case WriterPhase::Setup: os << "Setup"; break;
+                case WriterPhase::Writing: os << "Writing"; break;
+                case WriterPhase::Closed: os << "Closed"; break;
+            }
+            return os;
         }
 
     } /* namespace v1 */

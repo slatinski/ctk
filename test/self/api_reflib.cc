@@ -175,6 +175,92 @@ TEST_CASE("read write row major scaled", "[consistency] [read] [write]") {
     std::filesystem::remove(temporary);
 }
 
+
+TEST_CASE("writer close", "[consistency] [write]") {
+    // close is callable at any time
+    std::filesystem::path temporary{ "test_api_reflib_writer_close.cnt" };
+    {
+        ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
+        writer.Close();
+        REQUIRE(writer.IsClosed());
+    }
+    REQUIRE(!std::filesystem::exists(temporary));
+
+    {
+        ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
+        writer.RecordingInfo(ctk::Info{});
+        writer.Close();
+        REQUIRE(writer.IsClosed());
+    }
+    REQUIRE(!std::filesystem::exists(temporary));
+
+    {
+        ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
+        ctk::TimeSeries x;
+        REQUIRE_THROWS(writer.ParamEeg(x));
+        x.StartTime = std::chrono::system_clock::now();
+        x.Electrodes.emplace_back("1", "ref");
+        x.SamplingFrequency = 1;
+        writer.ParamEeg(x);
+        writer.Close();
+        REQUIRE(writer.IsClosed());
+    }
+    REQUIRE(!std::filesystem::exists(temporary));
+
+    {
+        ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
+        REQUIRE_THROWS(writer.AddTrigger({ 0, "0" }));
+        REQUIRE_THROWS(writer.AddTriggers({ { 0, "0" }, { 0, "1" } }));
+        REQUIRE_THROWS(writer.RangeColumnMajor({ 0 }));
+        REQUIRE_THROWS(writer.Flush());
+        writer.History("");
+        writer.Close();
+        REQUIRE(writer.IsClosed());
+    }
+    REQUIRE(!std::filesystem::exists(temporary));
+
+    {
+        ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
+        ctk::TimeSeries x;
+        x.StartTime = std::chrono::system_clock::now();
+        x.Electrodes.emplace_back("1", "ref");
+        x.SamplingFrequency = 1;
+        writer.ParamEeg(x);
+        writer.RangeColumnMajor({ 0 });
+        writer.Close();
+        REQUIRE(writer.IsClosed());
+    }
+    REQUIRE(std::filesystem::exists(temporary));
+    std::filesystem::remove(temporary);
+
+    // no function is callable after close
+    {
+        ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
+        writer.Close();
+        REQUIRE(writer.IsClosed());
+
+        ctk::TimeSeries x;
+        x.StartTime = std::chrono::system_clock::now();
+        x.Electrodes.emplace_back("1", "ref");
+        x.SamplingFrequency = 1;
+        REQUIRE_THROWS(writer.ParamEeg(x));
+        REQUIRE_THROWS(writer.RecordingInfo(ctk::Info{}));
+        REQUIRE_THROWS(writer.RangeColumnMajor({ 0 }));
+        REQUIRE_THROWS(writer.AddTrigger({ 0, "0" }));
+        REQUIRE_THROWS(writer.AddTriggers({ { 0, "0" }, { 0, "1" } }));
+        REQUIRE_THROWS(writer.Flush());
+        REQUIRE_THROWS(writer.History(""));
+    }
+    REQUIRE(!std::filesystem::exists(temporary));
+}
+
+
+TEST_CASE("odd input", "[consistency] [write]") {
+    REQUIRE_THROWS(ctk::CntWriterReflib{ "", RiffType::riff32 });
+    REQUIRE_THROWS(ctk::CntWriterReflib{ "", RiffType::riff64 });
+}
+
+
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */
 
 
