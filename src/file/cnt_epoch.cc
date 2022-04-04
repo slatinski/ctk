@@ -17,14 +17,15 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "file/cnt_epoch.h"
 
 #include <cmath>
 #include <numeric>
 #include <iomanip>
+#include <sstream>
 #include <chrono>
 #include "date/date.h"
 
-#include "file/cnt_epoch.h"
 #include "compress/matrix.h"
 #include "file/leb128.h"
 #include "ctk_version.h"
@@ -288,26 +289,30 @@ namespace ctk { namespace impl {
 
 
     template<typename I>
-    auto as_code(I first, I last) -> std::array<char, ctk::api::v1::evt_label_size + 2> {
-        std::array<char, ctk::api::v1::evt_label_size + 2> result;
+    auto as_code(I first, I last) -> std::array<char, api::v1::sizes::evt_trigger_code> {
+        std::array<char, api::v1::sizes::evt_trigger_code> result{ 0 };
         const auto size_input{ std::distance(first, last) };
-        const auto size_label{ cast(ctk::api::v1::evt_label_size, ptrdiff_t{}, unguarded{}) };
+        const auto size_label{ static_cast<ptrdiff_t>(api::v1::sizes::evt_trigger_code) };
         const auto amount{ std::min(size_input, size_label) };
         auto next{ std::copy(first, first + amount, begin(result)) };
-        *next = 0;
+        if (next != end(result)) {
+            *next = 0;
+        }
         return result;
     }
 
-    auto as_code(const std::string& s) -> std::array<char, ctk::api::v1::evt_label_size + 2> {
-        return as_code(begin(s), end(s));
+    static
+    auto as_code(const std::string& xs) -> std::array<char, api::v1::sizes::evt_trigger_code> {
+        return as_code(begin(xs), end(xs));
     }
 
-    auto as_string(const std::array<char, ctk::api::v1::evt_label_size + 2>& a) -> std::string {
-        const auto first{ begin(a) };
-        const auto last{ end(a) };
+    static
+    auto as_string(const std::array<char, api::v1::sizes::evt_trigger_code>& xs) -> std::string {
+        const auto first{ begin(xs) };
+        const auto last{ end(xs) };
         const auto found{ std::find(first, last, 0) };
         const auto length{ static_cast<size_t>(std::distance(first, found)) };
-        const auto amount{ std::min(length, ctk::api::v1::evt_label_size) };
+        const auto amount{ std::min(length, static_cast<size_t>(api::v1::sizes::evt_trigger_code)) };
 
         std::string result;
         result.resize(amount);
@@ -317,23 +322,26 @@ namespace ctk { namespace impl {
 
     template<typename T>
     auto read_evt_content(FILE* f, const file_range& x, T type_tag) -> std::vector<api::v1::Trigger> {
-        const size_t items{ cast(x.size, size_t{}, guarded{}) / (api::v1::evt_label_size + sizeof(T)) };
+        const size_t items{ cast(x.size, size_t{}, guarded{}) / (api::v1::sizes::evt_trigger_code + sizeof(T)) };
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::CtkData{ "read_evt_content: invalid file position" };
+            std::ostringstream oss;
+            oss << "[read_evt_content, cnt_epoch] can not seek to file position " << x.fpos;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         std::vector<api::v1::Trigger> result;
         result.reserve(items);
 
         int64_t sample;
-        std::array<char, api::v1::evt_label_size> code;
+        std::array<char, api::v1::sizes::evt_trigger_code> code;
 
         for (size_t i{ 0 }; i < items; ++i) {
-            sample = cast(read(f, type_tag), int64_t{}, ok{}); // CtkData
+            sample = cast(read(f, type_tag), int64_t{}, ok{});
             read(f, begin(code), end(code));
 
-            result.emplace_back(sample, code);
+            result.emplace_back(sample, as_string(code));
         }
 
         return result;
@@ -343,17 +351,18 @@ namespace ctk { namespace impl {
     auto write_evt_record(FILE* f, const api::v1::Trigger& x, T type_tag) -> void {
         assert(f);
 
-        write(f, cast(x.sample, type_tag, ok{})); // CtkData? CtkBug?
+        write(f, cast(x.Sample, type_tag, ok{}));
 
-        const auto first{ begin(x.code) };
-        const auto last{ first + api::v1::evt_label_size };
+        const auto code{ as_code(x.Code) };
+        const auto first{ begin(code) };
+        const auto last{ end(code) };
         write(f, first, last);
     }
 
 
     template<typename T>
-    auto write_evt_content(FILE* f, const std::vector<api::v1::Trigger>& triggers, T type_tag) -> void {
-        for (const auto& t : triggers) {
+    auto write_evt_content(FILE* f, const std::vector<api::v1::Trigger>& xs, T type_tag) -> void {
+        for (const auto& t : xs) {
             write_evt_record(f, t, type_tag);
         }
     }
@@ -373,22 +382,22 @@ namespace ctk { namespace impl {
         ~riff_type() = default;
 
         virtual
-        auto clone() -> cnt_field_sizes* final {
+        auto clone() -> cnt_field_sizes* {
             return new riff_type{ as_string(id) };
         }
 
         virtual
-        auto root_id() const -> std::string final {
+        auto root_id() const -> std::string {
             return as_string(id);
         }
 
         virtual
-        auto entity_size() const -> size_t final {
+        auto entity_size() const -> size_t {
             return sizeof(SizeType);
         }
 
         virtual
-        auto write_entity(FILE* f, int64_t x) const -> void final {
+        auto write_entity(FILE* f, int64_t x) const -> void {
             write(f, cast(x, SizeType{}, ok{}));
         }
 
@@ -398,22 +407,22 @@ namespace ctk { namespace impl {
         }
 
         virtual
-        auto read_ep(FILE* f, const file_range& x) const -> ep_content final {
+        auto read_ep(FILE* f, const file_range& x) const -> ep_content {
             return read_ep_content(f, x, SizeType{});
         }
 
         virtual
-        auto read_triggers(FILE* f, const file_range& x) const -> std::vector<api::v1::Trigger> final {
+        auto read_triggers(FILE* f, const file_range& x) const -> std::vector<api::v1::Trigger> {
             return read_evt_content(f, x, EvtType{});
         }
 
         virtual
-        auto write_triggers(FILE* f, const std::vector<api::v1::Trigger>& v) const -> void final {
-            return write_evt_content(f, v, EvtType{});
+        auto write_triggers(FILE* f, const std::vector<api::v1::Trigger>& xs) const -> void {
+            return write_evt_content(f, xs, EvtType{});
         }
 
         virtual
-        auto write_trigger(FILE* f, const api::v1::Trigger& x) const -> void final {
+        auto write_trigger(FILE* f, const api::v1::Trigger& x) const -> void {
             return write_evt_record(f, x, EvtType{});
         }
     };

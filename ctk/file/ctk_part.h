@@ -28,9 +28,6 @@ namespace ctk { namespace impl {
 
     using label_type = uint32_t; // TODO: does not belong here
 
-    auto as_code(const std::string&) -> std::array<char, ctk::api::v1::evt_label_size + 2>;
-    auto as_string(const std::array<char, ctk::api::v1::evt_label_size + 2>&) -> std::string;
-
     auto as_string(label_type l) -> std::string;
     auto as_label(const std::string& s) -> label_type;
 

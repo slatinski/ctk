@@ -20,35 +20,39 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #pragma once
 
 #include <string>
-#include <array>
 #include <vector>
 #include <chrono>
-#include <ostream>
 
 
 namespace ctk { namespace api {
 
 namespace v1 {
 
-    inline constexpr const size_t evt_label_size{ 8 };
+    namespace sizes {
+        // up to that many bytes can be round-tripped
+        static constexpr const unsigned evt_trigger_code{ 8 };
+        static constexpr const unsigned eeph_electrode_active{ 10 };
+        static constexpr const unsigned eeph_electrode_unit{ 10 };
+        static constexpr const unsigned eeph_electrode_reference{ 9 };
+        static constexpr const unsigned eeph_electrode_status{ 9 };
+        static constexpr const unsigned eeph_electrode_type{ 9 };
+    } // namespace sizes
 
     struct Trigger
     {
-        int64_t sample;
-        // label 8 bytes, '\0' 1 byte, 1 byte waisted in order to avoid odd structure size
-        std::array<char, evt_label_size + 2> code;
+        int64_t Sample;
+        std::string Code;
 
         Trigger();
-        Trigger(int64_t sample, const std::string& code);
-        Trigger(int64_t sample, const std::array<char, evt_label_size>& code);
+        Trigger(int64_t, const std::string&);
         Trigger(const Trigger&) = default;
         Trigger(Trigger&&) = default;
         auto operator=(const Trigger&) -> Trigger& = default;
         auto operator=(Trigger&&) -> Trigger& = default;
         ~Trigger() = default;
 
-        friend auto operator==(const Trigger&, const Trigger&) -> bool;
-        friend auto operator!=(const Trigger&, const Trigger&) -> bool;
+        friend auto operator==(const Trigger&, const Trigger&) -> bool = default;
+        friend auto operator!=(const Trigger&, const Trigger&) -> bool = default;
     };
     auto operator<<(std::ostream&, const Trigger&) -> std::ostream&;
 

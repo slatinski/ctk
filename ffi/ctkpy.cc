@@ -71,9 +71,9 @@ namespace {
         }
 
         auto set_code(const std::string& x) -> void {
-            if (v1::evt_label_size < x.size()) {
+            if (v1::sizes::evt_trigger_code < x.size()) {
                 std::ostringstream oss;
-                oss << "the maximum trigger code label size is " << v1::evt_label_size << ", '" << x << "' is " << x.size();
+                oss << "the maximum trigger code label size is " << v1::sizes::evt_trigger_code << ", '" << x << "' is " << x.size();
                 throw std::runtime_error(oss.str());
             }
 
@@ -88,7 +88,7 @@ namespace {
 
     static
     auto v1trigger2ctkpytrigger(const v1::Trigger& x) -> ctkpy_trigger {
-        return { x.sample, ctk::impl::as_string(x.code) };
+        return { x.Sample, x.Code };
     }
 
     static

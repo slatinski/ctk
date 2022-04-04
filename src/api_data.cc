@@ -32,32 +32,16 @@ namespace ctk { namespace api {
     namespace v1 {
 
         Trigger::Trigger()
-        : sample{ std::numeric_limits<int64_t>::max() } {
-            std::fill(begin(code), end(code), char{ 0 });
+        : Sample{ std::numeric_limits<int64_t>::max() } {
         }
 
         Trigger::Trigger(int64_t s, const std::string& c)
-        : sample{ s }
-        , code{ ctk::impl::as_code(c) } {
-        }
-
-        Trigger::Trigger(int64_t s, const std::array<char, evt_label_size>& c)
-        : sample{ s } {
-            static_assert(sizeof(c) < sizeof(code));
-            auto next{ std::copy(begin(c), end(c), begin(code)) };
-            *next = 0;
-        }
-
-        auto operator==(const Trigger& x, const Trigger& y) -> bool {
-            return x.sample == y.sample && ctk::impl::as_string(x.code) == ctk::impl::as_string(y.code);
-        }
-
-        auto operator!=(const Trigger& x, const Trigger& y) -> bool {
-            return !(x == y);
+        : Sample{ s }
+        , Code{ c } {
         }
 
         auto operator<<(std::ostream& os, const Trigger& x) -> std::ostream& {
-            os << x.sample << " " << ctk::impl::as_string(x.code);
+            os << x.Sample << " " << x.Code;
             return os;
         }
 
