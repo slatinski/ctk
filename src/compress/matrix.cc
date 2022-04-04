@@ -21,48 +21,85 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl {
 
-    auto matrix_size(sensor_count height, measurement_count length) -> sint {
-        //assert(0 <= height);
-        //assert(0 <= length);
+    auto matrix_size(sensor_count electrodes, measurement_count samples) -> sint {
+        const dimensions x{ electrodes, samples }; // dimensions guard
+        // comparison used in order to prevent the compiler from optimizing out the unused variable x
+        if (x.electrodes() != electrodes || x.samples() != samples) {
+            return 0;
+        }
 
-        const sint channels{ height };
-        const sint samples{ length };
-        return multiply(channels, samples, ok{});
+        const sint channels{ electrodes };
+        const sint sample_count{ samples };
+        return multiply(channels, sample_count, ok{});
     }
 
-    auto matrix_size(sensor_count height, byte_count length) -> byte_count {
-        assert(0 <= height);
-        assert(0 <= length);
+    auto matrix_size(sensor_count electrodes, byte_count samples) -> byte_count {
+        const byte_count::value_type i{ samples };
+        const measurement_count non_samples{ i };
+        const dimensions x{ electrodes, non_samples }; // dimensions guard
+        // comparison used in order to prevent the compiler from optimizing out the unused variable x
+        if (x.electrodes() != electrodes || x.samples() != non_samples) {
+            return byte_count{ 0 };
+        }
 
-        const sint channels{ height };
-        const auto samples{ as_bits(length, ok{}) };
-        return as_bytes(scale(samples, channels, ok{}));
+        const sint channels{ electrodes };
+        const auto sample_count{ as_bits(samples, ok{}) };
+        return as_bytes(scale(sample_count, channels, ok{}));
+    }
+
+
+    dimensions::dimensions()
+    : height{ 0 }
+    , length{ 0 } {
+    }
+
+    dimensions::dimensions(sensor_count electrodes,  measurement_count samples)
+    : height{ electrodes }
+    , length{ samples } {
+        if (height < 1 || length < 1) {
+            std::ostringstream oss;
+            oss << "[dimensions, matrix] invalid " << height << " x " << length;
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
+        }
+    }
+
+    auto dimensions::electrodes() const -> sensor_count {
+        return height;
+    }
+
+    auto dimensions::samples() const -> measurement_count {
+        return length;
     }
 
 
     auto natural_row_order(sensor_count n) -> std::vector<int16_t> {
-        assert(0 < n);
+        if (n < 0) {
+            std::ostringstream oss;
+            oss << "[natural_row_order, matrix] invalid row count " << n;
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
+        }
 
         using Int = sint;
         using UInt = typename std::vector<int16_t>::size_type;
 
         const Int sn{ n };
         const UInt size{ cast(sn, UInt{}, ok{}) };
-        std::vector<int16_t> v(size);
+        std::vector<int16_t> xs(size);
 
-        std::iota(begin(v), end(v), int16_t{ 0 });
-        return v;
+        std::iota(begin(xs), end(xs), int16_t{ 0 });
+        return xs;
     }
 
 
-    // TODO
-    auto is_valid_row_order(std::vector<int16_t> v) -> bool {
-        if (v.empty() || !in_signed_range(v.size(), sint{}, ok{})) {
+    auto is_valid_row_order(std::vector<int16_t> xs) -> bool {
+        std::sort(begin(xs), end(xs));
+        if (xs != natural_row_order(sensor_count{ vsize(xs) })) {
             return false;
         }
 
-        std::sort(begin(v), end(v));
-        return v == natural_row_order(sensor_count{ vsize(v) });
+        return true;
     }
 
 

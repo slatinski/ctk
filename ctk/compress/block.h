@@ -582,7 +582,7 @@ namespace ctk { namespace impl {
 
             constexpr const auto scheme{ field_width_encoding() + field_width_encoding() };
             static_assert(scheme <= one_byte());
-            bits.write(one_byte() - scheme, unsigned{0}); // padding
+            bits.write(one_byte() - scheme, unsigned{ 0 }); // padding
 
             return { first, encoding_map };
         }

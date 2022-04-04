@@ -26,6 +26,236 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl { namespace test {
 
+    using namespace ctk::api::v1;
+
+
+TEST_CASE("matrix dimensions", "[correct]") {
+    using T = CompressReflib::value_type;
+
+    std::vector<int16_t> order;
+    std::vector<T> input;
+    std::vector<uint8_t> empty;
+    std::vector<uint8_t> bytes;
+
+    // the empty input handling is inconsistent because i can not decide how to proceed.
+    // encoding the empty input might have either of these valid outcomes:
+    //  - empty output
+    //  - valid block header followed by zero values
+    //    (method copy, data size 4 bytes, n 2 bits, nexc 2 bits) is a good single byte candidate.
+
+    // 1) encoder
+    CompressReflib encode;
+
+    REQUIRE_THROWS(encode.Sensors(-1));
+    REQUIRE_THROWS(encode.Sensors(std::numeric_limits<int64_t>::max()));
+    REQUIRE(encode.Sensors(0));
+    REQUIRE(encode.Sensors(order));
+
+    // 1.1) empty input, no sensors: something out of nothing
+
+    // negative
+    REQUIRE(encode.ColumnMajor(input, -1).empty());
+    REQUIRE(encode.RowMajor(input, -1).empty());
+
+    // nothing out of nothing
+    REQUIRE(encode.ColumnMajor(input, 0).empty());
+    REQUIRE(encode.RowMajor(input, 0).empty());
+
+    // too much
+    REQUIRE(encode.ColumnMajor(input, 1).empty());
+    REQUIRE(encode.RowMajor(input, 1).empty());
+    REQUIRE(encode.ColumnMajor(input, std::numeric_limits<int64_t>::max()).empty());
+    REQUIRE(encode.RowMajor(input, std::numeric_limits<int64_t>::max()).empty());
+
+
+    // 1.2) input, no sensors: something out of nothing
+    input.push_back(1024);
+
+    // negative
+    REQUIRE_THROWS(encode.ColumnMajor(input, -1));
+    REQUIRE_THROWS(encode.RowMajor(input, -1));
+
+    // nothing out of nothing
+    REQUIRE_THROWS(encode.ColumnMajor(input, 0));
+    REQUIRE_THROWS(encode.RowMajor(input, 0));
+
+    // too much
+    REQUIRE_THROWS(encode.ColumnMajor(input, 1));
+    REQUIRE_THROWS(encode.RowMajor(input, 1));
+    REQUIRE_THROWS(encode.ColumnMajor(input, std::numeric_limits<int64_t>::max()));
+    REQUIRE_THROWS(encode.RowMajor(input, std::numeric_limits<int64_t>::max()));
+
+    // 1.3) empty input, sensors: something out of nothing
+    input.clear();
+    REQUIRE(encode.Sensors(1));
+
+    // negative
+    REQUIRE(encode.ColumnMajor(input, -1).empty());
+    REQUIRE(encode.RowMajor(input, -1).empty());
+
+    // nothing out of nothing
+    REQUIRE(encode.ColumnMajor(input, 0).empty());
+    REQUIRE(encode.RowMajor(input, 0).empty());
+
+    // too much
+    REQUIRE(encode.ColumnMajor(input, 1).empty());
+    REQUIRE(encode.RowMajor(input, 1).empty());
+    REQUIRE(encode.ColumnMajor(input, std::numeric_limits<int64_t>::max()).empty());
+    REQUIRE(encode.RowMajor(input, std::numeric_limits<int64_t>::max()).empty());
+
+
+    // 1.4) input, sensors: something out of something
+    REQUIRE(encode.Sensors(1));
+    input.push_back(1024);
+
+    // negative
+    REQUIRE_THROWS(encode.ColumnMajor(input, -1));
+    REQUIRE_THROWS(encode.RowMajor(input, -1));
+
+    // nothing out of something
+    REQUIRE_THROWS(encode.ColumnMajor(input, 0));
+    REQUIRE_THROWS(encode.RowMajor(input, 0));
+
+    // something out of something
+    REQUIRE(encode.ColumnMajor(input, 1).empty() == false);
+    REQUIRE(encode.RowMajor(input, 1).empty() == false);
+
+    bytes = encode.ColumnMajor(input, 1);
+
+    // too much
+    REQUIRE_THROWS(encode.ColumnMajor(input, 2));
+    REQUIRE_THROWS(encode.RowMajor(input, 2));
+
+
+    // 2) decoder
+    DecompressReflib decode;
+
+    REQUIRE_THROWS(decode.Sensors(-1));
+    REQUIRE_THROWS(decode.Sensors(std::numeric_limits<int64_t>::max()));
+    REQUIRE(decode.Sensors(0));
+    REQUIRE(decode.Sensors(order));
+
+    // 2.1) empty input, no sensors: something out of nothing
+
+    // negative
+    REQUIRE(decode.ColumnMajor(empty, -1).empty());
+    REQUIRE(decode.RowMajor(empty, -1).empty());
+
+    // nothing out of nothing
+    REQUIRE(decode.ColumnMajor(empty, 0).empty());
+    REQUIRE(decode.RowMajor(empty, 0).empty());
+
+    // too much
+    REQUIRE(decode.ColumnMajor(empty, 1).empty());
+    REQUIRE(decode.RowMajor(empty, 1).empty());
+    REQUIRE(decode.ColumnMajor(empty, std::numeric_limits<int64_t>::max()).empty());
+    REQUIRE(decode.RowMajor(empty, std::numeric_limits<int64_t>::max()).empty());
+
+    // 2.2) input, no sensors: something out of nothing
+
+    // negative
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, -1));
+    REQUIRE_THROWS(decode.RowMajor(bytes, -1));
+
+    // nothing out of nothing
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, 0));
+    REQUIRE_THROWS(decode.RowMajor(bytes, 0));
+
+    // too much
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, 1));
+    REQUIRE_THROWS(decode.RowMajor(bytes, 1));
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, std::numeric_limits<int64_t>::max()));
+    REQUIRE_THROWS(decode.RowMajor(bytes, std::numeric_limits<int64_t>::max()));
+
+    // 2.3) empty input, sensors: something out of nothing
+    REQUIRE(decode.Sensors(1));
+
+    // negative
+    REQUIRE(decode.ColumnMajor(empty, -1).empty());
+    REQUIRE(decode.RowMajor(empty, -1).empty());
+
+    // nothing out of nothing
+    REQUIRE(decode.ColumnMajor(empty, 0).empty());
+    REQUIRE(decode.RowMajor(empty, 0).empty());
+
+    // too much
+    REQUIRE(decode.ColumnMajor(empty, 1).empty());
+    REQUIRE(decode.RowMajor(empty, 1).empty());
+    REQUIRE(decode.ColumnMajor(empty, std::numeric_limits<int64_t>::max()).empty());
+    REQUIRE(decode.RowMajor(empty, std::numeric_limits<int64_t>::max()).empty());
+
+    // 2.4) input, sensors: something out of something
+
+    // negative
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, -1));
+    REQUIRE_THROWS(decode.RowMajor(bytes, -1));
+
+    // nothing out of something
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, 0));
+    REQUIRE_THROWS(decode.RowMajor(bytes, 0));
+
+    // something out of something
+    REQUIRE(decode.ColumnMajor(bytes, 1).empty() == false);
+    REQUIRE(decode.RowMajor(bytes, 1).empty() == false);
+    REQUIRE(decode.ColumnMajor(bytes, 1)[0] == input[0]);
+    REQUIRE(decode.RowMajor(bytes, 1)[0] == input[0]);
+
+    // too much
+    REQUIRE_THROWS(decode.ColumnMajor(bytes, 2));
+    REQUIRE_THROWS(decode.RowMajor(bytes, 2));
+}
+
+
+TEST_CASE("well known input", "[consistent]") {
+    // 6 data points
+    std::vector<int32_t> input{ 0, 1, 2, 3, 4, 5 };
+    std::vector<int32_t> output;
+    std::vector<uint8_t> bytes;
+
+    CompressReflib encode;
+    DecompressReflib decode;
+
+    // 2 electrodes
+    REQUIRE(encode.Sensors(2));
+    REQUIRE(decode.Sensors(2));
+
+    REQUIRE_THROWS(encode.ColumnMajor(input, -1));
+    REQUIRE_THROWS(encode.RowMajor(input, -1));
+    REQUIRE_THROWS(encode.ColumnMajor(input, 0));
+    REQUIRE_THROWS(encode.RowMajor(input, 0));
+    REQUIRE_THROWS(encode.ColumnMajor(input, 1));
+    REQUIRE_THROWS(encode.RowMajor(input, 1));
+    REQUIRE_THROWS(encode.ColumnMajor(input, 2));
+    REQUIRE_THROWS(encode.RowMajor(input, 2));
+
+    // 6 data points = 2 electrodes x 3 samples
+    bytes = encode.ColumnMajor(input, 3);
+    REQUIRE(!bytes.empty());
+
+    output = decode.ColumnMajor(bytes, 3);
+    REQUIRE(output == input);
+
+    output = decode.RowMajor(bytes, 3);
+    REQUIRE(output != input);
+
+    bytes = encode.RowMajor(input, 3);
+    REQUIRE(!bytes.empty());
+
+    output = decode.RowMajor(bytes, 3);
+    REQUIRE(output == input);
+
+    output = decode.ColumnMajor(bytes, 3);
+    REQUIRE(output != input);
+
+    REQUIRE_THROWS(encode.ColumnMajor(input, 4));
+    REQUIRE_THROWS(encode.RowMajor(input, 4));
+    REQUIRE_THROWS(encode.ColumnMajor(input, 5));
+    REQUIRE_THROWS(encode.RowMajor(input, 5));
+    REQUIRE_THROWS(encode.RowMajor(input, 6));
+    REQUIRE_THROWS(encode.ColumnMajor(input, 6));
+}
+
+
 template<typename T, typename Encoder, typename Decoder>
 void encode_decode(T, Encoder encode, Decoder decode, ptrdiff_t input_size, random_values& random) {
     std::vector<uint8_t> bytes;

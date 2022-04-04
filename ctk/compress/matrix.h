@@ -63,7 +63,7 @@ the output matrix.
 namespace ctk { namespace impl {
 
 
-struct count_raw3 final
+struct count_raw3
 {
     // returns a value in the closed interval [2, sizeof(T) * 8]
     template<typename T>
@@ -110,7 +110,7 @@ struct estimation {
     std::array<bit_count, array_size> output_sizes;
 
     template<typename Format>
-    auto resize(measurement_count epoch_length, Format format) -> void {
+    auto resize(measurement_count samples, Format format) -> void {
         // worst case estimation for the maximum size of a reduction: all
         // entities are encoded in variable width (n + nexc) bits.
         // NB: this size can exceed max_block_size.
@@ -120,7 +120,7 @@ struct estimation {
         constexpr const bit_count nexc{ size_in_bits(T{}) };
         // maximum variable length encoding size in bits: 2 * size_in_bits(T) - 1.
         // 2 * size_in_bits(T) is not possible because this is fixed width encoding (n == nexc), encoded in size_in_bits(T) bits.
-        const bit_count data{ scale(nexc + nexc - bit_count{ 1 }, epoch_length, ok{}) };
+        const bit_count data{ scale(nexc + nexc - bit_count{ 1 }, samples, ok{}) };
         const bit_count::value_type sh{ header };
         const bit_count::value_type sd{ data };
         max_output_size = bit_count{ plus(sh, sd, ok{}) };
@@ -141,16 +141,8 @@ struct reduction
     std::vector<bool> encoding_map;
     std::vector<bit_count> residual_sizes;
 
-
-    auto reserve(measurement_count epoch_length) -> void {
-        const auto length{ as_sizet_unchecked(epoch_length) };
-        residuals.reserve(length);
-        encoding_map.reserve(length);
-        residual_sizes.reserve(length);
-    }
-
-    auto resize(measurement_count epoch_length) -> void {
-        const auto length{ as_sizet_unchecked(epoch_length) };
+    auto resize(measurement_count samples) -> void {
+        const auto length{ as_sizet(samples) };
         residuals.resize(length);
         encoding_map.resize(length);
         residual_sizes.resize(length);
@@ -171,8 +163,8 @@ auto create_histogram(reduction<T>& r, estimation<T>& e) -> void {
     constexpr const sint no{ 0 };
     constexpr const sint yes{ 1 };
 
-    const size_t epoch_length{ residuals.size() };
-    for (size_t i{ 1 /* skips the master value, encoded in the header */ }; i < epoch_length; ++i) {
+    const size_t samples{ residuals.size() };
+    for (size_t i{ 1 /* skips the master value, encoded in the header */ }; i < samples; ++i) {
         const auto n{ residual_sizes[i] };
         const auto un{ as_sizet_unchecked(n) };
         const auto [count, exceptions]{ histogram[un] };
@@ -184,9 +176,11 @@ auto create_histogram(reduction<T>& r, estimation<T>& e) -> void {
 
 
 template<typename T, typename Format>
-auto evaluate_histogram(measurement_count epoch_length, bit_count nexc, encoding_size data_size, estimation<T>& e, Format format) -> void {
-    assert(1 < epoch_length);
-    measurement_count::value_type length{ epoch_length };
+auto evaluate_histogram(measurement_count samples, bit_count nexc, encoding_size data_size, estimation<T>& e, Format format) -> void {
+    using Int = bit_count::value_type;
+
+    assert(1 < samples);
+    measurement_count::value_type length{ samples };
     --length; // skips the master value, encoded in the header
 
     const auto& histogram{ e.histogram };
@@ -196,19 +190,19 @@ auto evaluate_histogram(measurement_count epoch_length, bit_count nexc, encoding
     assert(histogram[0].count == 0 && histogram[0].exceptions == 0);
     assert(histogram[1].count == 0 && histogram[1].exceptions == 0);
     assert(std::accumulate(begin(histogram) + 2,
-                           begin(histogram) + static_cast<sint>(nexc) + 1,
-                           sint{0},
-                           [](sint acc, const bucket& x) { return acc + x.count; }) == length);
-    assert(std::accumulate(begin(histogram) + static_cast<sint>(nexc) + 1,
+                           begin(histogram) + static_cast<Int>(nexc) + 1,
+                           Int{0},
+                           [](Int acc, const bucket& x) { return acc + x.count; }) == length);
+    assert(std::accumulate(begin(histogram) + static_cast<Int>(nexc) + 1,
                            end(histogram),
-                           sint{0},
-                           [](sint acc, const bucket& x) { return acc + x.count; }) == sint{0});
+                           Int{0},
+                           [](Int acc, const bucket& x) { return acc + x.count; }) == Int{0});
     auto& output_sizes{ e.output_sizes };
     const bit_count header_size{ compressed_header_width(data_size, format) };
-    const bit_count::value_type header{ header_size };
+    const Int header{ header_size };
 
     // n != nexc: variable width encoding
-    sint wider_than_n{ length };
+    Int wider_than_n{ length };
     for (bit_count n{ pattern_size_min() }; n < nexc; ++n) {
         const size_t i{ as_sizet_unchecked(n) };
 
@@ -216,10 +210,10 @@ auto evaluate_histogram(measurement_count epoch_length, bit_count nexc, encoding
         assert(0 <= wider_than_n); // sum(histogram[i].count) = length, for i in [2, sizeof(T) * 8]
         assert(0 <= histogram[i].count && histogram[i].count <= length);
 
-        const bit_count::value_type fixed_size{ scale(n, length, guarded{}) };
-        const bit_count::value_type overhead{ scale(nexc, wider_than_n + histogram[i].exceptions, guarded{}) };
-        const bit_count::value_type data{ plus(fixed_size, overhead, guarded{}) };
-        const auto output{ bit_count{ plus(header, data, guarded{}) } };
+        const Int fixed_size{ scale(n, length, guarded{}) };
+        const Int overhead{ scale(nexc, wider_than_n + histogram[i].exceptions, guarded{}) };
+        const Int data{ plus(fixed_size, overhead, guarded{}) };
+        const bit_count output{ plus(header, data, guarded{}) };
         if (e.max_output_size < output) {
             throw api::v1::CtkBug{ "evaluate_histogram: initialization error, variable width" };
         }
@@ -230,7 +224,7 @@ auto evaluate_histogram(measurement_count epoch_length, bit_count nexc, encoding
     // n == nexc: fixed width encoding
     const size_t i{ as_sizet_unchecked(nexc) };
     assert(wider_than_n - histogram[i].count == 0);
-    const bit_count::value_type data{ scale(nexc, length, guarded{}) };
+    const Int data{ scale(nexc, length, guarded{}) };
     const auto output{ bit_count{ plus(header, data, guarded{}) } };
     if (e.max_output_size < output) {
         throw api::v1::CtkBug{ "evaluate_histogram: initialization error, fixed width" };
@@ -342,7 +336,7 @@ auto restore_magnitude(I previous, I first, I last, I buffer, encoding_method me
 
 struct is_exception
 {
-    const bit_count n;
+    bit_count n;
 
     template<typename T>
     constexpr
@@ -411,43 +405,13 @@ auto select_reduction(IR first, IR last) -> IR {
     const auto shortest{ std::min_element(first, last, is_shorter) };
     assert(shortest != last);
 
-    // attempts to improve the on the selection to benefit the decoder.
-    /*
-    const auto is_regular = [](const auto* x) -> bool { return x->n == x->nexc; };
-    const auto is_one_pass = [](const auto* x) -> bool { return x->method == encoding_method::time; };
-
-    for (IR cur{ first }; cur != last; ++cur) {
-        if (shortest->output_size != cur->output_size) { continue; }
-
-        if (is_one_pass(cur) && is_regular(cur)) {
-            return cur;
-        }
-    }
-
-    for (IR cur{ first }; cur != last; ++cur) {
-        if (shortest->output_size != cur->output_size) { continue; }
-
-        if (is_one_pass(cur)) {
-            return cur;
-        }
-    }
-
-    for (IR cur{ first }; cur != last; ++cur) {
-        if (shortest->output_size != cur->output_size) { continue; }
-
-        if (is_regular(cur)) {
-            return cur;
-        }
-    }
-    */
-
     return shortest;
 }
 
 
 
 template<typename T, typename Format>
-class row_encoder final
+class row_encoder
 {
     static constexpr const unsigned array_size{ static_cast<unsigned>(encoding_method::length) };
 
@@ -468,17 +432,12 @@ public:
     auto operator=(row_encoder&&) -> row_encoder& = default;
     ~row_encoder() = default;
 
-    auto reserve(measurement_count epoch_length) -> void {
-        const auto reserve_reduction = [epoch_length](auto& reduciton) -> void { reduciton.reserve(epoch_length); };
 
-        std::for_each(begin(reductions), end(reductions), reserve_reduction);
-    }
-
-    auto resize(measurement_count epoch_length) -> void {
-        const auto resize_reduction = [epoch_length](auto& reduciton) -> void { reduciton.resize(epoch_length); };
+    auto resize(measurement_count samples) -> void {
+        const auto resize_reduction = [samples](auto& reduciton) -> void { reduciton.resize(samples); };
 
         std::for_each(begin(reductions), end(reductions), resize_reduction);
-        scratch.resize(epoch_length, Format{});
+        scratch.resize(samples, Format{});
     }
 
 
@@ -486,7 +445,7 @@ public:
     // requirements
     //     - I is ForwardIterator
     //     - ValueType(I) is unsigned integral type with two's complement implementation
-    auto compress(I previous, I first, I last, bit_writer<IByte>& bits) -> IByte {
+    auto operator()(I previous, I first, I last, bit_writer<IByte>& bits) -> IByte {
         using U = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_same<T, U>::value);
         assert(std::distance(previous, first) == std::distance(first, last));
@@ -494,12 +453,16 @@ public:
         reduce_magnitude(previous, first, last);
         crunch();
         const auto best{ select_reduction(begin(reductions), end(reductions)) };
-        if (max_block_size(first, last, Format{}) < best->output_size) {
-            throw api::v1::CtkBug{ "compress: reduction failed" };
+        if (best == end(reductions) || max_block_size(first, last, Format{}) < best->output_size) {
+            const std::string e{ "[row_encoder, matrix] reduction failed" };
+            throw api::v1::CtkBug{ e };
         }
 
-        auto f{ begin(best->residuals) };
-        auto l{ end(best->residuals) };
+        // the residuals buffer for method copy is intentionally not populated by reduce_row_uncompressed.
+        // it would have been a verbatim copy of the input.
+        // hence a pointer to the input buffer is passed to the block encoder if the method is copy.
+        I f{ begin(best->residuals) };
+        I l{ end(best->residuals) };
         if (best->method == encoding_method::copy) {
             f = first;
             l = last;
@@ -519,20 +482,20 @@ private:
         auto& residuals_time2{ reductions[unsigned(encoding_method::time2)].residuals };
         auto& residuals_chan { reductions[unsigned(encoding_method::chan)].residuals };
 
-        const auto ft{ begin(residuals_time) };
-        const auto lt{ reduce_row_time(first, last, ft) };
+        const I ft{ begin(residuals_time) };
+        const I lt{ reduce_row_time(first, last, ft) };
         if (lt != end(residuals_time)) {
             throw api::v1::CtkBug{ "reduce_magnitude: reduction time failed" };
         }
 
-        const auto ft2{ begin(residuals_time2) };
-        const auto lt2{ reduce_row_time2_from_time(ft, lt, ft2) };
+        const I ft2{ begin(residuals_time2) };
+        const I lt2{ reduce_row_time2_from_time(ft, lt, ft2) };
         if (lt2 != end(residuals_time2)) {
             throw api::v1::CtkBug{ "reduce_magnitude: reduction time2 failed" };
         }
 
-        const auto fch{ begin(residuals_chan) };
-        const auto lch{ reduce_row_chan_from_time(previous, first, ft, lt, fch) };
+        const I fch{ begin(residuals_chan) };
+        const I lch{ reduce_row_chan_from_time(previous, first, ft, lt, fch) };
         if (lch != end(residuals_chan)) {
             throw api::v1::CtkBug{ "reduce_magnitude: reduction chan failed" };
         }
@@ -560,74 +523,55 @@ auto decode_row(bit_reader<IByteConst>& bits, I previous, I first, I last, I buf
     return next;
 }
 
-struct dimensions
+
+class dimensions
 {
     sensor_count height;
     measurement_count length;
 
-    dimensions()
-    : height{ 0 }
-    , length{ 0 } {
-    }
+public:
 
-    dimensions(sensor_count height,  measurement_count length)
-    : height{ height }
-    , length{ length } {
-        if (length < 1 || height < 1) {
-            throw api::v1::CtkData{ "dimensions constructor: invalid dimensions" };
-        }
-    }
-
+    dimensions();
+    dimensions(sensor_count, measurement_count);
     dimensions(const dimensions&) = default;
     dimensions(dimensions&&) = default;
     auto operator=(const dimensions&) -> dimensions& = default;
     auto operator=(dimensions&&) -> dimensions& = default;
     ~dimensions() = default;
 
-    // can be defaulted in c++20
-    friend
-    auto operator==(const dimensions& x, const dimensions& y) -> bool {
-        return x.height == y.height && x.length == y.length;
-    }
+    auto electrodes() const -> sensor_count;
+    auto samples() const -> measurement_count;
 
-    friend
-    auto operator!=(const dimensions& x, const dimensions& y) -> bool {
-        return !(x == y);
-    }
+    friend auto operator==(const dimensions&, const dimensions&) -> bool = default;
+    friend auto operator!=(const dimensions&, const dimensions&) -> bool = default;
 };
 
 auto matrix_size(sensor_count, measurement_count) -> sint;
 auto matrix_size(sensor_count, byte_count) -> byte_count;
 
 
-template<typename Format, typename T>
-auto max_encoded_size(const dimensions& x, Format format, T type_tag) -> byte_count {
-    if (x.height < 1 || x.length < 1) {
-        throw api::v1::CtkBug{ "max_encoded_size: invalid dimensions" };
-    }
-
-    return matrix_size(x.height, max_block_size(x.length, format, type_tag));
-}
-
-
 // the interval [previous, matrix) represents a row with index -1 (filled with zeroes) for method chan.
 // the interval [matrix, buffer) contains the input data for the encoder or the output data for the decoder.
-// the interval [buffer, buffer + epoch_length) contains a working buffer for method chan.
+// the interval [buffer, buffer + samples) contains a working buffer for method chan.
+// the decoder actually uses the memory for the next channel as a rolling buffer
+// instead of using the fixed buffer space at the end of the memory block.
 template<typename T>
-class matrix_buffer final
+class matrix_buffer
 {
     std::vector<T> previous_matrix_buffer;
     ptrdiff_t row_length;
     ptrdiff_t area;
 
-    auto buffer_size(sensor_count height, measurement_count epoch_length) -> std::tuple<ptrdiff_t, ptrdiff_t, size_t> {
-        assert(0 < height && 0 < epoch_length);
+    auto buffer_size(sensor_count electrodes, measurement_count samples) -> std::tuple<ptrdiff_t, ptrdiff_t, size_t> {
+        using Int = measurement_count::value_type;
 
-        const auto size{ matrix_size(height, epoch_length) };
-        const measurement_count::value_type length{ epoch_length };
-        const measurement_count::value_type two_rows{ plus(length, length, ok{}) }; // dummy previous row and buffer
+        assert(0 < electrodes && 0 < samples);
 
-        return { length, size, as_sizet_unchecked(plus(size, two_rows, ok{})) };
+        const auto size{ matrix_size(electrodes, samples) };
+        const Int length{ samples };
+        const Int two_rows{ plus(length, length, ok{}) }; // dummy previous row and buffer
+
+        return { length, size, as_sizet(plus(size, two_rows, ok{})) };
     }
 
 public:
@@ -642,24 +586,20 @@ public:
     auto operator=(matrix_buffer&&) -> matrix_buffer& = default;
     ~matrix_buffer() = default;
 
-    auto reserve(sensor_count height, measurement_count epoch_length) -> void {
-        if(height <= 0 || epoch_length <= 0) {
-            throw api::v1::CtkLimit{ "matrix_buffer::reserve: invalid dimensions" };
+    auto resize(sensor_count electrodes, measurement_count samples) -> void {
+        if (electrodes < 1 || samples < 1) {
+            std::ostringstream oss;
+            oss << "[matrix_buffer::resize, matrix] invalid dimensions " << electrodes << " x " << samples;
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
-        const auto [l, a, size]{ buffer_size(height, epoch_length) };
-        previous_matrix_buffer.reserve(size);
-    }
-
-    auto resize(sensor_count height, measurement_count epoch_length) -> void {
-        assert(0 <= height && 0 <= epoch_length);
-
-        const auto [l, a, size]{ buffer_size(height, epoch_length) };
+        const auto [length, a, size]{ buffer_size(electrodes, samples) };
         previous_matrix_buffer.resize(size);
-        row_length = l;
+        row_length = length;
         area = a;
 
-        std::fill(previous(), matrix(), T{0});
+        std::fill(previous(), matrix(), T{ 0 });
     }
 
     auto previous() -> typename std::vector<T>::iterator {
@@ -676,7 +616,7 @@ public:
 };
 
 
-auto natural_row_order(sensor_count height) -> std::vector<int16_t>;
+auto natural_row_order(sensor_count) -> std::vector<int16_t>;
 auto is_valid_row_order(std::vector<int16_t> row_order) -> bool;
 
 
@@ -691,12 +631,14 @@ struct matrix_common
 
     matrix_buffer<UT> data;
     std::vector<int16_t> order;
-    sensor_count height;
+    sensor_count electrodes;
     dimensions initialized_for;
+    sint multiplex_upper_bound; // assigned to in order to prevent the compiler from skipping the execution of matrix_size()
 
 
     matrix_common()
-    : height{ 0 } {
+    : electrodes{ 0 }
+    , multiplex_upper_bound{ 0 } {
     }
     matrix_common(const matrix_common&) = default;
     matrix_common(matrix_common&&) = default;
@@ -705,22 +647,29 @@ struct matrix_common
     ~matrix_common() = default;
 
 
-    auto initialized(measurement_count epoch_length) const -> bool {
-        return initialized_for == dimensions{ height, epoch_length };
+    auto initialized(measurement_count samples) const -> bool {
+        return initialized_for == dimensions{ electrodes, samples };
     }
 
-    auto reserve(measurement_count epoch_length) -> void {
-        data.reserve(height, epoch_length);
-    }
-
-    auto resize(measurement_count epoch_length) -> void {
-        data.resize(height, epoch_length);
-
-        if (!matrix_size(height, epoch_length)) {
-            throw api::v1::CtkLimit{ "matrix_common::resize: upper bound for buffer multiplex" };
+    auto validate_client_size(measurement_count samples, size_t area) const -> void {
+        const auto isize{ matrix_size(electrodes, samples) };
+        if (area != static_cast<size_t>(isize)) {
+            std::ostringstream oss;
+            oss << "[validate_client_size, matrix] initialized for " << area
+                << ", requested " << isize
+                << " (" << electrodes << " electrodes x " << samples << " samples)";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
+    }
 
-        initialized_for = dimensions{ height, epoch_length };
+
+    auto resize(measurement_count samples) -> void {
+        const dimensions dim{ electrodes, samples }; // validity guard
+
+        data.resize(electrodes, samples);
+        multiplex_upper_bound = matrix_size(electrodes, samples);
+        initialized_for = dim;
     }
 
 
@@ -730,24 +679,20 @@ struct matrix_common
         }
 
         order = input;
-        height = sensor_count{ vsize(input) };
+        electrodes = sensor_count{ vsize(input) };
         return true;
     }
 
 
-    auto row_count(sensor_count sensors) -> bool {
-        if (sensors < 1) {
-            return false;
-        }
-
+    auto row_count(sensor_count sensors) -> bool /* void */{
         order = natural_row_order(sensors);
-        height = sensors;
+        electrodes = sensors;
         return true;
     }
 
 
     auto row_count() const -> sensor_count {
-        return height;
+        return electrodes;
     }
 };
 
@@ -784,10 +729,6 @@ public:
         return common.row_count();
     }
 
-    auto reserve(measurement_count epoch_length) -> void {
-        common.reserve(epoch_length);
-    }
-
     template<typename Multiplex>
     // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (multiplex.h)
     auto operator()(const std::vector<uint8_t>& bytes, measurement_count samples, Multiplex multiplex) -> std::vector<T> {
@@ -799,9 +740,10 @@ public:
             common.resize(samples);
         }
 
-        const sensor_count electrodes{ common.height };
+        const sensor_count electrodes{ common.electrodes };
         const auto area{ matrix_size(electrodes, samples) };
         std::vector<T> output(as_sizet(area));
+        common.validate_client_size(samples, output.size());
 
         const measurement_count::value_type l{ samples };
         const ptrdiff_t length{ cast(l, ptrdiff_t{}, ok{}) };
@@ -832,16 +774,17 @@ public:
 };
 
 
+// functionality equivalent to compepoch_mux, libcnt/raw3.c
 template<typename T, typename Format>
 // T is signed/unsigned integral type with size 1, 2, 4 or 8 bytes
 // Format is reflib or extended
-class matrix_encoder_general final
+class matrix_encoder_general
 {
     static_assert(std::is_integral<T>::value);
     using UT = typename std::make_unsigned<T>::type;
 
-    matrix_common<T> common;
-    row_encoder<UT, Format> encoder;
+    matrix_common<T> common; // row major first order
+    row_encoder<UT, Format> encode_row;
 
 public:
 
@@ -863,19 +806,13 @@ public:
         return common.order;
     }
 
-    auto row_count(sensor_count height) -> bool {
-        return common.row_count(height);
+    auto row_count(sensor_count electrodes) -> bool {
+        return common.row_count(electrodes);
     }
 
     auto row_count() const -> sensor_count {
         return common.row_count();
     }
-
-    auto reserve(measurement_count epoch_length) -> void {
-        encoder.reserve(epoch_length);
-        common.reserve(epoch_length);
-    }
-
 
     template<typename Multiplex>
     // Multiplex has an interface compatible with column_major2row_major and row_major2row_major (multiplex.h)
@@ -885,11 +822,12 @@ public:
         }
 
         if (!common.initialized(samples)) {
-            encoder.resize(samples);
+            encode_row.resize(samples);
             common.resize(samples);
         }
+        common.validate_client_size(samples, input.size());
 
-        const auto electrodes{ common.height };
+        const auto electrodes{ common.electrodes };
         const auto compressed{ matrix_size(electrodes, max_block_size(samples, Format{}, T{})) };
         std::vector<uint8_t> bytes(as_sizet(compressed));
         auto first_out{ begin(bytes) };
@@ -907,7 +845,7 @@ public:
         auto next{ first + length };
 
         for (sensor_count i{ 0 }; i < electrodes; ++i, next += length) {
-            first_out = encoder.compress(previous, first, next, bits);
+            first_out = encode_row(previous, first, next, bits);
 
             previous = first;
             first = next;
