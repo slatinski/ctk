@@ -127,15 +127,135 @@ TEST_CASE("electrodes round trip", "[consistency]") {
     REQUIRE(sloppy[1].IScale == e.IScale);
     REQUIRE(sloppy[1].RScale == e.RScale);
     REQUIRE(sloppy[1].Unit == e.Unit);
-
 }
 
+
+TEST_CASE("input validation", "[correct]") {
+    // no active label
+    api::v1::Electrode e;
+    REQUIRE_THROWS(validate(e));
+
+    // no unit
+    e.ActiveLabel = "1";
+    e.Unit = "";
+    REQUIRE_THROWS(validate(e));
+
+    // embedded zero in name
+    e.ActiveLabel = "zero_s";
+    e.ActiveLabel[4] = 0;
+    e.Unit = "unit";
+    REQUIRE_THROWS(validate(e));
+
+    // white space in name
+    e.ActiveLabel = "space l";
+    e.Unit = "unit";
+    REQUIRE_THROWS(validate(e));
+
+    e.ActiveLabel = "1";
+    e.Reference = "space r";
+    REQUIRE_THROWS(validate(e));
+
+    e.Reference = "ref";
+    e.Unit = "space u";
+    REQUIRE_THROWS(validate(e));
+
+    e.Unit = "unit";
+    e.Status = "space s";
+    REQUIRE_THROWS(validate(e));
+
+    e.Status = "status";
+    e.Type = "space t";
+    REQUIRE_THROWS(validate(e));
+
+    // name too long
+    e = api::v1::Electrode{};
+    std::string s;
+    s.resize(api::v1::sizes::eeph_electrode_active + 1);
+    std::iota(begin(s), end(s), 'a');
+    e.ActiveLabel = s;
+    REQUIRE_THROWS(validate(e));
+    e.ActiveLabel.pop_back();
+    validate(e);
+
+    s.resize(api::v1::sizes::eeph_electrode_reference + 1);
+    std::iota(begin(s), end(s), 'a');
+    e.Reference = s;
+    REQUIRE_THROWS(validate(e));
+    e.Reference.pop_back();
+    validate(e);
+
+    s.resize(api::v1::sizes::eeph_electrode_unit + 1);
+    std::iota(begin(s), end(s), 'a');
+    e.Unit = s;
+    REQUIRE_THROWS(validate(e));
+    e.Unit.pop_back();
+    validate(e);
+
+    s.resize(api::v1::sizes::eeph_electrode_status + 1);
+    std::iota(begin(s), end(s), 'a');
+    e.Status = s;
+    REQUIRE_THROWS(validate(e));
+    e.Status.pop_back();
+    validate(e);
+
+    s.resize(api::v1::sizes::eeph_electrode_type + 1);
+    std::iota(begin(s), end(s), 'a');
+    e.Type = s;
+    REQUIRE_THROWS(validate(e));
+    e.Type.pop_back();
+    validate(e);
+
+    // labels starts with [
+    e.ActiveLabel = "[label";
+    REQUIRE_THROWS(validate(e));
+
+    // labels starts with ;
+    e.ActiveLabel = ";label";
+    REQUIRE_THROWS(validate(e));
+
+    // infinite iscale
+    e.ActiveLabel = "label";
+    e.IScale = std::numeric_limits<double>::infinity();
+    REQUIRE_THROWS(validate(e));
+
+    // infinite rscale
+    e.IScale = 1;
+    e.RScale = std::numeric_limits<double>::infinity();
+    REQUIRE_THROWS(validate(e));
+}
+
+
 TEST_CASE("binary file electrodes round trip", "[consistency]") {
-    const std::vector<api::v1::Electrode> xs{
+    std::vector<api::v1::Electrode> xs{
         { "active label 1", "reference label 1", "a unit", 1.0, 1.0 },
-        { "active label 2", "reference label 2", "another unit", 321.0, 0.12 },
-        { "active label 3", "reference label 3", "a unit", 1.0, 1.0 }
+        { "#active label 2", "reference label 2", "another unit", 321.0, 0.12 },
+        { ";active label 3", "refe\re\nce label 3", "a unit", 1.0, 1.0 },
+        { "", "", "", 0.0, 0.0 },
+        { "active", "", "", 0.0, 0.0 },
+        { "", "ref", "", 0.0, 0.0 },
+        { "", "", "unit", 0.0, 0.0 },
+        { "active", "ref", "", 0.0, 0.0 },
+        { "active", "ref", "unit", 0.0, 0.0 },
+        { "", "ref", "", 0.0, 0.0 },
+        { "", "ref", "unit", 0.0, 0.0 }
     };
+
+    api::v1::Electrode e;
+    e.Status = "with a status";
+    xs.push_back(e);
+
+    e.Status = "";
+    e.Type = "with a reference";
+    xs.push_back(e);
+
+    e.Status = "both";
+    xs.push_back(e);
+
+    e.Status = "embedded_zeroe_s";
+    e.Status[8] = 0;
+    e.Status[14] = 0;
+    xs.push_back(e);
+
     binary_file(xs);
 }
 

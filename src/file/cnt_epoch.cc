@@ -713,7 +713,7 @@ namespace ctk { namespace impl {
             assert(key.size() <= line.size());
 
             const auto key_size{ key.size() };
-            const auto length{ std::min(line.size() - key_size, size_t{ 9 }) }; // compatibility
+            const auto length{ std::min(line.size() - key_size, size_t{ api::v1::sizes::eeph_electrode_status }) }; // compatibility
             return line.substr(i + key_size, length);
         }
 
@@ -725,30 +725,49 @@ namespace ctk { namespace impl {
         constexpr const size_t length{ 128 };
         auto[line, i]{ load_line(input, 0, length) };
 
-        std::vector<api::v1::Electrode> result;
+        api::v1::Electrode e;
+        std::vector<api::v1::Electrode> electrodes;
+
         while (!line.empty() && line[0] != '[') {
             if (line[0] == ';') {
                 std::tie(line, i) = load_line(input, i, length);
                 continue;
             }
 
-            api::v1::Electrode e;
+            std::string active, unit;
+            double iscale, rscale;
 
             std::istringstream iss{ line };
-            iss >> e.ActiveLabel >> e.IScale >> e.RScale >> e.Unit;
-            if (iss.fail() || e.ActiveLabel.empty() || e.Unit.empty()) {
-                throw api::v1::CtkData{ "invalid electrode" };
+            iss >> active >> iscale >> rscale >> unit;
+            if (iss.fail() || active.empty() || unit.empty()) {
+                std::string msg;
+                if (iss.fail()) {
+                    std::ostringstream oss;
+                    oss << "[parse_electrodes] can not read (label iscale rscale unit) from (" << line << ")";
+                    msg = oss.str();
+                }
+                else if(active.empty()) {
+                    msg = "[parse_electrodes] empty active channel label";
+                }
+                else if(unit.empty()) {
+                    msg = "[parse_electrodes] empty unit";
+                }
+                throw api::v1::CtkData{ msg };
             }
             // compatibility
-            e.ActiveLabel.resize(std::min(e.ActiveLabel.size(), size_t{ 9 }));
-            e.Unit.resize(std::min(e.Unit.size(), size_t{ 9 }));
+            active.resize(std::min(active.size(), size_t{ api::v1::sizes::eeph_electrode_active }));
+            unit.resize(std::min(unit.size(), size_t{ api::v1::sizes::eeph_electrode_unit }));
 
             std::array<std::string, 3> nonobligatory;
             iss >> nonobligatory[0] >> nonobligatory[1] >> nonobligatory[2];
 
+            e.ActiveLabel = active;
+            e.Unit = unit;
             e.Reference = optional_electrode_field(nonobligatory, "REF:");
             e.Status = optional_electrode_field(nonobligatory, "STAT:");
             e.Type = optional_electrode_field(nonobligatory, "TYPE:");
+            e.IScale = iscale;
+            e.RScale = rscale;
 
             // compatibility
             if (libeep) {
@@ -756,16 +775,16 @@ namespace ctk { namespace impl {
                 /*   workaround for old files: it must be a reflabel */
                 if (e.Reference.empty() && !nonobligatory[0].empty() && nonobligatory[1].empty() && nonobligatory[2].empty()) {
                     e.Reference = nonobligatory[0];
-                    e.Reference.resize(std::min(e.Reference.size(), size_t{ 9 }));
+                    e.Reference.resize(std::min(e.Reference.size(), size_t{ api::v1::sizes::eeph_electrode_reference }));
                 }
             }
 
-            result.push_back(e);
+            electrodes.push_back(e);
 
             std::tie(line, i) = load_line(input, i, length);
         }
 
-        return result;
+        return electrodes;
     }
 
 
@@ -894,8 +913,13 @@ namespace ctk { namespace impl {
         const days x_days{ floor<days>(x_s) };
         const date::year_month_day ymd{ date::sys_days{ x_days } };
         if (!ymd.ok()) {
-            //throw api::v1::CtkData{ "timepoint2tm: invalid date" };
-            assert(false);
+            const auto yyyy{ static_cast<int>(ymd.year()) };
+            const auto mm{ static_cast<unsigned>(ymd.month()) };
+            const auto dd{ static_cast<unsigned>(ymd.day()) };
+            std::ostringstream oss;
+            oss << "[timepoint2tm, cnt_epoch] invalid date " << yyyy << "/" << mm << "/" << dd;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         seconds reminder{ x_s - x_days };
@@ -905,10 +929,14 @@ namespace ctk { namespace impl {
         const minutes m{ floor<minutes>(reminder) };
         reminder -= m;
 
-        const seconds s{ floor<seconds>(reminder) };
+        const seconds s{ reminder };
         if (h < 0h || 23h < h || m < 0min || 59min < m || s < 0s || 59s < s) {
-            //throw api::v1::CtkData{ "timepoint2tm: invalid time" };
-            assert(false);
+            std::ostringstream oss;
+            oss << "[timepoint2tm, cnt_epoch] invalid time "
+                << h.count() << ":" << m.count() << ":" << s.count()
+                << ", valid hours 0-23, minutes 0-59, seconds 0-59";
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         tm y{ make_tm() };
@@ -1275,7 +1303,7 @@ namespace ctk { namespace impl {
 
 
     auto make_info_content(const api::v1::DcDate& x, const api::v1::Info& i) -> std::string {
-        const size_t length{ 256 }; // libeep writes 512 and reads 256 bytes.
+        const size_t length{ 512 };
         std::ostringstream oss;
         oss << "[StartDate]\n" << d2s(x.Date, 21) << "\n";
         oss << "[StartFraction]\n" << d2s(x.Fraction, 21) << "\n";
@@ -1498,45 +1526,191 @@ namespace ctk { namespace impl {
 
 
 
-    enum class status_elc{ ok, label_empty, unit_empty, label_trunc, ref_trunc, unit_trunc, stat_trunc, type_trunc, label_brace, label_semicolon, iscale, rscale };
+    enum class status_elc{ ok, empty, trunc, zero, space, brace, semicolon, iscale, rscale };
 
     static
-    auto valid_electrode(const ctk::api::v1::Electrode& x) -> status_elc {
-        if (x.ActiveLabel.empty()) { return status_elc::label_empty; }
-        if (x.Unit.empty()) { return status_elc::unit_empty; }
-        if (10 < x.ActiveLabel.size()) { return status_elc::label_trunc; }
-        if (10 < x.Reference.size()) { return status_elc::ref_trunc; }
-        if (9 < x.Unit.size()) { return status_elc::unit_trunc; }
-        if (10 < x.Status.size()) { return status_elc::stat_trunc; }
-        if (10 < x.Type.size()) { return status_elc::type_trunc; }
-        if (x.ActiveLabel[0] == '[') { return status_elc::label_brace; }
-        if (x.ActiveLabel[0] == ';') { return status_elc::label_semicolon; }
+    auto is_valid_optional_label(const std::string& x, unsigned max_size) -> status_elc {
+        if (max_size < x.size()) {
+            return status_elc::trunc;
+        }
+
+        // stored/parsed as ascii
+        if (x.find(' ') != std::string::npos) {
+            return status_elc::space;
+        }
+
+        if (x.find('\0') != std::string::npos) {
+            return status_elc::zero;
+        }
+
+        return status_elc::ok;
+    }
+
+    static
+    auto is_valid_mandatory_label(const std::string& x, unsigned max_size) -> status_elc {
+        if (x.empty()) {
+            return status_elc::empty;
+        }
+
+        return is_valid_optional_label(x, max_size);
+    }
+
+    static
+    auto is_valid_label_reflib(const std::string& x) -> status_elc {
+        auto status{ is_valid_mandatory_label(x, api::v1::sizes::eeph_electrode_active) };
+        if (status != status_elc::ok) {
+            return status;
+        }
+
+        // common with libeep
+        if (x[0] == ';') {
+            return status_elc::semicolon;
+        }
+
+        // specific to my implementation
+        if (x[0] == '[') {
+            return status_elc::brace;
+        }
+
+        return status_elc::ok;
+    }
+
+    static
+    auto is_valid_unit_reflib(const std::string& x) -> status_elc {
+        return is_valid_mandatory_label(x, api::v1::sizes::eeph_electrode_unit);
+    }
+
+    static
+    auto is_valid_reference_reflib(const std::string& x) -> status_elc {
+        return is_valid_optional_label(x, api::v1::sizes::eeph_electrode_reference);
+    }
+
+    static
+    auto is_valid_status_reflib(const std::string& x) -> status_elc {
+        return is_valid_optional_label(x, api::v1::sizes::eeph_electrode_status);
+    }
+
+    static
+    auto is_valid_type_reflib(const std::string& x) -> status_elc {
+        return is_valid_optional_label(x, api::v1::sizes::eeph_electrode_type);
+    }
+
+    static
+    auto is_valid_electrode(const ctk::api::v1::Electrode& x) -> status_elc {
+        auto valid{ is_valid_label_reflib(x.ActiveLabel) };
+        if (valid != status_elc::ok) { return valid; };
+
+        valid = is_valid_unit_reflib(x.Unit);
+        if (valid != status_elc::ok) { return valid; };
+
+        valid = is_valid_reference_reflib(x.Reference);
+        if (valid != status_elc::ok) { return valid; };
+
+        valid = is_valid_status_reflib(x.Status);
+        if (valid != status_elc::ok) { return valid; };
+
+        valid = is_valid_type_reflib(x.Type);
+        if (valid != status_elc::ok) { return valid; };
+
         if (!std::isfinite(x.IScale)) { return status_elc::iscale; }
         if (!std::isfinite(x.RScale)) { return status_elc::rscale; }
         return status_elc::ok;
     }
 
-    auto validate(const api::v1::Electrode& x) -> void {
-        const status_elc elcectrode_status{ valid_electrode(x) };
-        if (elcectrode_status == status_elc::ok) {
+    static
+    auto validate_optional_label(const std::string& x, status_elc status, unsigned max_size, std::string name) -> void {
+        if (status == status_elc::trunc) {
+            std::ostringstream oss;
+            oss << "[validate_optional_label, cnt_epoch] " << name
+                << " '" << x
+                << "' longer than " << max_size << " bytes";
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
+        }
+        else if (status == status_elc::space) {
+            std::ostringstream oss;
+            oss << "[validate_optional_label, cnt_epoch] " << name << " '" << x << "' contains space";
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
+        }
+        else if (status == status_elc::zero) {
+            std::ostringstream oss;
+            oss << "[validate_optional_label, cnt_epoch] " << name << " '" << x << "' contains embedded zero";
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
+        }
+    }
+
+    static
+    auto validate_mandatory_label(const std::string& x, status_elc status, unsigned max_size, std::string name) -> void {
+        validate_optional_label(x, status, max_size, name);
+
+        if (status == status_elc::empty) {
+            std::ostringstream oss;
+            oss << "[validate_mandatory_label, cnt_epoch] empty " << name;
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
+        }
+    }
+
+    auto validate_electrode_label_reflib(const std::string& x) -> void {
+        const status_elc valid{ is_valid_label_reflib(x) };
+        if (valid == status_elc::ok) {
             return;
         }
 
-        std::ostringstream oss;
-        oss << x << ": ";
-        switch (elcectrode_status) {
-        case status_elc::ok: assert(false); break;
-        case status_elc::label_empty: oss << "validate(Electrode): empty active label"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::unit_empty: oss << "validate(Electrode): empty unit"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::label_trunc: oss << "validate(Electrode): active label longer than 9"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::ref_trunc: oss << "validate(Electrode): reference label longer than 9"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::unit_trunc: oss << "validate(Electrode): unit longer than 8"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::stat_trunc: oss << "validate(Electrode): status longer than 9"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::type_trunc: oss << "validate(Electrode): type longer than 9"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::label_brace: oss << "validate(Electrode): active label starts with ["; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::label_semicolon: oss << "validate(Electrode): active label starts with ;"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::iscale: oss << "validate(Electrode): infinite instrument scale"; throw api::v1::CtkLimit{ oss.str() };
-        case status_elc::rscale: oss << "validate(Electrode): infinite range scale"; throw api::v1::CtkLimit{ oss.str() };
+        validate_mandatory_label(x, valid, api::v1::sizes::eeph_electrode_active, "active label");
+
+        std::string e;
+        if (valid == status_elc::brace) {
+            std::ostringstream oss;
+            oss << "[validate_electrode_label_reflib, cnt_epoch] active label '" << x << "' starts with [";
+            e = oss.str();
+        }
+        else if (valid == status_elc::semicolon) {
+            std::ostringstream oss;
+            oss << "[validate_electrode_label_reflib, cnt_epoch] active label '" << x << "' starts with ;";
+            e = oss.str();
+        }
+        else {
+            const std::string msg{ "[validate_electrode_label_reflib, cnt_epoch] active label unexpected state" };
+            throw api::v1::CtkBug{ msg };
+        }
+
+        throw api::v1::CtkLimit{ e };
+    }
+
+    auto validate_electrode_unit_reflib(const std::string& x) -> void {
+        validate_mandatory_label(x, is_valid_unit_reflib(x), api::v1::sizes::eeph_electrode_unit, "unit");
+    }
+
+    auto validate_electrode_reference_reflib(const std::string& x) -> void {
+        validate_optional_label(x, is_valid_reference_reflib(x), api::v1::sizes::eeph_electrode_reference, "reference label");
+    }
+
+    auto validate_electrode_status_reflib(const std::string& x) -> void {
+        validate_optional_label(x, is_valid_status_reflib(x), api::v1::sizes::eeph_electrode_status, "status");
+    }
+
+    auto validate_electrode_type_reflib(const std::string& x) -> void {
+        validate_optional_label(x, is_valid_type_reflib(x), api::v1::sizes::eeph_electrode_type, "type");
+    }
+
+    auto validate(const api::v1::Electrode& x) -> void {
+        validate_electrode_label_reflib(x.ActiveLabel);
+        validate_electrode_unit_reflib(x.Unit);
+        validate_electrode_reference_reflib(x.Reference);
+        validate_electrode_status_reflib(x.Status);
+        validate_electrode_type_reflib(x.Type);
+
+        if (!std::isfinite(x.IScale)) {
+            const std::string e{ "[validate(Electrode), cnt_epoch] infinite iscale" };
+            throw api::v1::CtkLimit{ e };
+        }
+
+        if (!std::isfinite(x.RScale)) {
+            const std::string e{ "[validate(Electrode), cnt_epoch] infinite rscale" };
+            throw api::v1::CtkLimit{ e };
         }
     }
 
@@ -1571,16 +1745,35 @@ namespace ctk { namespace impl {
         const status_ts time_series_status{ valid_time_series(x) };
         switch (time_series_status) {
             case status_ts::ok: return;
-            case status_ts::epochl: throw api::v1::CtkLimit{ "validate(TimeSeries): invalid epoch length" };
-            case status_ts::sfreq: throw api::v1::CtkLimit{ "validate(TimeSeries): invalid sampling frequency" };
-            case status_ts::stamp: throw api::v1::CtkLimit{ "validate(TimeSeries): invalid start time" };
-            case status_ts::no_elc: throw api::v1::CtkLimit{ "validate(TimeSeries): no electrodes" };
+            case status_ts::epochl: {
+                std::ostringstream oss;
+                oss << "[validate(TimeSeries), cnt_epoch] invalid epoch length " << x.EpochLength;
+                const auto e{ oss.str() };
+                throw api::v1::CtkLimit{ e };
+            }
+            case status_ts::sfreq: {
+                std::ostringstream oss;
+                oss << "[validate(TimeSeries), cnt_epoch] invalid sampling frequency " << x.SamplingFrequency;
+                const auto e{ oss.str() };
+                throw api::v1::CtkLimit{ e };
+            }
+            case status_ts::stamp: {
+                const std::string e{ "[validate(TimeSeries), cnt_epoch] invalid start time" };
+                throw api::v1::CtkLimit{ e };
+            }
+            case status_ts::no_elc: {
+                const std::string e{ "[validate(TimeSeries), cnt_epoch] no electrodes" };
+                throw api::v1::CtkLimit{ e };
+            }
             case status_ts::invalid_elc: /* fall trough */;
         }
 
         for (const api::v1::Electrode& e : x.Electrodes) {
             validate(e);
         }
+
+        const std::string msg{ "[validate(TimeSeries), cnt_epoch] expected exception was not thrown by the electrode validation" };
+        throw api::v1::CtkBug{ msg };
     }
 
 
@@ -1704,13 +1897,13 @@ namespace ctk { namespace impl {
             }
             // temp
             else if (is_average(top_level_chunk)) {
-                throw api::v1::CtkData{ "not implemented: average" };
+                throw api::v1::CtkData{ "[read_expected_chunks_reflib, cnt_epoch] not implemented: average" };
             }
             else if (is_stddev(top_level_chunk)) {
-                throw api::v1::CtkData{ "not implemented: stddev" };
+                throw api::v1::CtkData{ "[read_expected_chunks_reflib, cnt_epoch] not implemented: stddev" };
             }
             else if (is_wavelet(top_level_chunk)) {
-                throw api::v1::CtkData{ "not implemented: wavelet" };
+                throw api::v1::CtkData{ "[read_expected_chunks_reflib, cnt_epoch] not implemented: wavelet" };
             }
             // TODO: maybe skip "refh" and "imp " as well
             // end temp
@@ -1767,7 +1960,7 @@ namespace ctk { namespace impl {
     static
     auto read_reflib_cnt(const chunk& root, FILE* f) -> amorph {
         if (!is_root(root)) {
-            const std::string e{ "[read_reflib_cnt] invalid file" };
+            const std::string e{ "[read_reflib_cnt, cnt_epoch] invalid file" };
             throw api::v1::CtkBug{ e };
         }
 
@@ -1789,7 +1982,7 @@ namespace ctk { namespace impl {
             const std::string eeph_str{ ep.storage.size == 0 ? " eeph" : "" };
 
             std::ostringstream oss;
-            oss << "[read_reflib_cnt, cnt_epoch] missing chunks:" << eeph_str << ep_str << data_str << chan_str;
+            oss << "[read_reflib_cnt, cnt_epoch, cnt_epoch] missing chunks:" << eeph_str << ep_str << data_str << chan_str;
             const auto e { oss.str() };
             throw api::v1::CtkData{ e };
         }
@@ -2027,8 +2220,8 @@ namespace ctk { namespace impl {
         assert(is_even(tell(f)));
 
         if (l.subnodes.empty()) {
-            // TODO: are there use cases for non-throwing return here?
-            throw api::v1::CtkBug{ "content2chunk riff_list: empty list" };
+            const std::string e{ "[content2chunk(riff_list), cnt_epoch] empty list" };
+            throw api::v1::CtkBug{ e };
         }
 
         riff_chunk_writer raii{ f, l.c };
@@ -2150,7 +2343,8 @@ namespace ctk { namespace impl {
         assert(!epoch_ranges.empty());
 
         if (ce.data.empty()) {
-            return;
+            const std::string e{ "[epoch_writer_flat::append, cnt_epoch] no compressed data" };
+            throw api::v1::CtkBug{ e };
         }
 
         // 1) compressed epoch data
@@ -2239,17 +2433,47 @@ namespace ctk { namespace impl {
     , riff{ r } {
         const status_amorph status{ is_valid(d) };
         if (status != status_amorph::ok) {
-            std::ostringstream oss;
             switch (status) {
                 case status_amorph::ok: assert(false);
-                case status_amorph::samples: oss << "epoch_reader_common: invalid sample count " << d.sample_count; throw api::v1::CtkData{ oss.str() };
-                case status_amorph::ts: validate(d.header); break;
-                case status_amorph::order: oss << "epoch_reader_common: invalid row order"; throw api::v1::CtkData{ oss.str() };
-                case status_amorph::order_elc: oss << "epoch_reader_common: electrode count != channel count"; throw api::v1::CtkData{ oss.str() };
-                case status_amorph::ranges: oss << "epoch_reader_common: no epoch data"; throw api::v1::CtkData{ oss.str() };
-                case status_amorph::fpos: oss << "epoch_reader_common: invalid file position"; throw api::v1::CtkData{ oss.str() };
-                case status_amorph::increasing: oss << "epoch_reader_common: non increasing epochs"; throw api::v1::CtkData{ oss.str() };
-                case status_amorph::content: oss << "epoch_reader_common: epoch without content"; throw api::v1::CtkData{ oss.str() };
+                case status_amorph::samples: {
+                    std::ostringstream oss;
+                    oss << "[epoch_reader_common::epoch_reader_common, cnt_epoch] invalid sample count " << d.sample_count;
+                    const auto e{ oss.str() };
+                    throw api::v1::CtkData{ e };
+                }
+                case status_amorph::ts: {
+                    const std::string e{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] invalid time signal" };
+                    validate(d.header);
+                    const std::string msg{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] expected exception was not thrown" };
+                    throw api::v1::CtkBug{ msg };
+                }
+                case status_amorph::order: {
+                    const std::string e{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] invalid row order" };
+                    throw api::v1::CtkData{ e };
+                }
+                case status_amorph::order_elc: {
+                    std::ostringstream oss;
+                    oss << "[epoch_reader_common::epoch_reader_common, cnt_epoch] electrodes != channels: "
+                    << d.header.Electrodes.size() << " != " << d.order.size();
+                    const auto e{ oss.str() };
+                    throw api::v1::CtkData{ e };
+                }
+                case status_amorph::ranges: {
+                    const std::string e{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] no epoch data" };
+                    throw api::v1::CtkData{ e };
+                }
+                case status_amorph::fpos: {
+                    const std::string e{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] invalid file position" };
+                    throw api::v1::CtkData{ e };
+                }
+                case status_amorph::increasing: {
+                    const std::string e{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] non increasing epochs" };
+                    throw api::v1::CtkData{ e };
+                }
+                case status_amorph::content: {
+                    const std::string e{ "[epoch_reader_common::epoch_reader_common, cnt_epoch] epoch without content" };
+                    throw api::v1::CtkData{ e };
+                }
             }
         }
 
@@ -2446,7 +2670,7 @@ namespace ctk { namespace impl {
         const auto last{ end(tokens) };
         const auto found{ std::find_if(first, last, match_id) };
         if (found == last) {
-            throw api::v1::CtkData{ "epoch_reader_flat::get_name: no file of this type" };
+            throw api::v1::CtkData{ "[epoch_reader_flat::get_name, cnt_epoch] no file of this type" };
         }
 
         return found->file_name;
@@ -2512,11 +2736,19 @@ namespace ctk { namespace impl {
     }
 
     auto epoch_reader_riff::extract_embedded_file(const std::string& label, const std::filesystem::path& output) const -> void {
+        if (file_name.string().empty()) {
+            const std::string e{ "[epoch_reader_riff::extract_embedded_file, cnt_epoch] no output file name provided" };
+            throw api::v1::CtkLimit{ e };
+        }
+
         const auto first{ begin(a.user) };
         const auto last{ end(a.user) };
         const auto chunk{ std::find_if(first, last, [label](const auto& x) -> bool { return x.label == label; }) };
         if (chunk == last) {
-            return;
+            std::ostringstream oss;
+            oss << "[epoch_reader_riff::extract_embedded_file, cnt_epoch] non existing chunk " << label;
+            const auto e{ oss.str() };
+            throw api::v1::CtkLimit{ e };
         }
 
         auto fout{ open_w(output) };
@@ -2536,14 +2768,14 @@ namespace ctk { namespace impl {
             return api::v1::RiffType::riff64;
         }
 
-        throw api::v1::CtkData{ "epoch_reader_riff::cnt_type: neither RIFF nor RF64" };
+        throw api::v1::CtkData{ "[epoch_reader_riff::cnt_type, cnt_epoch] neither RIFF nor RF64" };
     }
 
     auto epoch_reader_riff::init() -> amorph {
         rewind(f.get());
         const auto x{ read_root(f.get(), string2riff(riff->root_id())) };
         if (!is_root(x)) {
-            throw api::v1::CtkData{ "epoch_reader_riff::init: not a root chunk" };
+            throw api::v1::CtkData{ "[epoch_reader_riff::init, cnt_epoch] not a root chunk" };
         }
 
         return read_reflib_cnt(x, f.get());
@@ -2607,7 +2839,7 @@ namespace ctk { namespace impl {
 
 
     auto is_valid(const ctk::api::v1::Electrode& x) -> bool {
-        return valid_electrode(x) == status_elc::ok;
+        return is_valid_electrode(x) == status_elc::ok;
     }
 
 } /* namespace impl */ } /* namespace ctk */
