@@ -40,7 +40,7 @@ namespace ctk { namespace api {
             auto operator=(CntReaderReflib&&) -> CntReaderReflib& = default;
             ~CntReaderReflib();
 
-            auto sampleCount() const -> int64_t;
+            auto SampleCount() const -> int64_t;
 
             /*
             range interface: returns variable amount of samples
@@ -51,8 +51,8 @@ namespace ctk { namespace api {
                 21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
-            auto rangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
-            auto rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto RangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
             /*
             the output is in column major format.
@@ -63,11 +63,11 @@ namespace ctk { namespace api {
                 13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
-            auto rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
-            auto rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto RangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
-            // libeep v4 interface: column major, applied electrode scaling
-            auto rangeLibeep(int64_t i, int64_t samples) -> std::vector<float>;
+            // libeep v4 interface: column major, float
+            auto RangeLibeep(int64_t i, int64_t samples) -> std::vector<float>;
 
             /*
             epoch interface:
@@ -77,23 +77,23 @@ namespace ctk { namespace api {
                 - all output epochs but the last contain epoch length measurements
                 - the last epoch might be shorter
             */
-            auto epochs() const -> int64_t;
-            auto epochRowMajor(int64_t i) -> std::vector<double>;
-            auto epochColumnMajor(int64_t i) -> std::vector<double>;
-            auto epochRowMajorInt32(int64_t i) -> std::vector<int32_t>;
-            auto epochColumnMajorInt32(int64_t i) -> std::vector<int32_t>;
-            auto epochCompressed(int64_t i) -> std::vector<uint8_t>;
+            auto Epochs() const -> int64_t;
+            auto EpochRowMajor(int64_t i) -> std::vector<double>;
+            auto EpochColumnMajor(int64_t i) -> std::vector<double>;
+            auto EpochRowMajorInt32(int64_t i) -> std::vector<int32_t>;
+            auto EpochColumnMajorInt32(int64_t i) -> std::vector<int32_t>;
+            auto EpochCompressed(int64_t i) -> std::vector<uint8_t>;
 
-            auto description() const -> TimeSeries;
-            auto cntType() const -> RiffType;
-            auto history() const -> std::string;
+            auto ParamEeg() const -> TimeSeries;
+            auto CntType() const -> RiffType;
+            auto History() const -> std::string;
 
-            auto triggers() const -> std::vector<Trigger>;
-            auto information() const -> Info;
-            auto fileVersion() const -> FileVersion;
+            auto Triggers() const -> std::vector<Trigger>;
+            auto RecordingInfo() const -> Info;
+            auto CntFileVersion() const -> FileVersion;
 
-            auto embeddedFiles() const -> std::vector<UserFile>;
-            auto extractEmbeddedFile(const UserFile&) const -> bool;
+            auto EmbeddedFiles() const -> std::vector<UserFile>;
+            auto ExtractEmbeddedFile(const UserFile&) const -> void;
 
         private:
             struct impl;
@@ -113,11 +113,11 @@ namespace ctk { namespace api {
 
             // NB: the output file construction happens here.
             // assemblies the generated files into a single RIFF file.
-            // this is the last function to call before destroying the object.
-            auto close() -> void;
+            // Close is the last function to call before destroying the object.
+            auto Close() -> void;
 
-            auto recordingInfo(const Info&) -> void;
-            auto addTimeSignal(const TimeSeries&) -> bool;
+            auto RecordingInfo(const Info&) -> void;
+            auto ParamEeg(const TimeSeries&) -> void;
             //auto add_avg_series(const mean_series& description) -> bool;
             //auto add_stddev_series(const mean_series& description) -> bool;
             //auto add_wav_series(const wav_series& description) -> bool;
@@ -131,8 +131,8 @@ namespace ctk { namespace api {
                 13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
-            auto rangeColumnMajor(const std::vector<double>&) -> void;
-            auto rangeColumnMajorInt32(const std::vector<int32_t>&) -> void;
+            auto RangeColumnMajor(const std::vector<double>&) -> void;
+            auto RangeColumnMajorInt32(const std::vector<int32_t>&) -> void;
 
             /*
             the input is in row major format.
@@ -142,27 +142,27 @@ namespace ctk { namespace api {
                 21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
-            auto rangeRowMajor(const std::vector<double>&) -> void;
-            auto rangeRowMajorInt32(const std::vector<int32_t>&) -> void;
+            auto RangeRowMajor(const std::vector<double>&) -> void;
+            auto RangeRowMajorInt32(const std::vector<int32_t>&) -> void;
 
-            auto trigger(const Trigger&) -> void;
-            auto triggers(const std::vector<Trigger>&) -> void;
+            auto AddTrigger(const Trigger&) -> void;
+            auto AddTriggers(const std::vector<Trigger>&) -> void;
 
-            auto history(const std::string&) -> void;
+            auto History(const std::string&) -> void;
 
-            auto flush() -> void;
+            auto Flush() -> void;
 
             // compatible extension: user supplied content placed into a top-level chunk.
-            // UserFile::file_name should exist and be accessible when close is called.
+            // UserFile::file_name should exist and be accessible when Close is called.
             // UserFile::label is a 4 byte label.
             // UserFile::label cannot be any of: "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh" or "imp ".
             // at most one user supplied chunk can have this label.
-            auto embed(const UserFile&) -> void;
+            auto Embed(const UserFile&) -> void;
 
             // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
-            auto commited() const -> int64_t;
-            auto rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
-            auto rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto Commited() const -> int64_t;
+            auto RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
         private:
             struct impl;
@@ -179,17 +179,17 @@ namespace ctk { namespace api {
             auto operator=(EventReader&&) -> EventReader&;
             ~EventReader();
 
-            auto impedanceCount() const -> size_t;
-            auto videoCount() const -> size_t;
-            auto epochCount() const -> size_t;
+            auto ImpedanceCount() const -> size_t;
+            auto VideoCount() const -> size_t;
+            auto EpochCount() const -> size_t;
 
-            auto impedanceEvent(size_t) -> EventImpedance;
-            auto videoEvent(size_t) -> EventVideo;
-            auto epochEvent(size_t) -> EventEpoch;
+            auto ImpedanceEvent(size_t) -> EventImpedance;
+            auto VideoEvent(size_t) -> EventVideo;
+            auto EpochEvent(size_t) -> EventEpoch;
 
-            auto impedanceEvents() -> std::vector<EventImpedance>;
-            auto videoEvents() -> std::vector<EventVideo>;
-            auto epochEvents() -> std::vector<EventEpoch>;
+            auto ImpedanceEvents() -> std::vector<EventImpedance>;
+            auto VideoEvents() -> std::vector<EventVideo>;
+            auto EpochEvents() -> std::vector<EventEpoch>;
 
         private:
             struct impl;
@@ -208,21 +208,20 @@ namespace ctk { namespace api {
             auto operator=(EventWriter&&) -> EventWriter&;
             ~EventWriter();
 
-            auto close() -> bool; /* NB: the output file construction happens here */
+            auto Close() -> bool; /* NB: the output file construction happens here */
 
-            auto addImpedance(const EventImpedance&) -> void;
-            auto addVideo(const EventVideo&) -> void;
-            auto addEpoch(const EventEpoch&) -> void;
+            auto AddImpedance(const EventImpedance&) -> void;
+            auto AddVideo(const EventVideo&) -> void;
+            auto AddEpoch(const EventEpoch&) -> void;
 
-            auto addImpedances(const std::vector<EventImpedance>&) -> void;
-            auto addVideos(const std::vector<EventVideo>&) -> void;
-            auto addEpochs(const std::vector<EventEpoch>&) -> void;
+            auto AddImpedances(const std::vector<EventImpedance>&) -> void;
+            auto AddVideos(const std::vector<EventVideo>&) -> void;
+            auto AddEpochs(const std::vector<EventEpoch>&) -> void;
 
         private:
             struct impl;
             std::unique_ptr<impl> p;
         };
-
 
     } /* namespace v1 */
 } /* namespace api */ } /* namespace ctk */

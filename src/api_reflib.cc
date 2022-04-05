@@ -17,13 +17,12 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include <exception>
-#include <algorithm>
-#include <iostream>
-
 #include "api_reflib.h"
+
 #include "file/cnt_reflib.h"
 #include "file/evt.h"
+#include "exception"
+
 
 
 namespace ctk { namespace api {
@@ -72,99 +71,99 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto CntReaderReflib::sampleCount() const -> int64_t {
+        auto CntReaderReflib::SampleCount() const -> int64_t {
             assert(p);
             const measurement_count::value_type result{ p->reader.sample_count() };
             return result;
         }
 
-        auto CntReaderReflib::rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntReaderReflib::RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             return p->reader.range_row_major(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeRowMajor(int64_t i, int64_t samples) -> std::vector<double> {
+        auto CntReaderReflib::RangeRowMajor(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
             return p->reader.range_row_major_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntReaderReflib::RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             return p->reader.range_column_major(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double> {
+        auto CntReaderReflib::RangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double> {
             assert(p);
             return p->reader.range_column_major_scaled(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::rangeLibeep(int64_t i, int64_t samples) -> std::vector<float> {
+        auto CntReaderReflib::RangeLibeep(int64_t i, int64_t samples) -> std::vector<float> {
             assert(p);
             return p->reader.range_scaled_libeep(measurement_count{ i }, measurement_count{ samples });
         }
 
-        auto CntReaderReflib::epochs() const -> int64_t {
+        auto CntReaderReflib::Epochs() const -> int64_t {
             assert(p);
             const epoch_count::value_type result{ p->reader.epochs() };
             return result;
         }
 
-        auto CntReaderReflib::epochRowMajorInt32(int64_t i) -> std::vector<int32_t> {
+        auto CntReaderReflib::EpochRowMajorInt32(int64_t i) -> std::vector<int32_t> {
             assert(p);
             return p->reader.epoch_row_major(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochRowMajor(int64_t i) -> std::vector<double> {
+        auto CntReaderReflib::EpochRowMajor(int64_t i) -> std::vector<double> {
             assert(p);
             return p->reader.epoch_row_major_scaled(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochColumnMajorInt32(int64_t i) -> std::vector<int32_t> {
+        auto CntReaderReflib::EpochColumnMajorInt32(int64_t i) -> std::vector<int32_t> {
             assert(p);
             return p->reader.epoch_column_major(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochColumnMajor(int64_t i) -> std::vector<double> {
+        auto CntReaderReflib::EpochColumnMajor(int64_t i) -> std::vector<double> {
             assert(p);
             return p->reader.epoch_column_major_scaled(epoch_count{ i });
         }
 
-        auto CntReaderReflib::epochCompressed(int64_t i) -> std::vector<uint8_t> {
+        auto CntReaderReflib::EpochCompressed(int64_t i) -> std::vector<uint8_t> {
             assert(p);
             return p->reader.epoch_compressed(epoch_count{ i });
         }
 
-        auto CntReaderReflib::description() const -> TimeSeries {
+        auto CntReaderReflib::ParamEeg() const -> TimeSeries {
             assert(p);
             return p->reader.description();
         }
 
-        auto CntReaderReflib::cntType() const -> RiffType {
+        auto CntReaderReflib::CntType() const -> RiffType {
             assert(p);
             return p->reader.cnt_type();
         }
 
-        auto CntReaderReflib::history() const -> std::string {
+        auto CntReaderReflib::History() const -> std::string {
             assert(p);
             return p->reader.history();
         }
 
-        auto CntReaderReflib::triggers() const -> std::vector<Trigger> {
+        auto CntReaderReflib::Triggers() const -> std::vector<Trigger> {
             assert(p);
             return p->reader.triggers();
         }
 
-        auto CntReaderReflib::information() const -> Info {
+        auto CntReaderReflib::RecordingInfo() const -> Info {
             assert(p);
             return p->reader.information();
         }
 
-        auto CntReaderReflib::fileVersion() const -> FileVersion {
+        auto CntReaderReflib::CntFileVersion() const -> FileVersion {
             assert(p);
             return p->reader.file_version();
         }
 
-        auto CntReaderReflib::embeddedFiles() const -> std::vector<UserFile> {
+        auto CntReaderReflib::EmbeddedFiles() const -> std::vector<UserFile> {
             assert(p);
             const auto labels{ p->reader.embedded_files() };
             std::vector<UserFile> result(labels.size());
@@ -172,9 +171,9 @@ namespace ctk { namespace api {
             return result;
         }
 
-        auto CntReaderReflib::extractEmbeddedFile(const UserFile& x) const -> bool {
+        auto CntReaderReflib::ExtractEmbeddedFile(const UserFile& x) const -> void {
             assert(p);
-            return p->reader.extract_embedded_file(x.Label, x.FileName);
+            p->reader.extract_embedded_file(x.Label, x.FileName);
         }
 
 
@@ -210,7 +209,7 @@ namespace ctk { namespace api {
         CntWriterReflib::~CntWriterReflib() {
         }
 
-        auto CntWriterReflib::close() -> void {
+        auto CntWriterReflib::Close() -> void {
             assert(p);
             if (!p->raw3) {
                 return;
@@ -220,22 +219,22 @@ namespace ctk { namespace api {
             p->raw3 = nullptr;
         }
 
-        auto CntWriterReflib::recordingInfo(const Info& information) -> void {
+        auto CntWriterReflib::RecordingInfo(const Info& info) -> void {
             assert(p);
-            p->writer.recording_info(information);
+            p->writer.recording_info(info);
         }
 
-        auto CntWriterReflib::addTimeSignal(const TimeSeries& description) -> bool {
+        auto CntWriterReflib::ParamEeg(const TimeSeries& param) -> void {
             assert(p);
             if (p->raw3) {
-                return false; // one segment only
+                const std::string e{ "[CntWriterReflib::ParamEeg, api_reflib] one segment only" };
+                throw CtkLimit{ e };
             }
 
-            p->raw3 = p->writer.add_time_signal(description);
-            return p->raw3 != nullptr;
+            p->raw3 = p->writer.add_time_signal(param);
         }
 
-        auto CntWriterReflib::rangeColumnMajorInt32(const std::vector<int32_t>& client) -> void {
+        auto CntWriterReflib::RangeColumnMajorInt32(const std::vector<int32_t>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
@@ -244,7 +243,7 @@ namespace ctk { namespace api {
             p->raw3->range_column_major(client);
         }
 
-        auto CntWriterReflib::rangeRowMajorInt32(const std::vector<int32_t>& client) -> void {
+        auto CntWriterReflib::RangeRowMajorInt32(const std::vector<int32_t>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
@@ -253,7 +252,7 @@ namespace ctk { namespace api {
             p->raw3->range_row_major(client);
         }
 
-        auto CntWriterReflib::rangeColumnMajor(const std::vector<double>& client) -> void {
+        auto CntWriterReflib::RangeColumnMajor(const std::vector<double>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
@@ -262,7 +261,7 @@ namespace ctk { namespace api {
             p->raw3->range_column_major_scaled(client);
         }
 
-        auto CntWriterReflib::rangeRowMajor(const std::vector<double>& client) -> void {
+        auto CntWriterReflib::RangeRowMajor(const std::vector<double>& client) -> void {
             assert(p);
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
@@ -271,7 +270,7 @@ namespace ctk { namespace api {
             p->raw3->range_row_major_scaled(client);
         }
 
-        auto CntWriterReflib::trigger(const Trigger& x) -> void {
+        auto CntWriterReflib::AddTrigger(const Trigger& x) -> void {
             assert(p);
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::trigger: addTimeSignal not invoked or close already invoked" };
@@ -280,7 +279,7 @@ namespace ctk { namespace api {
             p->raw3->trigger(x);
         }
 
-        auto CntWriterReflib::triggers(const std::vector<Trigger>& triggers) -> void {
+        auto CntWriterReflib::AddTriggers(const std::vector<Trigger>& triggers) -> void {
             assert(p);
             if (!p->raw3) {
                 throw CtkLimit{ "CntWriterReflib::triggers: addTimeSignal not invoked or close already invoked" };
@@ -289,35 +288,35 @@ namespace ctk { namespace api {
             p->raw3->triggers(triggers);
         }
 
-        auto CntWriterReflib::history(const std::string& x) -> void {
+        auto CntWriterReflib::History(const std::string& x) -> void {
             assert(p);
             p->writer.history(x);
         }
 
-        auto CntWriterReflib::flush() -> void {
+        auto CntWriterReflib::Flush() -> void {
             assert(p);
             p->writer.flush();
         }
 
-        auto CntWriterReflib::embed(const UserFile& x) -> void {
+        auto CntWriterReflib::Embed(const UserFile& x) -> void {
             assert(p);
             p->writer.embed(x.Label, x.FileName);
         }
 
-        auto CntWriterReflib::commited() const -> int64_t {
+        auto CntWriterReflib::Commited() const -> int64_t {
             assert(p);
             const measurement_count::value_type result{ p->writer.commited() };
             return result;
         }
 
-        auto CntWriterReflib::rangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntWriterReflib::RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             const measurement_count n{ i };
             const measurement_count s{ samples };
             return p->writer.range_row_major(n, s);
         }
 
-        auto CntWriterReflib::rangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+        auto CntWriterReflib::RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
             assert(p);
             const measurement_count n{ i };
             const measurement_count s{ samples };
@@ -377,55 +376,55 @@ namespace ctk { namespace api {
             return *this;
         }
 
-        auto EventReader::impedanceCount() const -> size_t {
+        auto EventReader::ImpedanceCount() const -> size_t {
             assert(p);
             return p->lib.impedances.size();
         }
 
-        auto EventReader::videoCount() const -> size_t {
+        auto EventReader::VideoCount() const -> size_t {
             assert(p);
             return p->lib.videos.size();
         }
 
-        auto EventReader::epochCount() const -> size_t {
+        auto EventReader::EpochCount() const -> size_t {
             assert(p);
             return p->lib.epochs.size();
         }
 
-        auto EventReader::impedanceEvent(size_t i) -> EventImpedance {
+        auto EventReader::ImpedanceEvent(size_t i) -> EventImpedance {
             assert(p);
             if (p->lib.impedances.size() <= i) {
                 std::ostringstream oss;
-                oss << "EventReader::impedanceEvent: invalid index " << i << "/" << (p->lib.impedances.size() - 1);
+                oss << "EventReader::ImpedanceEvent: invalid index " << i << "/" << (p->lib.impedances.size() - 1);
                 throw api::v1::CtkLimit{ oss.str() };
             }
 
             return marker2impedance(p->lib.impedances[i]);
         }
 
-        auto EventReader::videoEvent(size_t i) -> EventVideo {
+        auto EventReader::VideoEvent(size_t i) -> EventVideo {
             assert(p);
             if (p->lib.videos.size() <= i) {
                 std::ostringstream oss;
-                oss << "EventReader::videoEvent: invalid index " << i << "/" << (p->lib.videos.size() - 1);
+                oss << "EventReader::VideoEvent: invalid index " << i << "/" << (p->lib.videos.size() - 1);
                 throw api::v1::CtkLimit{ oss.str() };
             }
 
             return marker2video(p->lib.videos[i]);
         }
 
-        auto EventReader::epochEvent(size_t i) -> EventEpoch {
+        auto EventReader::EpochEvent(size_t i) -> EventEpoch {
             assert(p);
             if (p->lib.epochs.size() <= i) {
                 std::ostringstream oss;
-                oss << "EventReader::epochEvent: invalid index " << i << "/" << (p->lib.epochs.size() - 1);
+                oss << "EventReader::EpochEvent: invalid index " << i << "/" << (p->lib.epochs.size() - 1);
                 throw api::v1::CtkLimit{ oss.str() };
             }
 
             return epochevent2eventepoch(p->lib.epochs[i]);
         }
 
-        auto EventReader::impedanceEvents() -> std::vector<EventImpedance> {
+        auto EventReader::ImpedanceEvents() -> std::vector<EventImpedance> {
             assert(p);
 
             const auto& events{ p->lib.impedances };
@@ -434,7 +433,7 @@ namespace ctk { namespace api {
             return xs;
         }
 
-        auto EventReader::videoEvents() -> std::vector<EventVideo> {
+        auto EventReader::VideoEvents() -> std::vector<EventVideo> {
             assert(p);
 
             const auto& events{ p->lib.videos };
@@ -443,7 +442,7 @@ namespace ctk { namespace api {
             return xs;
         }
 
-        auto EventReader::epochEvents() -> std::vector<EventEpoch> {
+        auto EventReader::EpochEvents() -> std::vector<EventEpoch> {
             assert(p);
 
             const auto& events{ p->lib.epochs };
@@ -522,9 +521,9 @@ namespace ctk { namespace api {
         EventWriter::~EventWriter() {
         }
 
-        auto EventWriter::addImpedance(const EventImpedance& x) -> void {
+        auto EventWriter::AddImpedance(const EventImpedance& x) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::addImpedance: close already invoked" };
+                throw CtkLimit{ "EventWriter::AddImpedance: close already invoked" };
             }
 
             const uint32_t sum{ update_size(p->events, 1U) };
@@ -533,9 +532,9 @@ namespace ctk { namespace api {
             p->events = sum;
         }
 
-        auto EventWriter::addVideo(const EventVideo& x) -> void {
+        auto EventWriter::AddVideo(const EventVideo& x) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::addVideo: close already invoked" };
+                throw CtkLimit{ "EventWriter::AddVideo: close already invoked" };
             }
 
             const uint32_t sum{ update_size(p->events, 1U) };
@@ -544,9 +543,9 @@ namespace ctk { namespace api {
             p->events = sum;
         }
 
-        auto EventWriter::addEpoch(const EventEpoch& x) -> void {
+        auto EventWriter::AddEpoch(const EventEpoch& x) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::addEpoch: close already invoked" };
+                throw CtkLimit{ "EventWriter::AddEpoch: close already invoked" };
             }
 
             const uint32_t sum{ update_size(p->events, 1U) };
@@ -555,9 +554,9 @@ namespace ctk { namespace api {
             p->events = sum;
         }
 
-        auto EventWriter::addImpedances(const std::vector<EventImpedance>& xs) -> void {
+        auto EventWriter::AddImpedances(const std::vector<EventImpedance>& xs) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::addImpedances: close already invoked" };
+                throw CtkLimit{ "EventWriter::AddImpedances: close already invoked" };
             }
 
             const uint32_t sum{ update_size(p->events, xs.size()) };
@@ -571,9 +570,9 @@ namespace ctk { namespace api {
             p->events = sum;
         }
 
-        auto EventWriter::addVideos(const std::vector<EventVideo>& xs) -> void {
+        auto EventWriter::AddVideos(const std::vector<EventVideo>& xs) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::addVideos: close already invoked" };
+                throw CtkLimit{ "EventWriter::AddVideos: close already invoked" };
             }
 
             const uint32_t sum{ update_size(p->events, xs.size()) };
@@ -587,9 +586,9 @@ namespace ctk { namespace api {
             p->events = sum;
         }
 
-        auto EventWriter::addEpochs(const std::vector<EventEpoch>& xs) -> void {
+        auto EventWriter::AddEpochs(const std::vector<EventEpoch>& xs) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::addEpochs: close already invoked" };
+                throw CtkLimit{ "EventWriter::AddEpochs: close already invoked" };
             }
 
             const uint32_t sum{ update_size(p->events, xs.size()) };
@@ -603,7 +602,7 @@ namespace ctk { namespace api {
             p->events = sum;
         }
 
-        auto EventWriter::close() -> bool {
+        auto EventWriter::Close() -> bool {
             if (p->f_temp == nullptr) {
                 return true;
             }

@@ -38,50 +38,50 @@ auto generate_input_file(const std::string& fname) -> void {
     std::vector<int32_t> input(epoch_length * height);
     std::iota(begin(input), end(input), 0);
 
-    ctk::TimeSeries description;
-    description.EpochLength = epoch_length;
-    description.SamplingFrequency = 1024;
-    description.StartTime = ctk::api::v1::dcdate2timepoint({ 0, 0 });
-    description.Electrodes.resize(height);
+    ctk::TimeSeries param;
+    param.EpochLength = epoch_length;
+    param.SamplingFrequency = 1024;
+    param.StartTime = ctk::api::v1::dcdate2timepoint({ 0, 0 });
+    param.Electrodes.resize(height);
     for (size_t j{ 0 }; j < height; ++j) {
-        description.Electrodes[j].ActiveLabel = "fpx";
-        description.Electrodes[j].Reference = "ref";
-        description.Electrodes[j].Unit = "u";
-        description.Electrodes[j].IScale = 1.0;
-        description.Electrodes[j].RScale = 1.0;
+        param.Electrodes[j].ActiveLabel = "fpx";
+        param.Electrodes[j].Reference = "ref";
+        param.Electrodes[j].Unit = "u";
+        param.Electrodes[j].IScale = 1.0;
+        param.Electrodes[j].RScale = 1.0;
     }
 
     ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
-    writer.addTimeSignal(description);
-    writer.recordingInfo(i);
-    writer.history(note);
+    writer.ParamEeg(param);
+    writer.RecordingInfo(i);
+    writer.History(note);
 
     for (size_t epoch{ 0 }; epoch < 3; ++epoch) {
-        writer.rangeColumnMajorInt32(input);
+        writer.RangeColumnMajorInt32(input);
     }
 
     std::vector<ctk::Trigger> triggers;
     for (size_t sample{ 0 }; sample < 3; ++sample) {
         triggers.emplace_back(sample, "code");
     }
-    writer.triggers(triggers);
+    writer.AddTriggers(triggers);
 
-    writer.close();
+    writer.Close();
 }
 
 
 auto read(const std::string& fname) -> void {
     ctk::CntReaderReflib reader{ fname };
 
-    const auto total{ reader.sampleCount() };
-    const auto description{ reader.description() };
-    reader.information();
-    reader.triggers();
-    reader.fileVersion();
-    reader.history();
+    const auto total{ reader.SampleCount() };
+    const auto param{ reader.ParamEeg() };
+    reader.RecordingInfo();
+    reader.Triggers();
+    reader.CntFileVersion();
+    reader.History();
 
     for (int64_t i{ 0 }; i < total; ++i) {
-        reader.rangeColumnMajorInt32(i, 1);
+        reader.RangeColumnMajorInt32(i, 1);
     }
 }
 

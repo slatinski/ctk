@@ -52,44 +52,42 @@ auto write(const std::string& fname) -> void {
     }
 
     ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
-    writer.addTimeSignal(description);
-    writer.recordingInfo(info);
-    writer.history(note);
+    writer.ParamEeg(description);
+    writer.RecordingInfo(info);
+    writer.History(note);
 
     for (int epoch{ 0 }; epoch < 25; ++epoch) {
-        writer.rangeColumnMajorInt32(input);
+        writer.RangeColumnMajorInt32(input);
     }
 
     std::vector<ctk::Trigger> triggers;
     for (int sample{ 0 }; sample < 16; ++sample) {
         triggers.emplace_back(sample, "code");
     }
-    writer.triggers(triggers);
+    writer.AddTriggers(triggers);
 
-    writer.close();
+    writer.Close();
 }
 
 auto read(const std::string& fname) -> void {
     ctk::CntReaderReflib reader{ fname };
 
-    const auto total{ reader.sampleCount() };
-    const auto description{ reader.description() };
-    const auto information{ reader.information() };
-    const auto triggers{ reader.triggers() };
-    const auto fv{ reader.fileVersion() };
-    const auto history{ reader.history() };
+    const auto total{ reader.SampleCount() };
+    const auto description{ reader.ParamEeg() };
+    const auto information{ reader.RecordingInfo() };
+    const auto triggers{ reader.Triggers() };
+    const auto history{ reader.History() };
 
     std::cerr << "sample count: " << total << "\n";
     std::cerr << "channel count: " << description.Electrodes.size() << "\n";
     std::cerr << description << "\n";
     std::cerr << "info: " << information << "\n";
     std::cerr << "triggers: " << triggers.size() << "\n";
-    std::cerr << "file version: " << fv << "\n";
     std::cerr << "history: " << history << "\n";
 
     size_t accessible{ 0 };
     for (int64_t i{ 0 }; i < total; ++i) {
-        const auto sample{ reader.rangeColumnMajorInt32(i, 1) };
+        const auto sample{ reader.RangeColumnMajorInt32(i, 1) };
         if (sample.size() == description.Electrodes.size()) {
             ++accessible;
         }

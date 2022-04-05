@@ -124,14 +124,14 @@ TEST_CASE("write/read impedance event", "[consistency]") {
     const std::filesystem::path fname_temp{ "delme.evt" };
     {
         api::v1::EventWriter writer{ fname_temp };
-        writer.addImpedance(event_impedance);
-        writer.close();
+        writer.AddImpedance(event_impedance);
+        writer.Close();
     }
 
     api::v1::EventReader reader{ fname_temp };
-    REQUIRE(reader.impedanceCount() == 1);
-    const auto outupt_event{ reader.impedanceEvent(0) };
-    const auto output_events{ reader.impedanceEvents() };
+    REQUIRE(reader.ImpedanceCount() == 1);
+    const auto outupt_event{ reader.ImpedanceEvent(0) };
+    const auto output_events{ reader.ImpedanceEvents() };
     REQUIRE(output_events.size() == 1);
     REQUIRE(compare(output_events[0], event_impedance));
     REQUIRE(compare(outupt_event, event_impedance));
@@ -160,30 +160,30 @@ TEST_CASE("read - write - read roundtrip", "[consistency]") {
 
             api::v1::EventReader input_reader{ evt };
 
-            const auto input_impedances{ input_reader.impedanceEvents() };
-            const auto input_videos{ input_reader.videoEvents() };
-            const auto input_epochs{ input_reader.epochEvents() };
+            const auto input_impedances{ input_reader.ImpedanceEvents() };
+            const auto input_videos{ input_reader.VideoEvents() };
+            const auto input_epochs{ input_reader.EpochEvents() };
 
             {
                 api::v1::EventWriter writer{ fname_temp };
                 for (const auto& i : input_impedances) {
-                    writer.addImpedance(i);
+                    writer.AddImpedance(i);
                 }
                 for (const auto& v : input_videos) {
-                    writer.addVideo(v);
+                    writer.AddVideo(v);
                 }
                 for (const auto& e : input_epochs) {
-                    writer.addEpoch(e);
+                    writer.AddEpoch(e);
                 }
-                writer.close();
+                writer.Close();
             }
 
             const auto events{ input_impedances.size() + input_videos.size() + input_epochs.size() };
             if (events != 0) {
                 api::v1::EventReader output_reader{ fname_temp };
-                const auto output_impedances{ output_reader.impedanceEvents() };
-                const auto output_videos{ output_reader.videoEvents() };
-                const auto output_epochs{ output_reader.epochEvents() };
+                const auto output_impedances{ output_reader.ImpedanceEvents() };
+                const auto output_videos{ output_reader.VideoEvents() };
+                const auto output_epochs{ output_reader.EpochEvents() };
 
                 REQUIRE(similar(input_impedances, output_impedances));
                 REQUIRE(similar(input_videos, output_videos));

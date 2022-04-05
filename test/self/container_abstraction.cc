@@ -34,26 +34,26 @@ auto compare_readers(const std::string& fname) -> void {
     ctk::CntReaderReflib reader_api{ fname };
 
     const auto samples{ reader_direct.sample_count() };
-    const auto samples_api{ reader_api.sampleCount() };
+    const auto samples_api{ reader_api.SampleCount() };
     REQUIRE(samples == ctk::impl::measurement_count{ samples_api });
 
     const auto triggers{ reader_direct.triggers() };
-    const auto triggers_api{ reader_api.triggers() };
+    const auto triggers_api{ reader_api.Triggers() };
     REQUIRE(triggers == triggers_api);
 
     const auto desc{ reader_direct.description() };
-    const auto desc_api{ reader_api.description() };
+    const auto desc_api{ reader_api.ParamEeg() };
     REQUIRE(desc.EpochLength == desc_api.EpochLength);
     REQUIRE(desc.SamplingFrequency == desc_api.SamplingFrequency);
     REQUIRE(desc.StartTime == desc_api.StartTime);
     REQUIRE(desc.Electrodes == desc_api.Electrodes);
 
-    REQUIRE(reader_direct.history() == reader_api.history());
-    REQUIRE(reader_direct.file_version().Major == reader_api.fileVersion().Major);
-    REQUIRE(reader_direct.file_version().Minor == reader_api.fileVersion().Minor);
+    REQUIRE(reader_direct.history() == reader_api.History());
+    REQUIRE(reader_direct.file_version().Major == reader_api.CntFileVersion().Major);
+    REQUIRE(reader_direct.file_version().Minor == reader_api.CntFileVersion().Minor);
 
     // missing dob
-    REQUIRE(reader_direct.information() == reader_api.information());
+    REQUIRE(reader_direct.information() == reader_api.RecordingInfo());
 
     const sint chunk_api{ 1 };
     const measurement_count chunk{ chunk_api };
@@ -62,7 +62,7 @@ auto compare_readers(const std::string& fname) -> void {
         const auto v_direct{ reader_direct.range_column_major(i, chunk) };
 
         const sint i_api{ i };
-        const auto v_api{ reader_api.rangeColumnMajorInt32(i_api, chunk_api) };
+        const auto v_api{ reader_api.RangeColumnMajorInt32(i_api, chunk_api) };
         REQUIRE(v_direct == v_api);
     }
 
@@ -111,19 +111,19 @@ auto read_direct(const std::string& fname) -> int64_t {
 
 auto read_api(const std::string& fname) -> int64_t {
     ctk::CntReaderReflib reader{ fname };
-    const auto samples{ reader.sampleCount() };
-    const auto electrodes{ reader.description().Electrodes };
+    const auto samples{ reader.SampleCount() };
+    const auto electrodes{ reader.ParamEeg().Electrodes };
     const int64_t chunk{ 1 };
 
     int64_t accessible{ 0 };
     for (int64_t i{ 0 }; i < samples; ++i) {
-        const auto v{ reader.rangeColumnMajorInt32(i, chunk) };
+        const auto v{ reader.RangeColumnMajorInt32(i, chunk) };
         if (v.size() == electrodes.size()) {
             ++accessible;
         }
     }
 
-    const auto triggers{ reader.triggers() };
+    const auto triggers{ reader.Triggers() };
     const auto count{ ctk::impl::vsize(triggers) };
 
     return accessible + count;
@@ -145,7 +145,7 @@ auto test_reader_speed(const std::string& fname) -> void {
     std::chrono::microseconds direct_t{ std::chrono::duration_cast<std::chrono::microseconds>(direct_e - direct_s) };
     std::chrono::microseconds api_t{ std::chrono::duration_cast<std::chrono::microseconds>(api_e - api_s) };
 
-    const double api_direct{ 100.0 * api_t.count() / direct_t.count() };
+    const double api_direct{ 100.0 * static_cast<double>(api_t.count()) / static_cast<double>(direct_t.count()) };
     std::cerr << "api/direct " << d2s(api_direct) << "%\n";
 }
 

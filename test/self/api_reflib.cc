@@ -38,21 +38,21 @@ TEST_CASE("read write column major", "[consistency] [read] [write]") {
     std::filesystem::path temporary{ "rw_cm.cnt" };
     {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
-        writer.addTimeSignal(header);
+        writer.ParamEeg(header);
 
-        writer.rangeColumnMajorInt32(xs);
-        writer.rangeColumnMajorInt32(xs);
-        writer.rangeColumnMajorInt32(xs);
+        writer.RangeColumnMajorInt32(xs);
+        writer.RangeColumnMajorInt32(xs);
+        writer.RangeColumnMajorInt32(xs);
 
-        writer.close();
+        writer.Close();
     }
 
     {
         ctk::CntReaderReflib reader{ temporary };
-        REQUIRE(reader.description() == header);
+        REQUIRE(reader.ParamEeg() == header);
 
         for (int64_t i : { 0, 5, 10 }) {
-            const auto ys{ reader.rangeColumnMajorInt32(i, 5) };
+            const auto ys{ reader.RangeColumnMajorInt32(i, 5) };
             REQUIRE(ys == xs);
         }
     }
@@ -71,21 +71,21 @@ TEST_CASE("read write column major scaled", "[consistency] [read] [write]") {
     std::filesystem::path temporary{ "rw_cms.cnt" };
     {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
-        writer.addTimeSignal(header);
+        writer.ParamEeg(header);
 
-        writer.rangeColumnMajor(xs);
-        writer.rangeColumnMajor(xs);
-        writer.rangeColumnMajor(xs);
+        writer.RangeColumnMajor(xs);
+        writer.RangeColumnMajor(xs);
+        writer.RangeColumnMajor(xs);
 
-        writer.close();
+        writer.Close();
     }
 
     {
         ctk::CntReaderReflib reader{ temporary };
-        REQUIRE(reader.description() == header);
+        REQUIRE(reader.ParamEeg() == header);
 
         for (int64_t i : { 0, 5, 10 }) {
-            const auto ys{ reader.rangeColumnMajor(i, 5) };
+            const auto ys{ reader.RangeColumnMajor(i, 5) };
             REQUIRE(ys == xs);
         }
     }
@@ -112,21 +112,21 @@ TEST_CASE("read write row major", "[consistency] [read] [write]") {
     std::filesystem::path temporary{ "rw_rm.cnt" };
     {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
-        writer.addTimeSignal(header);
+        writer.ParamEeg(header);
 
-        writer.rangeRowMajorInt32(xs);
-        writer.rangeRowMajorInt32(xs);
-        writer.rangeRowMajorInt32(xs);
+        writer.RangeRowMajorInt32(xs);
+        writer.RangeRowMajorInt32(xs);
+        writer.RangeRowMajorInt32(xs);
 
-        writer.close();
+        writer.Close();
     }
 
     {
         ctk::CntReaderReflib reader{ temporary };
-        REQUIRE(reader.description() == header);
+        REQUIRE(reader.ParamEeg() == header);
 
         for (int64_t i : { 0, 3, 6 }) {
-            const auto ys{ reader.rangeRowMajorInt32(i, 3) };
+            const auto ys{ reader.RangeRowMajorInt32(i, 3) };
             REQUIRE(ys == xs);
         }
     }
@@ -153,21 +153,21 @@ TEST_CASE("read write row major scaled", "[consistency] [read] [write]") {
     std::filesystem::path temporary{ "rw_rms.cnt" };
     {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
-        writer.addTimeSignal(header);
+        writer.ParamEeg(header);
 
-        writer.rangeRowMajor(xs);
-        writer.rangeRowMajor(xs);
-        writer.rangeRowMajor(xs);
+        writer.RangeRowMajor(xs);
+        writer.RangeRowMajor(xs);
+        writer.RangeRowMajor(xs);
 
-        writer.close();
+        writer.Close();
     }
 
     {
         ctk::CntReaderReflib reader{ temporary };
-        REQUIRE(reader.description() == header);
+        REQUIRE(reader.ParamEeg() == header);
 
         for (int64_t i : { 0, 3, 6 }) {
-            const auto ys{ reader.rangeRowMajor(i, 3) };
+            const auto ys{ reader.RangeRowMajor(i, 3) };
             REQUIRE(ys == xs);
         }
     }

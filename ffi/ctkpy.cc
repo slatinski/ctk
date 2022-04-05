@@ -66,12 +66,12 @@ namespace {
         explicit
         libeep_reader(const std::string& fname)
         : reader{ fname }
-        , triggers{ reader.triggers() }
-        , header{ reader.description() } {
+        , triggers{ reader.Triggers() }
+        , header{ reader.ParamEeg() } {
         }
 
         auto get_sample_count() const -> int64_t {
-            return reader.sampleCount();
+            return reader.SampleCount();
         }
 
         auto get_channel_count() const -> size_t {
@@ -95,7 +95,7 @@ namespace {
         }
 
         auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
-            return reader.rangeLibeep(i, amount);
+            return reader.RangeLibeep(i, amount);
         }
 
         auto get_trigger_count() const -> size_t {
@@ -172,7 +172,7 @@ namespace {
             ts.SamplingFrequency = sample_rate;
             ts.Electrodes = ch2elcs(channels);
             ts.StartTime = std::chrono::system_clock::now();
-            writer.addTimeSignal(ts);
+            writer.ParamEeg(ts);
         }
         libeep_writer(libeep_writer&&) = default;
 
@@ -181,11 +181,11 @@ namespace {
 
             std::vector<double> ys(xs.size());
             std::transform(begin(xs), end(xs), begin(ys), float2double);
-            writer.rangeColumnMajor(ys);
+            writer.RangeColumnMajor(ys);
         }
 
         auto close() -> void {
-            writer.close();
+            writer.Close();
         }
     };
 
@@ -297,8 +297,8 @@ namespace {
             writer.reset(new v1::CntWriterReflib{ file_name, type });
             assert(writer);
 
-            writer->addTimeSignal(header);
-            writer->recordingInfo(recording_info);
+            writer->ParamEeg(header);
+            writer->RecordingInfo(recording_info);
         }
 
         auto column_major(const py::array_t<double>& xs) -> void {
@@ -306,7 +306,7 @@ namespace {
                 initialize();
             }
 
-            writer->rangeRowMajor(from_column_major(xs));
+            writer->RangeRowMajor(from_column_major(xs));
         }
 
         auto row_major(const py::array_t<double>& xs) -> void {
@@ -314,7 +314,7 @@ namespace {
                 initialize();
             }
 
-            writer->rangeRowMajor(from_row_major(xs));
+            writer->RangeRowMajor(from_row_major(xs));
         }
 
         auto close() -> void {
@@ -322,9 +322,9 @@ namespace {
                 return;
             }
 
-            events.close();
-            writer->recordingInfo(recording_info);
-            writer->close();
+            events.Close();
+            writer->RecordingInfo(recording_info);
+            writer->Close();
             writer.reset(nullptr);
         }
 
@@ -345,7 +345,7 @@ namespace {
                 initialize();
             }
 
-            writer->trigger(x);
+            writer->AddTrigger(x);
         }
 
         auto add_trigger_ctkpy(const trigger_tuple& x) -> void {
@@ -353,7 +353,7 @@ namespace {
                 initialize();
             }
 
-            writer->trigger(triggertuple2v1trigger(x));
+            writer->AddTrigger(triggertuple2v1trigger(x));
         }
 
         auto add_triggers(const std::vector<v1::Trigger>& xs) -> void {
@@ -361,7 +361,7 @@ namespace {
                 initialize();
             }
 
-            writer->triggers(xs);
+            writer->AddTriggers(xs);
         }
 
         auto add_triggers_ctkpy(const std::vector<trigger_tuple>& xs) -> void {
@@ -371,31 +371,31 @@ namespace {
 
             std::vector<v1::Trigger> ys(xs.size());
             std::transform(begin(xs), end(xs), begin(ys), triggertuple2v1trigger);
-            writer->triggers(ys);
+            writer->AddTriggers(ys);
         }
 
         auto add_impedance(const v1::EventImpedance& x) -> void {
-            events.addImpedance(x);
+            events.AddImpedance(x);
         }
 
         auto add_impedances(const std::vector<v1::EventImpedance>& xs) -> void {
-            events.addImpedances(xs);
+            events.AddImpedances(xs);
         }
 
         auto add_video(const v1::EventVideo& x) -> void {
-            events.addVideo(x);
+            events.AddVideo(x);
         }
 
         auto add_videos(const std::vector<v1::EventVideo>& xs) -> void {
-            events.addVideos(xs);
+            events.AddVideos(xs);
         }
 
         auto add_epoch(const v1::EventEpoch& x) -> void {
-            events.addEpoch(x);
+            events.AddEpoch(x);
         }
 
         auto add_epochs(const std::vector<v1::EventEpoch>& xs) -> void {
-            events.addEpochs(xs);
+            events.AddEpochs(xs);
         }
 
         auto embed(const v1::UserFile& x) -> void {
@@ -403,7 +403,7 @@ namespace {
                 initialize();
             }
 
-            writer->embed(x);
+            writer->Embed(x);
         }
     };
 
@@ -425,11 +425,11 @@ namespace {
         ctkpy_reader(const std::string& fname)
         : reader{ new v1::CntReaderReflib{ fname } }
         , file_name{ fname } {
-            type = reader->cntType();
-            header = reader->description();
-            recording_info = reader->information();
-            triggers = reader->triggers();
-            embedded = reader->embeddedFiles();
+            type = reader->CntType();
+            header = reader->ParamEeg();
+            recording_info = reader->RecordingInfo();
+            triggers = reader->Triggers();
+            embedded = reader->EmbeddedFiles();
 
             const auto evt_fname{ file_name.replace_extension("evt") };
             if (!std::filesystem::exists(evt_fname)) {
@@ -437,21 +437,21 @@ namespace {
             }
 
             v1::EventReader events{ evt_fname };
-            impedances = events.impedanceEvents();
-            videos = events.videoEvents();
-            epochs = events.epochEvents();
+            impedances = events.ImpedanceEvents();
+            videos = events.VideoEvents();
+            epochs = events.EpochEvents();
         }
 
         auto sample_count() -> int64_t {
             assert(reader);
-            return reader->sampleCount();
+            return reader->SampleCount();
         }
 
 
         auto column_major(int64_t i, int64_t length) -> py::array_t<double> {
             assert(reader);
 
-            auto xs{ reader->rangeColumnMajor(i, length) };
+            auto xs{ reader->RangeColumnMajor(i, length) };
             if (xs.empty()) {
                 throw std::runtime_error("can not load range");
             }
@@ -468,7 +468,7 @@ namespace {
         auto row_major(int64_t i, int64_t length) -> py::array_t<double> {
             assert(reader);
 
-            auto xs{ reader->rangeRowMajor(i, length) };
+            auto xs{ reader->RangeRowMajor(i, length) };
             if (xs.empty()) {
                 throw std::runtime_error("can not load range");
             }
@@ -484,14 +484,14 @@ namespace {
 
         auto epoch_count() -> int64_t {
             assert(reader);
-            return reader->epochs();
+            return reader->Epochs();
         }
 
 
         auto epoch_column_major(int64_t i) -> py::array_t<double> {
             assert(reader);
 
-            auto xs{ reader->epochColumnMajor(i) };
+            auto xs{ reader->EpochColumnMajor(i) };
             if (xs.empty()) {
                 throw std::runtime_error("can not load epoch");
             }
@@ -509,7 +509,7 @@ namespace {
         auto epoch_row_major(int64_t i) -> py::array_t<double> {
             assert(reader);
 
-            auto xs{ reader->epochRowMajor(i) };
+            auto xs{ reader->EpochRowMajor(i) };
             if (xs.empty()) {
                 throw std::runtime_error("can not load epoch");
             }
@@ -527,7 +527,7 @@ namespace {
         auto epoch_compressed(int64_t i) -> std::vector<uint8_t> {
             assert(reader);
 
-            return reader->epochCompressed(i);
+            return reader->EpochCompressed(i);
         }
 
 
@@ -537,7 +537,8 @@ namespace {
                 throw std::runtime_error("no output file name is provided in the field file_name");
             }
 
-            return reader->extractEmbeddedFile(x);
+            reader->ExtractEmbeddedFile(x);
+            return true;
         }
     };
 
@@ -981,25 +982,25 @@ PYBIND11_MODULE(ctkpy, m) {
     // 2) evt file only
     py::class_<v1::EventReader> er(m, "event_reader", py::module_local());
     er.def(py::init<const std::string&>())
-      .def_property_readonly("count_impedances", &v1::EventReader::impedanceCount)
-      .def_property_readonly("count_videos", &v1::EventReader::videoCount)
-      .def_property_readonly("count_epochs", &v1::EventReader::epochCount)
-      .def("impedance", &v1::EventReader::impedanceEvent)
-      .def("video", &v1::EventReader::videoEvent)
-      .def("epoch", &v1::EventReader::epochEvent)
-      .def_property_readonly("impedances", &v1::EventReader::impedanceEvents)
-      .def_property_readonly("videos", &v1::EventReader::videoEvents)
-      .def_property_readonly("epochs", &v1::EventReader::epochEvents);
+      .def_property_readonly("count_impedances", &v1::EventReader::ImpedanceCount)
+      .def_property_readonly("count_videos", &v1::EventReader::VideoCount)
+      .def_property_readonly("count_epochs", &v1::EventReader::EpochCount)
+      .def("impedance", &v1::EventReader::ImpedanceEvent)
+      .def("video", &v1::EventReader::VideoEvent)
+      .def("epoch", &v1::EventReader::EpochEvent)
+      .def_property_readonly("impedances", &v1::EventReader::ImpedanceEvents)
+      .def_property_readonly("videos", &v1::EventReader::VideoEvents)
+      .def_property_readonly("epochs", &v1::EventReader::EpochEvents);
 
     py::class_<v1::EventWriter> ew(m, "event_writer", py::module_local());
     ew.def(py::init<const std::string&>())
-      .def("impedance", &v1::EventWriter::addImpedance)
-      .def("video", &v1::EventWriter::addVideo)
-      .def("epoch", &v1::EventWriter::addEpoch)
-      .def("impedances", &v1::EventWriter::addImpedances)
-      .def("videos", &v1::EventWriter::addVideos)
-      .def("epochs", &v1::EventWriter::addEpochs)
-      .def("close", &v1::EventWriter::close, "Constructs the output evt file");
+      .def("impedance", &v1::EventWriter::AddImpedance)
+      .def("video", &v1::EventWriter::AddVideo)
+      .def("epoch", &v1::EventWriter::AddEpoch)
+      .def("impedances", &v1::EventWriter::AddImpedances)
+      .def("videos", &v1::EventWriter::AddVideos)
+      .def("epochs", &v1::EventWriter::AddEpochs)
+      .def("close", &v1::EventWriter::Close, "Constructs the output evt file");
 
 
     // 3) pyeep interface

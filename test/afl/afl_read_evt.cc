@@ -39,10 +39,10 @@ auto generate_input_file(const std::filesystem::path& fname) -> void {
     epoch.ConditionLabel = L"Frequent";
 
     ctk::EventWriter writer{ fname };
-    writer.addImpedance(impedance);
-    writer.addVideo(video);
-    writer.addEpoch(epoch);
-    writer.close();
+    writer.AddImpedance(impedance);
+    writer.AddVideo(video);
+    writer.AddEpoch(epoch);
+    writer.Close();
 }
 
 auto compare(std::chrono::system_clock::time_point x, std::chrono::system_clock::time_point y) -> bool {
@@ -125,27 +125,27 @@ auto compare(const ctk::api::v1::EventEpoch& x, const ctk::api::v1::EventEpoch& 
 
 auto read(const std::filesystem::path& fname) -> void {
     ctk::EventReader reader{ fname };
-    const auto impedances{ reader.impedanceEvents() };
-    const auto videos{ reader.videoEvents() };
-    const auto epochs{ reader.epochEvents() };
+    const auto impedances{ reader.ImpedanceEvents() };
+    const auto videos{ reader.VideoEvents() };
+    const auto epochs{ reader.EpochEvents() };
 
-    size_t i_count{ reader.impedanceCount() };
-    size_t v_count{ reader.videoCount() };
-    size_t e_count{ reader.epochCount() };
+    size_t i_count{ reader.ImpedanceCount() };
+    size_t v_count{ reader.VideoCount() };
+    size_t e_count{ reader.EpochCount() };
     assert(i_count == impedances.size());
     assert(v_count == videos.size());
     assert(e_count == epochs.size());
 
     for (size_t i{ 0 }; i < i_count; ++i) {
-        assert(compare(impedances[i], reader.impedanceEvent(i)));
+        assert(compare(impedances[i], reader.ImpedanceEvent(i)));
     }
 
     for (size_t i{ 0 }; i < v_count; ++i) {
-        assert(compare(videos[i], reader.videoEvent(i)));
+        assert(compare(videos[i], reader.VideoEvent(i)));
     }
 
     for (size_t i{ 0 }; i < e_count; ++i) {
-        assert(compare(epochs[i], reader.epochEvent(i)));
+        assert(compare(epochs[i], reader.EpochEvent(i)));
     }
 }
 
