@@ -234,8 +234,13 @@ namespace ctk { namespace impl {
             switch(data_size) {
                 case encoding_size::two_bytes: return bit_count{ 4 }; // value interval [0, 15], 0 interpreted as 16
                 case encoding_size::four_bytes: return bit_count{ 6 };
-                default: throw api::v1::CtkBug{ "reflib::field_width_n: invalid data size" };
+                default: break;
             }
+
+            std::ostringstream oss;
+            oss << "[reflib::field_width_n, block] invalid data size " << static_cast<int>(data_size);
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         template<typename T>
@@ -249,12 +254,10 @@ namespace ctk { namespace impl {
         template<typename T>
         static
         auto restore_encoding(T master, bit_count n, bit_count nexc, encoding_size data_size) -> std::tuple<T, bit_count, bit_count> {
-            if (data_size == encoding_size::four_bytes) {
-                // n and nexc are stored in 6 bit wide fields => no need to reinterpret 0 as 32
-                assert(field_width_n(data_size) == 6);
-                // master is 4 bytes => no need to restore its sign
-                static_assert(sizeof(T) == sizeof(uint32_t), "compatibility");
+            static_assert(sizeof(T) == sizeof(uint32_t), "compatibility");
 
+            if (data_size == encoding_size::four_bytes) {
+                assert(field_width_n(data_size) == 6);
                 return { master, n, nexc };
             }
 
@@ -270,9 +273,11 @@ namespace ctk { namespace impl {
     {
         static
         auto decode_size(unsigned pattern) -> encoding_size {
+            static_assert(field_width_encoding() == 2);
+
             if (static_cast<unsigned>(encoding_size::eight_bytes) < pattern) {
-                static_assert(field_width_encoding() == 2);
-                throw api::v1::CtkBug{ "extended::decode_size: 2 bits = 4 possible interpretations" };
+                const std::string e{ "[extended::decode_size, block] 2 bits = 4 possible interpretations" };
+                throw api::v1::CtkBug{ e };
             }
 
             return encoding_size(pattern);
@@ -280,8 +285,11 @@ namespace ctk { namespace impl {
 
         static
         auto encode_size(encoding_size data_size) -> unsigned {
-            if (data_size == encoding_size::length) {
-                throw api::v1::CtkBug{ "extended::encode_size: invalid data size" };
+            if (static_cast<unsigned>(encoding_size::eight_bytes) < static_cast<unsigned>(data_size)) {
+                std::ostringstream oss;
+                oss << "[extended::encode_size, block] invalid encoding size " << static_cast<unsigned>(data_size);
+                const auto e{ oss.str() };
+                throw api::v1::CtkBug{ e };
             }
 
             return static_cast<unsigned>(data_size);
@@ -303,7 +311,12 @@ namespace ctk { namespace impl {
                 case encoding_size::two_bytes: return bit_count{ 4 };   // value interval [0, 15], 0 interpreted as 16
                 case encoding_size::four_bytes: return bit_count{ 5 };  // value interval [0, 31], 0 interpreted as 32
                 case encoding_size::eight_bytes: return bit_count{ 6 }; // value interval [0, 63], 0 interpreted as 64
-                default: throw api::v1::CtkBug{ "extended::field_width_n: invalid data size" };
+                default: {
+                    std::ostringstream oss;
+                    oss << "[extended::field_width_n, block] invalid encoding size " << static_cast<int>(data_size);
+                    const auto e{ oss.str() };
+                    throw api::v1::CtkBug{ e };
+                }
             }
         }
 
@@ -317,7 +330,12 @@ namespace ctk { namespace impl {
                 case sizeof(uint16_t): return encoding_size::two_bytes;
                 case sizeof(uint32_t): return encoding_size::four_bytes;
                 case sizeof(uint64_t): return encoding_size::eight_bytes;
-                default: throw api::v1::CtkBug{ "extended::as size: invalid data size" };
+                default: {
+                    std::ostringstream oss;
+                    oss << "[extended::as_size, block] invalid encoding size " << sizeof(T);
+                    const auto e{ oss.str() };
+                    throw api::v1::CtkBug{ e };
+                }
             }
         }
 
@@ -476,13 +494,19 @@ namespace ctk { namespace impl {
     //  - ValueType(I) is unsigned integral type with two-complement implementation
     auto read_encoding_compressed(I first, I last, bit_reader<IByteConst>& bits, encoding_size data_size, Format) -> std::tuple<I, bit_count, bit_count> {
         using T = typename std::iterator_traits<I>::value_type;
+        using Int = bit_count::value_type;
 
         if (size_in_bits(T{}) < field_width_master(data_size)) {
-            throw api::v1::CtkData{ "read_encoding_compressed, invalid master field width for this data size" };
+            std::ostringstream oss;
+            oss << "[read_encoding_compressed, block] master field width " << field_width_master(data_size)
+                << ", size_in_bits(T) " << size_in_bits(T{});
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         if (first == last) {
-            throw api::v1::CtkBug{ "read_encoding_compressed, precondition violation: empty output range" };
+            const std::string e{ "[read_encoding_compressed, block] empty output range" };
+            throw api::v1::CtkBug{ e };
         }
 
         const auto n_width{ Format::field_width_n(data_size) };
@@ -491,8 +515,8 @@ namespace ctk { namespace impl {
         const auto unexc{ bits.read(n_width, unsigned{}) };
         const auto master{ bits.read(field_width_master(data_size), T{}) };
 
-        bit_count n{ static_cast<bit_count::value_type>(un) };
-        bit_count nexc{ static_cast<bit_count::value_type>(unexc) };
+        bit_count n{ static_cast<Int>(un) };
+        bit_count nexc{ static_cast<Int>(unexc) };
 
         std::tie(*first, n, nexc) = Format::restore_encoding(master, n, nexc, data_size);
 
@@ -539,7 +563,8 @@ namespace ctk { namespace impl {
 
         using T = typename std::iterator_traits<I>::value_type;
         if (!valid_block_encoding(data_size, method, n, nexc, T{}, format)) {
-            throw api::v1::CtkData{ invalid_row_header(data_size, method, n, nexc, sizeof(T)) };
+            const auto e{ invalid_row_header(data_size, method, n, nexc, sizeof(T)) };
+            throw api::v1::CtkData{ e };
         }
 
         return { next, n, nexc, method};

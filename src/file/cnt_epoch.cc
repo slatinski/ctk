@@ -244,7 +244,10 @@ namespace ctk { namespace impl {
     static
     auto offsets2ranges(const file_range& data, const std::vector<int64_t>& offsets) -> std::vector<file_range> {
         if (data.size < 1 || offsets.empty()) {
-            throw api::v1::CtkBug{ "offsets2ranges: invalid input" };
+            std::ostringstream oss;
+            oss << "[offsets2ranges, cnt_epoch] size < 1 || offsets == 0: size " << data.size << ", offsets " << offsets.size();
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         std::vector<file_range> ranges(offsets.size());
@@ -252,20 +255,33 @@ namespace ctk { namespace impl {
 
         for (size_t i{ 0 }; i < border; ++i) {
             if (offsets[i + 1] <= offsets[i]) {
-                throw api::v1::CtkData{ "offsets2ranges: invalid compressed epoch size" };
+                std::ostringstream oss;
+                oss << "[offsets2ranges, cnt_epoch] invalid compressed size " << (offsets[i + 1] - offsets[i]) << ", epoch " << i;
+                const auto e{ oss.str() };
+                throw api::v1::CtkData{ e };
             }
 
             const auto fpos{ data.fpos + offsets[i] };
             const auto length{ offsets[i + 1] - offsets[i] };
             if (data.size < length) {
-                throw api::v1::CtkData{ "offsets2ranges: invalid file position" };
+                std::ostringstream oss;
+                oss << "[offsets2ranges, cnt_epoch] epoch " << i
+                    << " exceeds the size of the data chunk: " << data.size
+                    << " < " << length;
+                const auto e{ oss.str() };
+                throw api::v1::CtkData{ e };
             }
 
             ranges[i] = { fpos, length };
         }
 
         if (data.size <= offsets[border]) {
-            throw api::v1::CtkData{ "offsets2ranges: invalid compressed epoch size (last chunk)" };
+            std::ostringstream oss;
+            oss << "[offsets2ranges, cnt_epoch] epoch " << border
+                << " empty or exceeds the size of the data chunk: " << data.size
+                << " <= " << offsets[border];
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
         ranges[border] = { data.fpos + offsets[border], data.size - offsets[border] };
 
@@ -277,11 +293,15 @@ namespace ctk { namespace impl {
     auto read_ep_content(FILE* f, const file_range& x, T type_tag) -> ep_content {
         const size_t items{ cast(x.size, size_t{}, guarded{}) / sizeof(T) };
         if (items < 2) {
-            throw api::v1::CtkData{ "chunk ep: empty" };
+            const std::string e{ "[read_ep_content, cnt_epoch] no compressed epoch data" };
+            throw api::v1::CtkData{ e };
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::CtkData{ "read_ep_content: invalid file position" };
+            std::ostringstream oss;
+            oss << "[read_ep_content, cnt_epoch] can not seek to file position " << x.fpos;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         const T l{ read(f, type_tag) };
@@ -458,7 +478,12 @@ namespace ctk { namespace impl {
             return ctk::api::v1::RiffType::riff64;
         }
 
-        throw ctk::api::v1::CtkData{ "string2riff: unknown type" };
+        std::ostringstream oss;
+        oss << "[string2riff, cnt_epoch] unknown type " << x
+            << ", expected " << root_id_riff32()
+            << " or " << root_id_riff64();
+        const auto e{ oss.str() };
+        throw api::v1::CtkData{ e };
     }
 
     static
@@ -476,8 +501,15 @@ namespace ctk { namespace impl {
                 using riff64_type = riff_type<size_type, evt_type>;
                 return std::make_unique<riff64_type>(root_id_riff64());
             }
-            default: throw api::v1::CtkBug{ "make_cnt_field_size: unknown type" };
+            default: break;
         }
+
+        std::ostringstream oss;
+        oss << "[make_cnt_field_size, cnt_epoch] unknown type " << x
+            << ", expected " << api::v1::RiffType::riff32
+            << " or " << api::v1::RiffType::riff64;
+        const auto e{ oss.str() };
+        throw api::v1::CtkBug{ e };
     }
 
 
@@ -634,7 +666,8 @@ namespace ctk { namespace impl {
     static
     auto parse_int(const std::string& line) -> int64_t {
         if (line.empty()) {
-            throw api::v1::CtkData{ "parse_int: no input" };
+            const std::string e{ "[parse_int, cnt_epoch] no input" };
+            throw api::v1::CtkData{ e };
         }
         return std::stoll(line);
     }
@@ -643,12 +676,16 @@ namespace ctk { namespace impl {
     static
     auto parse_double(const std::string& line) -> double {
         if (line.empty()) {
-            throw api::v1::CtkData{ "parse_double: no input" };
+            const std::string e{ "[parse_double, cnt_epoch] no input" };
+            throw api::v1::CtkData{ e };
         }
 
         const auto result{ std::stod(line) };
         if (!std::isfinite(result)) {
-            throw api::v1::CtkData{ "parse_double: not finite" };
+            std::ostringstream oss;
+            oss << "[parse_double, cnt_epoch] infinite " << result;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         return result;
@@ -891,7 +928,8 @@ namespace ctk { namespace impl {
         constexpr const time_t t{ 0 };
         const tm* x{ gmtime(&t) };
         if (!x) {
-            throw api::v1::CtkLimit{ "make_tm: can not invoke gmtime(0)" };
+            const std::string e{ "[make_tm, cnt_epoch] can not invoke gmtime(0)" };
+            throw api::v1::CtkLimit{ e };
         }
         tm y{ *x };
 
@@ -952,7 +990,10 @@ namespace ctk { namespace impl {
         const int sy{ plus(x.tm_year, 1900, ok{}) };
         const int sm{ plus(x.tm_mon, 1, ok{}) };
         if (!in_clock_range(sy, cast(sm, unsigned{}, ok{}), cast(x.tm_mday, unsigned{}, ok{}))) {
-            throw api::v1::CtkData{ "tm2timepoint: invalid date" };
+            std::ostringstream oss;
+            oss << "[tm2timepoint, cnt_epoch] not in system clock range " << print_tm(x);
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         const auto yyyy{ date::year{ sy } };
@@ -1337,16 +1378,25 @@ namespace ctk { namespace impl {
     static
     auto read_chan(FILE* f, const file_range& x) -> std::vector<int16_t> {
         if (x.size < 0) {
-            throw api::v1::CtkBug{ "read_chan: negative size" };
+            std::ostringstream oss;
+            oss << "[read_chan, cnt_epoch] negative size " << x.size;
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         const size_t items{ static_cast<size_t>(x.size) / sizeof(int16_t) };
         if (items == 0) {
-            throw api::v1::CtkData{ "chunk chan: empty" };
+            std::ostringstream oss;
+            oss << "[read_chan, cnt_epoch] empty, size " << x.size << " bytes";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::CtkData{ "read_chan: invalid file position" };
+            std::ostringstream oss;
+            oss << "[read_chan, cnt_epoch] invalid file position " << x.fpos;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         std::vector<int16_t> row_order(items);
@@ -1373,7 +1423,10 @@ namespace ctk { namespace impl {
         }
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::CtkData{ "read_info: invalid file position" };
+            std::ostringstream oss;
+            oss << "[read_info, cnt_epoch] invalid file position " << x.fpos;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         std::string s;
@@ -1385,7 +1438,10 @@ namespace ctk { namespace impl {
         // compatibility
         if (!is_ascii && version.Major == 0 && version.Minor == 0) {
             if (!seek(f, x.fpos, SEEK_SET)) {
-                throw api::v1::CtkBug{ "read_info: can not seek back to file position" };
+                std::ostringstream oss;
+                oss << "[read_info, cnt_epoch] can not seek back to file position " << x.fpos;
+                const auto e{ oss.str() };
+                throw api::v1::CtkBug{ e };
             }
             start_time.Date = read(f, double{});
             start_time.Fraction = read(f, double{});
@@ -1473,7 +1529,8 @@ namespace ctk { namespace impl {
 
         std::vector<chunk> result;
         if (!is_root_or_list(parent)) {
-            throw api::v1::CtkBug{ "sub_chunks: no sub chunks in a data chunk" };
+            const std::string e{ "[sub_chunks] no sub chunks in a data chunk" };
+            throw api::v1::CtkBug{ e };
         }
 
         const int64_t hs{ header_size(parent) };
@@ -1485,7 +1542,10 @@ namespace ctk { namespace impl {
         first = plus(first, label_size(), ok{});
 
         if (!seek(f, first, SEEK_SET)) {
-            throw api::v1::CtkData{ "sub_chunks: can not seek to payload" };
+            std::ostringstream oss;
+            oss << "[sub_chunks, cnt_epoch] can not seek to payload " << first;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         while (first < last) {
@@ -1897,13 +1957,16 @@ namespace ctk { namespace impl {
             }
             // temp
             else if (is_average(top_level_chunk)) {
-                throw api::v1::CtkData{ "[read_expected_chunks_reflib, cnt_epoch] not implemented: average" };
+                const std::string e{ "[read_expected_chunks_reflib, cnt_epoch] average not implemented" };
+                throw api::v1::CtkData{ e };
             }
             else if (is_stddev(top_level_chunk)) {
-                throw api::v1::CtkData{ "[read_expected_chunks_reflib, cnt_epoch] not implemented: stddev" };
+                const std::string e{ "[read_expected_chunks_reflib, cnt_epoch] stddev not implemented" };
+                throw api::v1::CtkData{ e };
             }
             else if (is_wavelet(top_level_chunk)) {
-                throw api::v1::CtkData{ "[read_expected_chunks_reflib, cnt_epoch] not implemented: wavelet" };
+                const std::string e{ "[read_expected_chunks_reflib, cnt_epoch] wavelet not implemented" };
+                throw api::v1::CtkData{ e };
             }
             // TODO: maybe skip "refh" and "imp " as well
             // end temp
@@ -2021,7 +2084,10 @@ namespace ctk { namespace impl {
         assert(f && 0 <= x.fpos && 0 < x.size);
 
         if (!seek(f, x.fpos, SEEK_SET)) {
-            throw api::v1::CtkData{ "read_compressed_epoch: can not seek" };
+            std::ostringstream oss;
+            oss << "[read_compressed_epoch, cnt_epoch] can not seek to file position " << x.fpos;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         std::vector<uint8_t> storage;
@@ -2120,7 +2186,10 @@ namespace ctk { namespace impl {
     auto epoch_n(FILE* f, epoch_count i, const std::vector<file_range>& epoch_ranges, measurement_count sample_count, measurement_count epoch_length) -> compressed_epoch {
         const epoch_count total{ vsize(epoch_ranges) };
         if (i < 0 || total <= i) {
-            throw api::v1::CtkData{ "epoch_n: not accessible" };
+            std::ostringstream oss;
+            oss << "[epoch_n, cnt_epoch] epoch " << (i + epoch_count{ 1 }) << "/" << total << " not accessible";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
         assert(0 <= i);
         assert(f);
@@ -2148,7 +2217,10 @@ namespace ctk { namespace impl {
         const int64_t size_position{ c.storage.fpos + label_size() };
         assert(is_even(size_position));
         if (!seek(f, size_position, SEEK_SET)) {
-            throw api::v1::CtkBug{ "update_size_field: can not seek back to the chunk position field" };
+            std::ostringstream oss;
+            oss << "[update_size_field, cnt_epoch] can not seek back to file position " << size_position;
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
         c.riff->write_entity(f, c.storage.size);
@@ -2205,7 +2277,8 @@ namespace ctk { namespace impl {
         assert(is_even(tell(f)));
 
         if (!x.fname.has_filename()) {
-            throw api::v1::CtkBug{ "copy_common: empty file name" };
+            const std::string e{ "[content2chunk(riff_file), cnt_epoch] empty file name" };
+            throw api::v1::CtkBug{ e };
         }
 
         file_ptr fin{ open_r(x.fname) };
@@ -2248,7 +2321,10 @@ namespace ctk { namespace impl {
     riff_list::riff_list(const chunk& list)
     : c{ list } {
         if (!is_root_or_list(c)) {
-            throw api::v1::CtkBug{ "riff_list: chunk is not a list" };
+            std::ostringstream oss;
+            oss << "[riff_list::riff_list, cnt_epoch] chunk " << as_string(c.id) << "/" << as_string(c.label) << " is not a list";
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
     }
 
@@ -2662,7 +2738,9 @@ namespace ctk { namespace impl {
         const auto last{ end(tokens) };
         const auto found{ std::find_if(first, last, match_id) };
         if (found == last) {
-            throw api::v1::CtkData{ "[epoch_reader_flat::get_name, cnt_epoch] no file of this type" };
+            std::ostringstream oss;
+            oss << "[epoch_reader_flat::get_name, cnt_epoch] no file of type " << id;
+            throw api::v1::CtkData{ oss.str() };
         }
 
         return found->file_name;
@@ -2759,14 +2837,18 @@ namespace ctk { namespace impl {
             return api::v1::RiffType::riff64;
         }
 
-        throw api::v1::CtkData{ "[epoch_reader_riff::cnt_type, cnt_epoch] neither RIFF nor RF64" };
+        const std::string e{ "[epoch_reader_riff::cnt_type, cnt_epoch] neither RIFF nor RF64" };
+        throw api::v1::CtkData{ e };
     }
 
     auto epoch_reader_riff::init() -> amorph {
         rewind(f.get());
         const auto x{ read_root(f.get(), string2riff(riff->root_id())) };
         if (!is_root(x)) {
-            throw api::v1::CtkData{ "[epoch_reader_riff::init, cnt_epoch] not a root chunk" };
+            std::ostringstream oss;
+            oss << "[epoch_reader_riff::init, cnt_epoch] not a root chunk " << as_string(x.id) << "/" << as_string(x.label);
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         return read_reflib_cnt(x, f.get());

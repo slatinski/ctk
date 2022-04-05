@@ -178,7 +178,8 @@ namespace ctk { namespace impl {
             : current{ first }
             , common{ first, last } {
             if (current == last) {
-                throw api::v1::CtkLimit{ "bit_stream_reader: empty input" };
+                const std::string e{ "[bit_stream_reader, bit_stream] empty input" };
+                throw api::v1::CtkLimit{ e };
             }
             assert(common.total != 0);
 
@@ -206,7 +207,7 @@ namespace ctk { namespace impl {
     template<typename IByteConst, typename T>
     // requirements
     // T is unsigned integral
-    auto read_n(bit_stream_reader<IByteConst>& stream, bit_count n, T /*type tag*/) -> T {
+    auto read_n(bit_stream_reader<IByteConst>& stream, bit_count n, T/* type tag */) -> T {
         using A = typename bit_stream::A;
 
         static_assert(sizeof(T) < sizeof(A), "A should be at least one byte wider");
@@ -217,7 +218,10 @@ namespace ctk { namespace impl {
         assert(stream.common.available <= one_byte());
 
         if (stream.common.total < n) {
-            throw api::v1::CtkData{ "read_n: not enough bits" };
+            std::ostringstream oss;
+            oss << "[read_n, bit_stream] requested " << n << ", available " << stream.common.total << " bits";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         while (stream.common.available < n) {
@@ -243,6 +247,7 @@ namespace ctk { namespace impl {
     // T is unsigned integral
     auto write_n(bit_stream_writer<IByte>& stream, bit_count n, T input) -> void {
         using A = typename bit_stream::A;
+        using Int = bit_count::value_type;
 
         static_assert(sizeof(T) < sizeof(A), "A should be at least one byte wider");
         static_assert(std::is_unsigned<T>::value);
@@ -252,16 +257,19 @@ namespace ctk { namespace impl {
         assert(stream.common.available <= one_byte());
 
         if (stream.common.total < n) {
-            throw api::v1::CtkData{ "write_n: not enough bits" };
+            std::ostringstream oss;
+            oss << "[write_n, bit_stream] requested " << n << ", available " << stream.common.total << " bits";
+            const auto e{ oss.str() };
+            throw api::v1::CtkBug{ e };
         }
 
-        const bit_count::value_type sn{ n };
+        const Int sn{ n };
         stream.common.accumulator = (stream.common.accumulator << sn) | mask_msb(input, n);
         stream.common.available += n;
         stream.common.total -= n;
 
         while (one_byte() < stream.common.available) {
-            const bit_count::value_type shift{ stream.common.available - one_byte() };
+            const Int shift{ stream.common.available - one_byte() };
 
             *stream.current = static_cast<uint8_t>(mask_msb(stream.common.accumulator >> shift, one_byte()));
 

@@ -281,7 +281,8 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeColumnMajorInt32");
 
             if (!p->raw3) {
-                throw CtkLimit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
+                const std::string e{ "[CntWriterReflib::RangeColumnMajorInt32, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
             }
 
             p->raw3->range_column_major(client);
@@ -293,7 +294,8 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeRowMajorInt32");
 
             if (!p->raw3) {
-                throw CtkLimit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
+                const std::string e{ "[CntWriterReflib::RangeRowMajorInt32, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
             }
 
             p->raw3->range_row_major(client);
@@ -305,7 +307,8 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeColumnMajor");
 
             if (!p->raw3) {
-                throw CtkLimit{ "CntWriterReflib::rangeColumnMajor: addTimeSignal not invoked or close already invoked" };
+                const std::string e{ "[CntWriterReflib::RangeColumnMajor, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
             }
 
             p->raw3->range_column_major_scaled(client);
@@ -317,7 +320,8 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::RangeRowMajor");
 
             if (!p->raw3) {
-                throw CtkLimit{ "CntWriterReflib::rangeRowMajor: addTimeSignal not invoked or close already invoked" };
+                const std::string e{ "[CntWriterReflib::RangeRowMajor, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
             }
 
             p->raw3->range_row_major_scaled(client);
@@ -342,7 +346,8 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::Trigger");
 
             if (!p->raw3) {
-                throw CtkLimit{ "CntWriterReflib::trigger: addTimeSignal not invoked or close already invoked" };
+                const std::string e{ "[CntWriterReflib::Trigger, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
             }
 
             p->raw3->trigger(x);
@@ -354,7 +359,8 @@ namespace ctk { namespace api {
             validate_writer_phase(p->phase, WriterPhase::Writing, "CntWriterReflib::Triggers");
 
             if (!p->raw3) {
-                throw CtkLimit{ "CntWriterReflib::triggers: addTimeSignal not invoked or close already invoked" };
+                const std::string e{ "[CntWriterReflib::Triggers, api_reflib] invalid pointer" };
+                throw CtkBug{ e };
             }
 
             p->raw3->triggers(triggers);
@@ -477,8 +483,9 @@ namespace ctk { namespace api {
             assert(p);
             if (p->lib.impedances.size() <= i) {
                 std::ostringstream oss;
-                oss << "EventReader::ImpedanceEvent: invalid index " << i << "/" << (p->lib.impedances.size() - 1);
-                throw api::v1::CtkLimit{ oss.str() };
+                oss << "[EventReader::ImpedanceEvent, api_reflib] " << (i + 1) << "/" << p->lib.impedances.size();
+                const auto e{ oss.str() };
+                throw CtkLimit{ e };
             }
 
             return marker2impedance(p->lib.impedances[i]);
@@ -488,8 +495,9 @@ namespace ctk { namespace api {
             assert(p);
             if (p->lib.videos.size() <= i) {
                 std::ostringstream oss;
-                oss << "EventReader::VideoEvent: invalid index " << i << "/" << (p->lib.videos.size() - 1);
-                throw api::v1::CtkLimit{ oss.str() };
+                oss << "[EventReader::VideoEvent, api_reflib] " << (i + 1) << "/" << p->lib.videos.size();
+                const auto e{ oss.str() };
+                throw CtkLimit{ e };
             }
 
             return marker2video(p->lib.videos[i]);
@@ -499,8 +507,9 @@ namespace ctk { namespace api {
             assert(p);
             if (p->lib.epochs.size() <= i) {
                 std::ostringstream oss;
-                oss << "EventReader::EpochEvent: invalid index " << i << "/" << (p->lib.epochs.size() - 1);
-                throw api::v1::CtkLimit{ oss.str() };
+                oss << "[EventReader::EpochEvent, api_reflib] " << (i + 1) << "/" << p->lib.epochs.size();
+                const auto e{ oss.str() };
+                throw CtkLimit{ e };
             }
 
             return epochevent2eventepoch(p->lib.epochs[i]);
@@ -573,8 +582,9 @@ namespace ctk { namespace api {
             const uint32_t sum{ static_cast<uint32_t>(x + y) };
             if (sum < x || sum < y) {
                 std::ostringstream oss;
-                oss << "update_size: unsigned wrap around " << x << " + " << y << " = " << sum;
-                throw CtkLimit{ oss.str() };
+                oss << "[update_size, api_reflib] unsigned wrap around " << x << " + " << y << " = " << sum;
+                const auto e{ oss.str() };
+                throw CtkLimit{ e };
             }
 
             return sum;
@@ -605,7 +615,8 @@ namespace ctk { namespace api {
 
         auto EventWriter::AddImpedance(const EventImpedance& x) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::AddImpedance: close already invoked" };
+                const std::string e{ "[EventWriter::AddImpedance, api_reflib] close already invoked" };
+                throw CtkLimit{ e };
             }
 
             const uint32_t sum{ update_size(p->events, 1U) };
@@ -616,7 +627,8 @@ namespace ctk { namespace api {
 
         auto EventWriter::AddVideo(const EventVideo& x) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::AddVideo: close already invoked" };
+                const std::string e{ "[EventWriter::AddVideo, api_reflib] close already invoked" };
+                throw CtkLimit{ e };
             }
 
             const uint32_t sum{ update_size(p->events, 1U) };
@@ -627,7 +639,8 @@ namespace ctk { namespace api {
 
         auto EventWriter::AddEpoch(const EventEpoch& x) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::AddEpoch: close already invoked" };
+                const std::string e{ "[EventWriter::AddEpoch, api_reflib] close already invoked" };
+                throw CtkLimit{ e };
             }
 
             const uint32_t sum{ update_size(p->events, 1U) };
@@ -638,7 +651,8 @@ namespace ctk { namespace api {
 
         auto EventWriter::AddImpedances(const std::vector<EventImpedance>& xs) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::AddImpedances: close already invoked" };
+                const std::string e{ "[EventWriter::AddImpedances, api_reflib] close already invoked" };
+                throw CtkLimit{ e };
             }
 
             const uint32_t sum{ update_size(p->events, xs.size()) };
@@ -654,7 +668,8 @@ namespace ctk { namespace api {
 
         auto EventWriter::AddVideos(const std::vector<EventVideo>& xs) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::AddVideos: close already invoked" };
+                const std::string e{ "[EventWriter::AddVideos, api_reflib] close already invoked" };
+                throw CtkLimit{ e };
             }
 
             const uint32_t sum{ update_size(p->events, xs.size()) };
@@ -670,7 +685,8 @@ namespace ctk { namespace api {
 
         auto EventWriter::AddEpochs(const std::vector<EventEpoch>& xs) -> void {
             if (p->f_temp == nullptr) {
-                throw CtkLimit{ "EventWriter::AddEpochs: close already invoked" };
+                const std::string e{ "[EventWriter::AddEpochs, api_reflib] close already invoked" };
+                throw CtkLimit{ e };
             }
 
             const uint32_t sum{ update_size(p->events, xs.size()) };

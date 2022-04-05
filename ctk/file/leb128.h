@@ -21,6 +21,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <limits>
 #include <vector>
+#include <string>
 #include <cmath>
 
 #include "exception.h"
@@ -128,7 +129,8 @@ namespace ctk { namespace impl {
 
             constexpr unsigned size{ sizeof(T) * 8 };
             if (size <= shift) {
-                throw api::v1::CtkData{ "leb128::decode_byte: invalid encoding" };
+                const std::string e{ "[leb128::decode_byte, leb128] invalid encoding" };
+                throw api::v1::CtkData{ e };
             }
 
             const T byte{ static_cast<T>(x) };
@@ -168,7 +170,8 @@ namespace ctk { namespace impl {
             }
 
             if (more) {
-                throw api::v1::CtkBug{ "leb128::encode: insufficient output buffer" };
+                const std::string e{ "[leb128::encode, leb128] insufficient output buffer" };
+                throw api::v1::CtkBug{ e };
             }
 
             return first;
@@ -198,7 +201,8 @@ namespace ctk { namespace impl {
             }
 
             if (more) {
-                throw api::v1::CtkData{ "leb128::decode: invalid encoding" };
+                const std::string e{ "[leb128::decode, leb128] invalid encoding" };
+                throw api::v1::CtkData{ e };
             }
 
             return { x, first };
@@ -248,7 +252,8 @@ namespace ctk { namespace impl {
             }
 
             if (more) {
-                throw api::v1::CtkData{ "leb128::from_file: invalid encoding" };
+                const auto e{ "[leb128::from_file, leb128] invalid encoding" };
+                throw api::v1::CtkData{ e };
             }
 
             return x;
@@ -399,7 +404,8 @@ namespace ctk { namespace impl {
         const auto last{ end(xs) };
         const auto [x, next]{ decode_leb128(first, last, type_tag) };
         if (next != last) {
-            throw api::v1::CtkData{ "decode_leb128_v: invalid encoding" };
+            const std::string e{ "[decode_leb128_v, leb128] invalid encoding" };
+            throw api::v1::CtkData{ e };
         }
         return x;
     }

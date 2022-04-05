@@ -215,7 +215,10 @@ auto evaluate_histogram(measurement_count samples, bit_count nexc, encoding_size
         const Int data{ plus(fixed_size, overhead, guarded{}) };
         const bit_count output{ plus(header, data, guarded{}) };
         if (e.max_output_size < output) {
-            throw api::v1::CtkBug{ "evaluate_histogram: initialization error, variable width" };
+            std::ostringstream oss;
+            oss << "[evaluate_histogram, matrix] variable width " << output << " > " << e.max_output_size << " max";
+            const auto msg{ oss.str() };
+            throw api::v1::CtkBug{ msg };
         }
 
         output_sizes[i] = output;
@@ -227,7 +230,10 @@ auto evaluate_histogram(measurement_count samples, bit_count nexc, encoding_size
     const Int data{ scale(nexc, length, guarded{}) };
     const auto output{ bit_count{ plus(header, data, guarded{}) } };
     if (e.max_output_size < output) {
-        throw api::v1::CtkBug{ "evaluate_histogram: initialization error, fixed width" };
+        std::ostringstream oss;
+        oss << "[evaluate_histogram, matrix] fixed width " << output << " > " << e.max_output_size << " max";
+        const auto msg{ oss.str() };
+        throw api::v1::CtkBug{ msg };
     }
 
     output_sizes[i] = output;
@@ -279,7 +285,8 @@ auto compressed_parameters(reduction<T>& r, estimation<T>& e, Format format) -> 
     const auto first{ begin(residual_sizes) };
     const auto last{ end(residual_sizes) };
     if (std::transform(begin(residuals), end(residuals), first, count_raw3{}) != last) {
-        throw api::v1::CtkBug{ "compressed_parameters: can not count bits" };
+        const std::string error{ "[compressed_parameters, matrix] can not count bits" };
+        throw api::v1::CtkBug{ error };
     }
 
     // epoch length == 1: master value only. encoded as part of the header.
@@ -328,8 +335,13 @@ auto restore_magnitude(I previous, I first, I last, I buffer, encoding_method me
         case encoding_method::time: return restore_row_time(first, last);
         case encoding_method::time2: return restore_row_time2(first, last);
         case encoding_method::chan: return restore_row_chan(previous, first, last, buffer);
-        default: throw api::v1::CtkBug{ "restore_magnitude: invalid method" };
+        default: break;/* fall through */
     }
+
+    std::ostringstream oss;
+    oss << "[restore_magnitude, matrix] invalid method " << int(method);
+    const auto e{ oss.str() };
+    throw api::v1::CtkBug{ e };
 }
 
 
@@ -390,7 +402,8 @@ auto encode_residuals(I first, I last, const reduction<T>& r, bit_writer<IByte>&
     const auto last_out{ encode_block(first, last, first_map, bits, r.data_size, r.method, r.n, r.nexc, format) };
 
     if (byte_count{ cast(std::distance(first_out, last_out), byte_count::value_type{}, ok{}) } != r.output_size) {
-        throw api::v1::CtkBug{ "encode_residuals: encoding failed" };
+        const std::string e{ "[encode_residuals, matrix] encoding failed" };
+        throw api::v1::CtkBug{ e };
     }
 
     return last_out;
@@ -485,19 +498,22 @@ private:
         const I ft{ begin(residuals_time) };
         const I lt{ reduce_row_time(first, last, ft) };
         if (lt != end(residuals_time)) {
-            throw api::v1::CtkBug{ "reduce_magnitude: reduction time failed" };
+            const std::string e{ "[reduce_magnitude, matrix] reduction time failed" };
+            throw api::v1::CtkBug{ e };
         }
 
         const I ft2{ begin(residuals_time2) };
         const I lt2{ reduce_row_time2_from_time(ft, lt, ft2) };
         if (lt2 != end(residuals_time2)) {
-            throw api::v1::CtkBug{ "reduce_magnitude: reduction time2 failed" };
+            const std::string e{ "[reduce_magnitude, matrix] reduction time2 failed" };
+            throw api::v1::CtkBug{ e };
         }
 
         const I fch{ begin(residuals_chan) };
         const I lch{ reduce_row_chan_from_time(previous, first, ft, lt, fch) };
         if (lch != end(residuals_chan)) {
-            throw api::v1::CtkBug{ "reduce_magnitude: reduction chan failed" };
+            const std::string e{ "[reduce_magnitude, matrix] reduction chan failed" };
+            throw api::v1::CtkBug{ e };
         }
     }
 
@@ -517,7 +533,8 @@ auto decode_row(bit_reader<IByteConst>& bits, I previous, I first, I last, I buf
     const auto [next, method]{ decode_block(bits, first, last, format) };
 
     if (restore_magnitude(previous, first, last, buffer, method) != last) {
-        throw api::v1::CtkBug{ "decode_row: can not restore magnitude" };
+        const std::string e{ "[decode_row, matrix] can not restore magnitude" };
+        throw api::v1::CtkBug{ e };
     }
 
     return next;

@@ -20,7 +20,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "file/io.h"
 
 #include <array>
-#include <sstream>
 #include <string>
 #include <cassert>
 
@@ -44,7 +43,8 @@ namespace ctk { namespace impl {
         const auto result{ ::ftello(f) };
 #endif
         if (result < 0) {
-            throw api::v1::CtkBug{ "tell: can not tell position" };
+            const std::string e{ "[tell, io] can not obtain the current file position" };
+            throw api::v1::CtkBug{ e };
         }
 
         return result;
@@ -64,8 +64,9 @@ namespace ctk { namespace impl {
         file_ptr p{ fopen(fname.string().c_str(), "rb") };
         if (!p) {
             std::ostringstream oss;
-            oss << "open_r: can not open " << fname << " for reading";
-            throw api::v1::CtkData{ oss.str() };
+            oss << "[open_r, io] can not open " << fname.string() << " for reading";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
         assert(p);
         return p;
@@ -76,8 +77,9 @@ namespace ctk { namespace impl {
         file_ptr p{ fopen(fname.string().c_str(), "wb") };
         if (!p) {
             std::ostringstream oss;
-            oss << "open_w: can not open " << fname << " for writing";
-            throw api::v1::CtkData{ oss.str() };
+            oss << "[open_w, io] can not open " << fname.string() << " for writing";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
         assert(p);
         return p;
@@ -86,7 +88,10 @@ namespace ctk { namespace impl {
 
     auto copy_file_portion(FILE* fin, file_range x, FILE* fout) -> void {
         if (!seek(fin, x.fpos, SEEK_SET)) {
-            throw api::v1::CtkData{ "copy_file_portion: can not seek" };
+            std::ostringstream oss;
+            oss << "[copy_file_portion, io] can not seek to " << x.fpos;
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         constexpr const int64_t stride{ 1024 * 4 }; // arbitrary. TODO

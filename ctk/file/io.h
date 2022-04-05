@@ -37,7 +37,10 @@ namespace ctk { namespace impl {
     template<typename T>
     auto read(FILE* f, T result) -> T {
         if (std::fread(&result, sizeof(result), 1, f) != 1) {
-            throw api::v1::CtkData{ "cannot read value" };
+            std::ostringstream oss;
+            oss << "[read, io] can not read " << sizeof(result) << " byte(s) sized value";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
 
         return result;
@@ -64,14 +67,20 @@ namespace ctk { namespace impl {
         using T = typename std::iterator_traits<I>::value_type;
         T* start{ &*first };
         if (std::fread(start, sizeof(T), length, f) != length) {
-            throw api::v1::CtkData{ "cannot read range" };
+            std::ostringstream oss;
+            oss << "[read, io] can not read " << length << " values of size " << sizeof(T) << " byte(s)";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
     }
 
     template<typename T>
     auto write(FILE* f, T x) -> void {
         if (std::fwrite(&x, sizeof(T), 1, f) != 1) {
-            throw api::v1::CtkData{ "cannot write value" };
+            std::ostringstream oss;
+            oss << "[write, io] can not write " << sizeof(T) << " byte(s) sized value";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
     }
 
@@ -86,7 +95,10 @@ namespace ctk { namespace impl {
         using T = typename std::iterator_traits<I>::value_type;
         const T* start{ &*first };
         if (std::fwrite(start, sizeof(T), length, f) != length) {
-            throw api::v1::CtkData{ "cannot write range" };
+            std::ostringstream oss;
+            oss << "[write, io] can not write " << length << " values of size " << sizeof(T) << " byte(s)";
+            const auto e{ oss.str() };
+            throw api::v1::CtkData{ e };
         }
     }
 
