@@ -42,9 +42,6 @@ TEST_CASE("well known values", "[compatibility]") {
 
     const system_clock::time_point tp1{ date::sys_days{ date::December/29/1899 } };
     const api::v1::DcDate dc1{ api::v1::timepoint2dcdate(tp1) };
-    const auto delme{ api::v1::dcdate2timepoint(dc1) };
-    const std::chrono::nanoseconds diff{ delme - tp1 };
-    const auto secs{ std::chrono::duration_cast<std::chrono::seconds>(diff) };
     REQUIRE(api::v1::dcdate2timepoint(dc1) == tp1);
     REQUIRE(dc1.Date == -1);
     REQUIRE(dc1.Fraction == 0);

@@ -10,10 +10,10 @@ struct buf_win
 {
     I first;
     I last;
-    sint height;
-    sint length;
+    sensor_count::value_type height;
+    measurement_count::value_type length;
 
-    buf_win(I f, I l, sint h, sint e)
+    buf_win(I f, I l, sensor_count::value_type h, measurement_count::value_type e)
     : first{ f }
     , last{ l }
     , height{ h }
@@ -27,7 +27,7 @@ struct buf_win
     }
 
     buf_win(I f, I l, sensor_count h, measurement_count e)
-    : buf_win{ f, l, static_cast<sint>(h), static_cast<sint>(e) } {
+    : buf_win{ f, l, static_cast<sensor_count::value_type>(h), static_cast<measurement_count::value_type>(e) } {
     }
 };
 
@@ -107,31 +107,23 @@ auto writer_scales(const std::vector<api::v1::Electrode>&) -> std::vector<double
 
 struct double2int
 {
-    double factor;
     using result = int32_t;
 
-    explicit double2int(double f)
-    : factor{ f } {
-    }
+    double factor;
 
-    auto operator()(double x) const -> int32_t {
-        return static_cast<int32_t>(std::round(x * factor));
-    }
+    explicit double2int(double factor);
+    auto operator()(double x) const -> int32_t;
 };
 
 
 struct int2double
 {
-    double factor;
     using result = double;
 
-    explicit int2double(double f)
-    : factor{ f } {
-    }
+    double factor;
 
-    auto operator()(int32_t x) const -> double {
-        return x * factor;
-    }
+    explicit int2double(double factor);
+    auto operator()(int32_t x) const -> double;
 };
 
 template<typename T, typename Op>
@@ -180,7 +172,7 @@ public:
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
     , scales{ reader_scales(reader.common_epoch_reader().param_eeg().Electrodes)  } {
-        decode.row_order(reader.common_epoch_reader().order()); // TODO?
+        decode.row_order(reader.common_epoch_reader().order());
     }
 
     // constructs epoch_reader_flat reader
@@ -394,12 +386,14 @@ private:
     }
 
     auto load_epoch(measurement_count n) -> bool {
+        using Int = measurement_count::value_type;
+
         if (n < 0 || epoch_length() < 1 || sample_count() <= n) {
             return false;
         }
 
-        const measurement_count::value_type i{ n };
-        const measurement_count::value_type el{ epoch_length() };
+        const Int i{ n };
+        const Int el{ epoch_length() };
         const auto[quot, rem]{ std::div(i, el) };
 
         cache_index = measurement_count{ cast(rem, sint{}, guarded{}) };
@@ -407,10 +401,12 @@ private:
     }
 
     auto populate_buffer(measurement_count i, measurement_count amount) -> bool {
-        const measurement_count::value_type si{ i };
-        const measurement_count::value_type size{ amount };
-        const measurement_count::value_type requested{ plus(si, size, ok{}) };
-        const measurement_count::value_type total{ sample_count() };
+        using Int = measurement_count::value_type;
+
+        const Int si{ i };
+        const Int size{ amount };
+        const Int requested{ plus(si, size, ok{}) };
+        const Int total{ sample_count() };
         if (i < 0 || sample_count() <= i || amount < 1 || total < requested) {
             return false;
         }
@@ -470,13 +466,13 @@ auto signal_length(const std::vector<T>& v, sensor_count height) -> measurement_
     }
 
     const sint area{ vsize(v) };
-    const sint channels{ height };
+    const sensor_count::value_type channels{ height };
     const auto[quot, rem]{ std::div(area, channels) };
     if (rem != 0) {
         throw api::v1::CtkLimit{ "signal_length: invalid input dimensions" };
     }
 
-    return measurement_count{ cast(quot, sint{}, guarded{}) };
+    return measurement_count{ cast(quot, measurement_count::value_type{}, guarded{}) };
 }
 
 
@@ -495,17 +491,17 @@ class cnt_writer_flat
 
 public:
 
-    cnt_writer_flat(const std::filesystem::path& fname, const api::v1::TimeSeries& description, api::v1::RiffType riff)
-    : epoch_writer{ fname, description, riff }
+    cnt_writer_flat(const std::filesystem::path& fname, const api::v1::TimeSeries& param, api::v1::RiffType riff)
+    : epoch_writer{ fname, param, riff }
     , cache_index{ 0 }
-    , height{ vsize(description.Electrodes) }
-    , scales{ writer_scales(description.Electrodes) }
+    , height{ vsize(param.Electrodes) }
+    , scales{ writer_scales(param.Electrodes) }
     , closed{ false } {
         const auto order{ natural_row_order(height) }; // TODO?
         encode.row_order(order);
 
-        const measurement_count epoch_length{ description.EpochLength };
-        cache.resize(as_sizet_unchecked(matrix_size(height, epoch_length)));
+        const measurement_count epoch_length{ param.EpochLength };
+        cache.resize(as_sizet(matrix_size(height, epoch_length)));
     }
 
     ~cnt_writer_flat() = default;

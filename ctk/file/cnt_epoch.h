@@ -497,7 +497,6 @@ namespace ctk { namespace impl {
     auto parse_electrodes(const std::string&, bool libeep) -> std::vector<api::v1::Electrode>;
     auto parse_info(const std::string&) -> std::tuple<api::v1::DcDate, api::v1::Info, bool>;
 
-    auto is_valid(const ctk::api::v1::Electrode&) -> bool;
     auto write_electrodes_bin(FILE*, const std::vector<api::v1::Electrode>&) -> void;
     auto read_electrodes_bin(FILE*) -> std::vector<api::v1::Electrode>;
 

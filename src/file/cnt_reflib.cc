@@ -60,6 +60,22 @@ auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::p
 }
 
 
+double2int::double2int(double f)
+: factor{ f } {
+}
+
+auto double2int::operator()(double x) const -> int32_t {
+    return static_cast<int32_t>(std::round(x * factor));
+}
+
+int2double::int2double(double f)
+: factor{ f } {
+}
+
+auto int2double::operator()(int32_t x) const -> double {
+    return x * factor;
+}
+
 
 cnt_writer_reflib_riff::cnt_writer_reflib_riff(const std::filesystem::path& fname, api::v1::RiffType riff)
     : riff{ riff }
@@ -84,11 +100,11 @@ auto cnt_writer_reflib_riff::history(const std::string& x) -> void {
     flat_writer->history(x);
 }
 
-auto cnt_writer_reflib_riff::add_time_signal(const api::v1::TimeSeries& description) -> cnt_writer_reflib_flat* {
+auto cnt_writer_reflib_riff::add_time_signal(const api::v1::TimeSeries& param) -> cnt_writer_reflib_flat* {
     if (flat_writer) {
         throw api::v1::CtkLimit{ "cnt_writer_reflib_riff::add_time_signal: one segment only" };
     }
-    flat_writer.reset(new cnt_writer_reflib_flat{ fname_flat(file_name), description, riff });
+    flat_writer.reset(new cnt_writer_reflib_flat{ fname_flat(file_name), param, riff });
     assert(flat_writer);
 
     flat_writer->info(information);

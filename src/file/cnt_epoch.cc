@@ -370,8 +370,8 @@ namespace ctk { namespace impl {
 
     template<typename T>
     auto write_evt_content(FILE* f, const std::vector<api::v1::Trigger>& xs, T type_tag) -> void {
-        for (const auto& t : xs) {
-            write_evt_record(f, t, type_tag);
+        for (const auto& x : xs) {
+            write_evt_record(f, x, type_tag);
         }
     }
 
@@ -390,57 +390,52 @@ namespace ctk { namespace impl {
         ~riff_type() = default;
 
         virtual
-        auto clone() -> cnt_field_sizes* {
+        auto clone() -> cnt_field_sizes* override final {
             return new riff_type{ as_string(id) };
         }
 
         virtual
-        auto root_id() const -> std::string {
+        auto root_id() const -> std::string override final {
             return as_string(id);
         }
 
         virtual
-        auto entity_size() const -> size_t {
+        auto entity_size() const -> size_t override final {
             return sizeof(SizeType);
         }
 
         virtual
-        auto write_entity(FILE* f, int64_t x) const -> void {
+        auto write_entity(FILE* f, int64_t x) const -> void override final {
             write(f, cast(x, SizeType{}, ok{}));
         }
 
         virtual
-        auto maybe_read_entity(FILE* f) const -> std::optional<int64_t> {
+        auto maybe_read_entity(FILE* f) const -> std::optional<int64_t> override final {
             const auto maybe_x{ maybe_read(f, SizeType{}) };
             if (!maybe_x) {
                 return std::nullopt;
             }
 
-            const auto maybe_y{ maybe_cast(*maybe_x, int64_t{}) };
-            if (!maybe_y) {
-                return std::nullopt;
-            }
-
-            return *maybe_y;
+            return maybe_cast(*maybe_x, int64_t{});
         }
 
         virtual
-        auto read_ep(FILE* f, const file_range& x) const -> ep_content {
+        auto read_ep(FILE* f, const file_range& x) const -> ep_content override final {
             return read_ep_content(f, x, SizeType{});
         }
 
         virtual
-        auto read_triggers(FILE* f, const file_range& x) const -> std::vector<api::v1::Trigger> {
+        auto read_triggers(FILE* f, const file_range& x) const -> std::vector<api::v1::Trigger> override final {
             return read_evt_content(f, x, EvtType{});
         }
 
         virtual
-        auto write_triggers(FILE* f, const std::vector<api::v1::Trigger>& xs) const -> void {
+        auto write_triggers(FILE* f, const std::vector<api::v1::Trigger>& xs) const -> void override final {
             return write_evt_content(f, xs, EvtType{});
         }
 
         virtual
-        auto write_trigger(FILE* f, const api::v1::Trigger& x) const -> void {
+        auto write_trigger(FILE* f, const api::v1::Trigger& x) const -> void override final {
             return write_evt_record(f, x, EvtType{});
         }
     };
@@ -1696,6 +1691,11 @@ namespace ctk { namespace impl {
         validate_optional_label(x, is_valid_type_reflib(x), api::v1::sizes::eeph_electrode_type, "type");
     }
 
+
+    auto is_valid(const ctk::api::v1::Electrode& x) -> bool {
+        return is_valid_electrode(x) == status_elc::ok;
+    }
+
     auto validate(const api::v1::Electrode& x) -> void {
         validate_electrode_label_reflib(x.ActiveLabel);
         validate_electrode_unit_reflib(x.Unit);
@@ -2262,16 +2262,6 @@ namespace ctk { namespace impl {
 
 
 
-
-    struct ts_header
-    {
-        segment_count segment_index;
-        measurement_count length;
-        uint8_t data_size;
-        uint8_t is_signed;
-    };
-
-
     auto epoch_writer_flat::add_file(std::filesystem::path name, file_tag id, std::string chunk_id) -> FILE* {
         tokens.push_back(own_file{ open_w(name), file_token{ tagged_file{ id, name }, as_label(chunk_id) } });
         write_part_header(tokens.back().f.get(), tokens.back().t.tag.id, tokens.back().t.chunk_id);
@@ -2297,6 +2287,7 @@ namespace ctk { namespace impl {
     , open_files{ 0 } {
         validate(x);
 
+        // these files remain open during the life time of the object
         f_ep = add_file(fname_ep(fname), file_tag::ep, "raw3");
         f_data = add_file(fname_data(fname), file_tag::data, "raw3");
         f_sample_count = add_file(fname_sample_count(fname), file_tag::sample_count, "eeph");
@@ -2355,9 +2346,10 @@ namespace ctk { namespace impl {
         epoch_ranges.emplace_back(tell(f_data) - part_header_size, 0);
 
         // 3) sample count
-        const measurement_count::value_type length{ ce.length };
-        const measurement_count::value_type sample_count{ samples };
-        const measurement_count::value_type sum{ plus(sample_count, length, ok{}) };
+        using Int = measurement_count::value_type;
+        const Int length{ ce.length };
+        const Int sample_count{ samples };
+        const Int sum{ plus(sample_count, length, ok{}) };
         write(f_sample_count, sum);
         samples = measurement_count{ sum };
     }
@@ -2700,7 +2692,6 @@ namespace ctk { namespace impl {
         x.trigger_range = flat_payload(trigger_file_name());
         x.history = read_history_flat(get_name(file_tag::history));
         x.information = information;
-        //x.version = { CTK_FILE_VERSION_MAJOR, CTK_FILE_VERSION_MINOR };
 
         validate_eeph_dimensions(x.sample_count, x.header.Electrodes.size(), x.order.size(), cast(x.order.size(), sint{}, ok{}));
         return x;
@@ -2835,11 +2826,6 @@ namespace ctk { namespace impl {
         }
 
         return ctk::api::v1::Handedness::Unknown;
-    }
-
-
-    auto is_valid(const ctk::api::v1::Electrode& x) -> bool {
-        return is_valid_electrode(x) == status_elc::ok;
     }
 
 } /* namespace impl */ } /* namespace ctk */
