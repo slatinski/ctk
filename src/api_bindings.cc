@@ -24,7 +24,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "exception"
 
 
-
 namespace ctk { namespace api {
     namespace v1 {
 
@@ -43,7 +42,7 @@ namespace ctk { namespace api {
                 assert(writer);
             }
 
-            auto initialize(TimeSeries param, const Info& recording_info) -> void {
+            auto initialize(const TimeSeries& param, const Info& recording_info) -> void {
                 assert(writer);
 
                 validate_writer_phase(phase, WriterPhase::Setup, "WriterReflib::initialize");

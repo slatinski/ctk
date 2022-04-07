@@ -23,6 +23,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "api_compression.h"
 #include "api_data.h"
 #include "api_reflib.h"
+#include "ctk_version.h"
 
 
 namespace ctk {

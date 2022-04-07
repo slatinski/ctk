@@ -5,8 +5,9 @@ from datetime import datetime
 def write(cnt):
     writer = lib.writer_reflib(cnt)
 
-    # mandatory settings
+    # setup: mandatory settings
     writer.param.sampling_frequency = 2048
+    writer.param.start_time = datetime.utcnow()
     # option 1) all electrodes at once. default unit uV, iscale 1, rscale 1/256 (3.9nV LSB, 16.75V p2p for 32-bit signed integrals)
     writer.param.electrodes = lib.electrodes([("1", "ref"), ("2", "ref")])
     # option 2) one electrode at a time
@@ -14,8 +15,7 @@ def write(cnt):
     writer.add_electrode(lib.electrode("4", "ref", "uV", 1, 1/256))
     # note: for compatibility reasons do not use the unit "V". on the other hand "uV", "nV", etc are fine.
 
-    # optional settings
-    writer.param.start_time = datetime.utcnow()
+    # setup: optional settings
     writer.param.epoch_length = 1024
     writer.info.hospital = "Institution"
     writer.info.test_name = "routine eeg"
@@ -37,7 +37,8 @@ def write(cnt):
     # scaling is applied to the input as follows:
     # f(x) = x / (electrode.iscale * electrode.rscale)
     # the result is rounded to the nearest integer, converted to signed 32-bit integral, compressed and stored.
-    # note: changes to fields in writer.param will be ignored after the execution of any of the following operations
+    # note: changes to fields in writer.param (the mandatory setup settings) will either fail
+    # or have no effect after the execution of any of the following data insertion operations
 
     # option 1) the input matrix is in column major format (fortran style)
     xs = np.array([[11, 21, 31, 41], [12, 22, 32, 42]])
@@ -56,9 +57,9 @@ def write(cnt):
     writer.column_major(xs)
 
     # option 1) appending multiple triggers at once
-    writer.triggers([(0, "Rare"), (3, "Frequent")]) # sample index
+    writer.triggers([(0, "128"), (3, "129")]) # sample index, trigger code
     # option 2) appending one trigger at a time
-    writer.trigger((5, "End"))
+    writer.trigger((5, "128"))
 
     writer.impedance(lib.event_impedance(datetime.utcnow(), [128000, 41000, 73000, 99000])) # ohm, scaled and stored as kohm
     duration = 0.13 # seconds

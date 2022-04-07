@@ -19,216 +19,185 @@ import ctkpy as lib
 import numpy as np
 from datetime import datetime
 
+
+input_stamp = datetime.utcnow()
+input_rate = 1024.0
+input_electrodes_v4 = [("1", "ref", "uV"), ("2", "ref", "uV"), ("3", "ref", "uV"), ("4", "ref", "uV")]
+input_electrodes = lib.electrodes([("1", "ref"), ("2", "ref"), ("3", "ref"), ("4", "ref")])
+input_epoch = 6
+input_hospital = "Institution"
+input_tname = "routine eeg"
+input_tserial = "trial 001"
+input_physician = "Doctor A"
+input_technician = "Operator B"
+input_make = "eego"
+input_model = "ee-411"
+input_sn = "0000"
+input_name = "Person C"
+input_sex = lib.sex.male;
+input_hand = lib.handedness.left
+input_phone = "000-0000-0000"
+input_addr = "somewhere"
+input_comment = "history/medications"
+input_triggers = [lib.trigger(0, "Rare"), lib.trigger(3, "Frequent"), lib.trigger(5, "End")]
+input_impedances = [lib.event_impedance(input_stamp, [128000, 41000, 73000, 99000])]
+input_videos = [lib.event_video(input_stamp, 0.13, 128)]
+input_epochs = [lib.event_epoch(input_stamp, 0.13, -2.02, 128)]
+input_col_major = np.array([[11, 21, 31, 41], [12, 22, 32, 42]])
+input_row_major_1 = np.array([[13, 14], [23, 24], [33, 34], [43, 44]])
+input_row_major_2 = np.array([[15, 16], [25, 26], [35, 36], [45, 46]])
+result_column_major = np.array([[11, 21, 31, 41]
+                              , [12, 22, 32, 42]
+                              , [13, 23, 33, 43]
+                              , [14, 24, 34, 44]
+                              , [15, 25, 35, 45]
+                              , [16, 26, 36, 46]])
+result_row_major = np.array([[11, 12, 13, 14, 15, 16]
+                           , [21, 22, 23, 24, 25, 26]
+                           , [31, 32, 33, 34, 35, 36]
+                           , [41, 42, 43, 44, 45, 46]])
+
+
 def write(cnt):
-    stamp = datetime.utcnow()
     writer = lib.writer_reflib(cnt)
 
-    writer.param.sampling_frequency = 1024
-    writer.param.electrodes = lib.electrodes([("1", "ref"), ("2", "ref"), ("3", "ref"), ("4", "ref")])
-    writer.param.start_time = stamp 
-    writer.param.epoch_length = 2048
-    writer.info.hospital = "Institution"
-    writer.info.test_name = "routine eeg"
-    writer.info.test_serial = "trial 001"
-    writer.info.physician = "Doctor A"
-    writer.info.technician = "Operator B"
-    writer.info.machine_make = "eego"
-    writer.info.machine_model = "ee-411"
-    writer.info.machine_sn = "0000"
-    writer.info.subject_name = "Person C"
-    writer.info.subject_sex = lib.sex.male;
-    writer.info.subject_handedness = lib.handedness.left
-    writer.info.subject_phone = "000-0000-0000"
-    writer.info.subject_address = "somewhere"
-    writer.info.subject_dob = stamp
-    writer.info.comment = "history/medications"
+    writer.param.sampling_frequency = input_rate
+    writer.param.electrodes = input_electrodes
+    writer.param.start_time = input_stamp 
+    writer.param.epoch_length = input_epoch
+    writer.info.hospital = input_hospital
+    writer.info.test_name = input_tname
+    writer.info.test_serial = input_tserial
+    writer.info.physician = input_physician
+    writer.info.technician = input_technician
+    writer.info.machine_make = input_make
+    writer.info.machine_model = input_model
+    writer.info.machine_sn = input_sn
+    writer.info.subject_name = input_name
+    writer.info.subject_sex = input_sex
+    writer.info.subject_handedness = input_hand
+    writer.info.subject_phone = input_phone
+    writer.info.subject_address = input_addr
+    writer.info.subject_dob = input_stamp
+    writer.info.comment = input_comment 
 
-    xs = np.array([[11, 21, 31, 41], [12, 22, 32, 42]])
-    writer.column_major(xs)
+    writer.column_major(input_col_major)
+    writer.row_major(input_row_major_1)
+    writer.row_major(input_row_major_2)
 
-    ys = np.array([[13, 14], [23, 24], [33, 34], [43, 44]])
-    writer.row_major(ys)
+    writer.triggers(input_triggers[:2])
+    writer.trigger(input_triggers[2])
 
-    ys = np.array([[15, 16], [25, 26], [35, 36], [45, 46]])
-    writer.row_major(ys)
-
-    writer.triggers([(0, "Rare"), (3, "Frequent")])
-    writer.trigger((5, "End"))
-
-    writer.impedance(lib.event_impedance(stamp, [128000, 41000, 73000, 99000]))
-    duration = 0.13
-    trigger_code = 128
-    writer.video(lib.event_video(stamp, duration, trigger_code))
-    offset = -2.02
-    writer.epoch(lib.event_epoch(stamp, duration, offset, trigger_code))
+    writer.impedance(input_impedances[0])
+    writer.video(input_videos[0])
+    writer.epoch(input_epochs[0])
     # TODO: plural forms
     # TODO: additional fields
 
     writer.close()
-    return stamp
 
-def read(cnt, stamp):
+def read(cnt):
     reader = lib.reader_reflib(cnt)
-    assert reader.sample_count == 6
+    assert reader.sample_count == result_row_major.shape[1]
+    assert reader.param.start_time == input_stamp
+    assert reader.param.sampling_frequency == input_rate
+    assert reader.param.epoch_length == input_epoch
+    assert reader.param.electrodes == input_electrodes
+    assert reader.info.hospital == input_hospital
+    assert reader.info.test_name == input_tname
+    assert reader.info.test_serial == input_tserial
+    assert reader.info.physician == input_physician
+    assert reader.info.technician == input_technician
+    assert reader.info.machine_make == input_make
+    assert reader.info.machine_model == input_model
+    assert reader.info.machine_sn == input_sn
+    assert reader.info.subject_name == input_name
+    assert reader.info.subject_sex == input_sex
+    assert reader.info.subject_handedness == input_hand
+    assert reader.info.subject_phone == input_phone
+    assert reader.info.subject_address == input_addr
+    assert reader.info.comment == input_comment 
+    assert reader.triggers == input_triggers
+    assert reader.impedances == input_impedances
+    assert reader.videos == input_videos
+    assert reader.epochs == input_epochs
 
-    assert reader.param.start_time == stamp
-    assert reader.param.sampling_frequency == 1024
-    assert reader.param.epoch_length == 2048
-    assert len(reader.param.electrodes) == 4
-    assert reader.param.electrodes[0] == lib.electrode("1", "ref", "uV", 1, 1/256)
-    assert reader.param.electrodes[1] == lib.electrode("2", "ref", "uV", 1, 1/256)
-    assert reader.param.electrodes[2] == lib.electrode("3", "ref", "uV", 1, 1/256)
-    assert reader.param.electrodes[3] == lib.electrode("4", "ref", "uV", 1, 1/256)
-    assert reader.info.hospital == "Institution"
-    assert reader.info.test_name == "routine eeg"
-    assert reader.info.test_serial == "trial 001"
-    assert reader.info.physician == "Doctor A"
-    assert reader.info.technician == "Operator B"
-    assert reader.info.machine_make == "eego"
-    assert reader.info.machine_model == "ee-411"
-    assert reader.info.machine_sn == "0000"
-    assert reader.info.subject_name == "Person C"
-    assert reader.info.subject_sex == lib.sex.male;
-    assert reader.info.subject_handedness == lib.handedness.left
-    assert reader.info.subject_phone == "000-0000-0000"
-    assert reader.info.subject_address == "somewhere"
-    assert reader.info.comment == "history/medications"
-    assert len(reader.triggers) == 3
-    assert reader.triggers[0].sample == 0
-    assert reader.triggers[0].code == "Rare"
-    assert reader.triggers[1].sample == 3
-    assert reader.triggers[1].code == "Frequent"
-    assert reader.triggers[2].sample == 5
-    assert reader.triggers[2].code == "End"
-    assert len(reader.impedances) == 1
-    assert reader.impedances[0].stamp == stamp
-    assert reader.impedances[0].values == [128000, 41000, 73000, 99000]
-    assert len(reader.videos) == 1
-    assert reader.videos[0].stamp == stamp
-    assert reader.videos[0].duration == 0.13
-    assert reader.videos[0].trigger_code == 128
-    assert len(reader.epochs) == 1
-    assert reader.epochs[0].stamp == stamp
-    assert reader.epochs[0].duration == 0.13
-    assert reader.epochs[0].offset == -2.02
-    assert reader.epochs[0].trigger_code == 128
-
-    xs = reader.column_major(0, reader.sample_count)
-    assert xs.shape[0] == 6
-    assert xs.shape[1] == 4
-    assert xs[0][0] == 11
-    assert xs[0][1] == 21
-    assert xs[0][2] == 31
-    assert xs[0][3] == 41
-    assert xs[1][0] == 12
-    assert xs[1][1] == 22
-    assert xs[1][2] == 32
-    assert xs[1][3] == 42
-    assert xs[2][0] == 13
-    assert xs[2][1] == 23
-    assert xs[2][2] == 33
-    assert xs[2][3] == 43
-    assert xs[3][0] == 14
-    assert xs[3][1] == 24
-    assert xs[3][2] == 34
-    assert xs[3][3] == 44
-    assert xs[4][0] == 15
-    assert xs[4][1] == 25
-    assert xs[4][2] == 35
-    assert xs[4][3] == 45
-    assert xs[5][0] == 16
-    assert xs[5][1] == 26
-    assert xs[5][2] == 36
-    assert xs[5][3] == 46
-
-    ys = reader.row_major(0, reader.sample_count)
-    assert ys.shape[0] == 4
-    assert ys.shape[1] == 6
-    assert ys[0][0] == 11
-    assert ys[0][1] == 12
-    assert ys[0][2] == 13
-    assert ys[0][3] == 14
-    assert ys[0][4] == 15
-    assert ys[0][5] == 16
-    assert ys[1][0] == 21
-    assert ys[1][1] == 22
-    assert ys[1][2] == 23
-    assert ys[1][3] == 24
-    assert ys[1][4] == 25
-    assert ys[1][5] == 26
-    assert ys[2][0] == 31
-    assert ys[2][1] == 32
-    assert ys[2][2] == 33
-    assert ys[2][3] == 34
-    assert ys[2][4] == 35
-    assert ys[2][5] == 36
-    assert ys[3][0] == 41
-    assert ys[3][1] == 42
-    assert ys[3][2] == 43
-    assert ys[3][3] == 44
-    assert ys[3][4] == 45
-    assert ys[3][5] == 46
+    assert (reader.column_major(0, reader.sample_count) == result_column_major).all()
+    assert (reader.row_major(0, reader.sample_count) == result_row_major).all()
 
     assert reader.epoch_count == 1
-    x1s = reader.epoch_column_major(0)
-    y1s = reader.epoch_row_major(0)
-    assert (x1s == xs).all()
-    assert (y1s == ys).all()
+    assert (reader.epoch_column_major(0) == result_column_major).all()
+    assert (reader.epoch_row_major(0) == result_row_major).all()
 
     bs = reader.epoch_compressed(0)
     decomp = lib.decompress_reflib()
-    decomp.sensors = 4
-    samples = 6
-    x2s = decomp.column_major(bs, samples) * (1/256)
-    y2s = decomp.row_major(bs, samples) * (1/256)
-    assert (x2s == xs).all()
-    assert (y2s == ys).all()
+    decomp.sensors = result_row_major.shape[0]
+    samples = result_row_major.shape[1]
+
+    assert (decomp.column_major(bs, samples) * (1/256) == result_column_major).all()
+    assert (decomp.row_major(bs, samples) * (1/256) == result_row_major).all()
 
     comp = lib.compress_reflib()
-    comp.sensors = 4
-    b1s = comp.column_major(xs * 256)
-    b2s = comp.row_major(ys * 256)
-    assert b1s == bs
-    assert b2s == bs
+    comp.sensors = result_row_major.shape[0]
+    assert comp.column_major(result_column_major * 256) == bs
+    assert comp.row_major(result_row_major * 256) == bs
+
+
+def write_v4(cnt):
+    riff64 = 0
+    writer = lib.write_cnt(cnt, input_rate, input_electrodes_v4, riff64)
+    for sample in result_column_major:
+        writer.add_samples(sample)
+    writer.close()
+
+
+def read_v4(cnt):
+    reader = lib.read_cnt(cnt)
+    assert reader.get_channel_count() == result_row_major.shape[0]
+    for i in range(reader.get_channel_count()):
+        assert reader.get_channel(i) == input_electrodes_v4[i]
+
+    assert reader.get_sample_frequency() == input_rate
+    assert reader.get_sample_count() == result_row_major.shape[1]
+    assert reader.get_trigger_count() == 0
+
+    i = 0
+    for sample in result_column_major:
+        result = reader.get_samples(i, 1)
+        assert (result == sample).all()
+        i += 1
 
 
 def test_write_read_cnt_evt(tmp_path):
-    temporary = tmp_path / "cnt_evt.cnt"
-    stamp = write(str(temporary))
-    read(str(temporary), stamp)
+    tmp_cnt = tmp_path / "reflib.cnt"
+    write(str(tmp_cnt))
+    read(str(tmp_cnt))
+
+    tmp_v4 = tmp_path / "v4.cnt"
+    write_v4(str(tmp_v4))
+    read_v4(str(tmp_v4))
 
 
 def write_evt(evt):
-    stamp = datetime.utcnow()
     writer = lib.event_writer(evt)
 
-    writer.impedance(lib.event_impedance(stamp, [128000, 41000, 73000, 99000]))
-    duration = 0.13
-    trigger_code = 128
-    writer.video(lib.event_video(stamp, duration, trigger_code))
-    offset = -2.02
-    writer.epoch(lib.event_epoch(stamp, duration, offset, trigger_code))
-    # TODO: plural forms
+    writer.impedances(input_impedances)
+    writer.videos(input_videos)
+    writer.epochs(input_epochs)
+    # TODO: singular forms
     # TODO: additional fields
 
     writer.close()
-    return stamp
 
-def read_evt(evt, stamp):
+def read_evt(evt):
     reader = lib.event_reader(evt)
-
-    xs = reader.impedances
-    assert xs[0] == lib.event_impedance(stamp, [128000, 41000, 73000, 99000])
-
-    ys = reader.videos
-    assert ys[0] == lib.event_video(stamp, 0.13, 128)
-
-    zs = reader.epochs
-    assert zs[0] == lib.event_epoch(stamp, 0.13, -2.02, 128)
+    assert reader.impedances() == input_impedances
+    assert reader.videos() == input_videos
+    assert reader.epochs() == input_epochs
 
 
 def test_write_read_evt(tmp_path):
-    temporary = tmp_path / "evt.evt"
-    stamp = write_evt(str(temporary))
-    read_evt(str(temporary), stamp)
+    tmp_evt = tmp_path / "evt.evt"
+    write_evt(str(tmp_evt))
+    read_evt(str(tmp_evt))
 

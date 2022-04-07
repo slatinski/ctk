@@ -111,6 +111,54 @@ def test_electrode():
     zs[0].rscale = 3
     assert zs[0] != x
 
+    with pytest.raises(RuntimeError):
+        x.label = ""
+
+    with pytest.raises(RuntimeError):
+        x.label = "way_too_long"
+
+    with pytest.raises(RuntimeError):
+        x.label = "a space"
+
+    with pytest.raises(RuntimeError):
+        x.label = ";begin"
+
+    with pytest.raises(RuntimeError):
+        x.label = "[begin"
+
+    with pytest.raises(RuntimeError):
+        x.unit = ""
+
+    with pytest.raises(RuntimeError):
+        x.unit = "way_too_long"
+
+    with pytest.raises(RuntimeError):
+        x.unit = "a space"
+
+    with pytest.raises(RuntimeError):
+        x.reference = "way_too_long"
+
+    with pytest.raises(RuntimeError):
+        x.reference = "a space"
+
+    with pytest.raises(RuntimeError):
+        x.status = "way_too_long"
+
+    with pytest.raises(RuntimeError):
+        x.status = "a space"
+
+    with pytest.raises(RuntimeError):
+        x.type = "a space"
+
+    with pytest.raises(RuntimeError):
+        x.type = "way_too_long"
+
+    with pytest.raises(RuntimeError):
+        x.iscale = float('inf')
+
+    with pytest.raises(RuntimeError):
+        x.rscale = float('inf')
+
 
 def test_time_series():
     stamp = datetime.utcnow()

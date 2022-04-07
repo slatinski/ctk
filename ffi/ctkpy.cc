@@ -28,6 +28,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "ctk.h"
 #include "arithmetic.h"
+#include "api_bindings.h"
 #include "file/cnt_epoch.h"
 
 namespace {
@@ -43,6 +44,29 @@ namespace {
         return oss.str();
     }
 
+    struct ctkpy_version
+    {
+        uint32_t major;
+        uint32_t minor;
+        uint32_t patch;
+        uint32_t build;
+
+        ctkpy_version()
+        : major{ CTK_MAJOR }
+        , minor{ CTK_MINOR }
+        , patch{ CTK_PATCH }
+        , build{ CTK_BUILD } {
+        }
+
+        friend auto operator==(const ctkpy_version&, const ctkpy_version&) -> bool = default;
+        friend auto operator!=(const ctkpy_version&, const ctkpy_version&) -> bool = default;
+    };
+
+    auto operator<<(std::ostream& os, const ctkpy_version& x) -> std::ostream& {
+        os << x.major << "."  << x.minor << "."  << x.patch << "."  << x.build;
+        return os;
+    }
+
 
     using trigger_v4_tuple = std::tuple<std::string, int64_t, int64_t, std::string, std::string, std::string>;
     using channel_v4_tuple = std::tuple<std::string, std::string, std::string>; // active label, ref label, unit
@@ -56,79 +80,10 @@ namespace {
         return { s, c };
     }
 
-
-    struct libeep_reader
-    {
-        v1::CntReaderReflib reader;
-        std::vector<v1::Trigger> triggers;
-        v1::TimeSeries header;
-
-        explicit
-        libeep_reader(const std::string& fname)
-        : reader{ fname }
-        , triggers{ reader.Triggers() }
-        , header{ reader.ParamEeg() } {
-        }
-
-        auto get_sample_count() const -> int64_t {
-            return reader.SampleCount();
-        }
-
-        auto get_channel_count() const -> size_t {
-          return header.Electrodes.size();
-        }
-
-        auto get_channel(size_t i) const -> channel_v4_tuple {
-            const auto size{ header.Electrodes.size() };
-            if (size <= i) {
-                std::ostringstream oss;
-                oss << "get_channel: invalid index " << i << ", available channels " << size;
-                throw std::runtime_error(oss.str());
-            }
-
-            const v1::Electrode& x{ header.Electrodes[i] };
-            return { x.ActiveLabel, x.Reference, x.Unit };
-        }
-
-        auto get_sample_frequency() const -> double {
-            return header.SamplingFrequency;
-        }
-
-        auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
-            return reader.RangeV4(i, amount);
-        }
-
-        auto get_trigger_count() const -> size_t {
-            return triggers.size();
-        }
-
-        auto get_trigger(size_t i) const -> trigger_v4_tuple {
-            const auto size{ triggers.size() };
-            if (size <= i) {
-                std::ostringstream oss;
-                oss << "get_trigger: invalid index " << i << ", available triggers " << size;
-                throw std::runtime_error(oss.str());
-            }
-
-            const auto code{ triggers[i].Code };
-            const auto sample{ triggers[i].Sample };
-            const int64_t duration{ 0 };
-            const std::string condition, descr, impedances;
-            return { code, sample, duration, condition, descr, impedances };
-        }
-    };
-
-    static
-    auto read_cnt(const std::string& fname) -> libeep_reader {
-        return libeep_reader{ fname };
-    }
-
-
-
     static
     auto ar2elc(const active_ref_tuple& x) -> v1::Electrode {
         const auto[label, reference]{ x };
-        const v1::Electrode y{ label, reference, "uV" };
+        const v1::Electrode y{ label, reference };
         ctk::impl::validate(y);
         return y;
     }
@@ -162,26 +117,82 @@ namespace {
     }
 
 
-    struct libeep_writer
-    {
-        v1::CntWriterReflib writer;
 
-        libeep_writer(const std::string& fname, double sample_rate, const std::vector<channel_v4_tuple>& channels, int cnt64)
-        : writer{ fname, int2riff(cnt64) } {
-            v1::TimeSeries ts;
-            ts.SamplingFrequency = sample_rate;
-            ts.Electrodes = ch2elcs(channels);
-            ts.StartTime = std::chrono::system_clock::now();
-            writer.ParamEeg(ts);
+    struct reader_v4
+    {
+        v1::ReaderReflib reader;
+
+        explicit
+        reader_v4(const std::string& fname)
+        : reader{ fname } {
         }
-        libeep_writer(libeep_writer&&) = default;
+
+        auto get_sample_count() const -> int64_t {
+            return reader.SampleCount;
+        }
+
+        auto get_channel_count() const -> size_t {
+          return reader.ParamEeg.Electrodes.size();
+        }
+
+        auto get_channel(size_t i) const -> channel_v4_tuple {
+            const auto size{ reader.ParamEeg.Electrodes.size() };
+            if (size <= i) {
+                std::ostringstream oss;
+                oss << "[cnt_in::get_channel] invalid index " << (i + 1) << "/" << size;
+                throw std::runtime_error(oss.str());
+            }
+
+            const v1::Electrode& x{ reader.ParamEeg.Electrodes[i] };
+            return { x.ActiveLabel, x.Reference, x.Unit };
+        }
+
+        auto get_sample_frequency() const -> double {
+            return reader.ParamEeg.SamplingFrequency;
+        }
+
+        auto get_samples(int64_t i, int64_t amount) -> std::vector<float> {
+            return reader.RangeV4(i, amount);
+        }
+
+        auto get_trigger_count() const -> size_t {
+            return reader.Triggers.size();
+        }
+
+        auto get_trigger(size_t i) const -> trigger_v4_tuple {
+            const auto size{ reader.Triggers.size() };
+            if (size <= i) {
+                std::ostringstream oss;
+                oss << "[cnt_in::get_trigger] invalid index " << (i + 1) << "/" << size;
+                throw std::runtime_error(oss.str());
+            }
+
+            const v1::Trigger& trigger{ reader.Triggers[i] };
+            const int64_t duration{ 0 };
+            const std::string condition, descr, impedances;
+            return { trigger.Code, trigger.Sample, duration, condition, descr, impedances };
+        }
+    };
+
+    static
+    auto read_cnt(const std::string& fname) -> std::unique_ptr<reader_v4> {
+        return std::make_unique<reader_v4>(fname);
+    }
+
+
+    struct writer_v4
+    {
+        v1::WriterReflib writer;
+
+        writer_v4(const std::string& fname, double sample_rate, const std::vector<channel_v4_tuple>& channels, int cnt64)
+        : writer{ fname, int2riff(cnt64) } {
+            writer.ParamEeg.SamplingFrequency = sample_rate;
+            writer.ParamEeg.Electrodes = ch2elcs(channels);
+            writer.ParamEeg.StartTime = std::chrono::system_clock::now();
+        }
 
         auto add_samples(const std::vector<float>& xs) -> void {
-            const auto float2double = [](float x) -> double { return x; };
-
-            std::vector<double> ys(xs.size());
-            std::transform(begin(xs), end(xs), begin(ys), float2double);
-            writer.RangeColumnMajor(ys);
+            writer.cnt_ptr()->RangeV4(xs);
         }
 
         auto close() -> void {
@@ -190,8 +201,8 @@ namespace {
     };
 
     static
-    auto write_cnt(const std::string& fname, double sample_rate, const std::vector<channel_v4_tuple>& channels, int rf64 = 0) -> libeep_writer {
-        return libeep_writer{ fname, sample_rate, channels, rf64 };
+    auto write_cnt(const std::string& fname, double sample_rate, const std::vector<channel_v4_tuple>& channels, int rf64 = 0) -> std::unique_ptr<writer_v4> {
+        return std::make_unique<writer_v4>(fname, sample_rate, channels, rf64);
     }
 
 
@@ -199,7 +210,7 @@ namespace {
     auto from_row_major(const py::array_t<T>& xs) -> std::vector<T> {
         if (xs.ndim() != 2) {
             std::ostringstream oss;
-            oss << "invalid input array dimensions: expected 2, got " << xs.ndim();
+            oss << "[from_row_major] invalid input array dimensions: expected 2, got " << xs.ndim();
             throw std::runtime_error(oss.str());
         }
 
@@ -221,7 +232,7 @@ namespace {
     auto from_column_major(const py::array_t<T>& xs) -> std::vector<T> {
         if (xs.ndim() != 2) {
             std::ostringstream oss;
-            oss << "invalid input array dimensions: expected 2, got " << xs.ndim();
+            oss << "[from_column_major] invalid input array dimensions: expected 2, got " << xs.ndim();
             throw std::runtime_error(oss.str());
         }
 
@@ -270,279 +281,6 @@ namespace {
 
 
 
-    struct ctkpy_writer
-    {
-        std::filesystem::path file_name;
-        v1::RiffType type;
-        v1::TimeSeries header;
-        v1::Info recording_info;
-
-        std::unique_ptr<v1::CntWriterReflib> writer;
-        v1::EventWriter events;
-
-        explicit ctkpy_writer(const std::string& fname, v1::RiffType cnt = v1::RiffType::riff64)
-        : file_name{ fname }
-        , type{ cnt }
-        , events{ std::filesystem::path{ fname }.replace_extension("evt") } {
-        }
-
-        ctkpy_writer(ctkpy_writer&&) = default;
-
-        auto initialize() -> void {
-            if (header.StartTime == ctk::api::v1::dcdate2timepoint({ 0, 0 })) {
-                header.StartTime = std::chrono::system_clock::now();
-            }
-            ctk::impl::validate(header);
-
-            writer.reset(new v1::CntWriterReflib{ file_name, type });
-            assert(writer);
-
-            writer->ParamEeg(header);
-            writer->RecordingInfo(recording_info);
-        }
-
-        auto column_major(const py::array_t<double>& xs) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            writer->RangeRowMajor(from_column_major(xs));
-        }
-
-        auto row_major(const py::array_t<double>& xs) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            writer->RangeRowMajor(from_row_major(xs));
-        }
-
-        auto close() -> void {
-            if (!writer) {
-                return;
-            }
-
-            events.Close();
-            writer->RecordingInfo(recording_info);
-            writer->Close();
-            writer.reset(nullptr);
-        }
-
-        auto add_ar_electrode(const active_ref_tuple& x) -> void {
-            header.Electrodes.push_back(ar2elc(x));
-        }
-
-        auto add_v4_electrode(const channel_v4_tuple& x) -> void {
-            header.Electrodes.push_back(ch2elc(x));
-        }
-
-        auto add_electrode(const v1::Electrode& x) -> void {
-            header.Electrodes.push_back(x);
-        }
-
-        auto add_trigger(const v1::Trigger& x) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            writer->AddTrigger(x);
-        }
-
-        auto add_trigger_ctkpy(const trigger_tuple& x) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            writer->AddTrigger(triggertuple2v1trigger(x));
-        }
-
-        auto add_triggers(const std::vector<v1::Trigger>& xs) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            writer->AddTriggers(xs);
-        }
-
-        auto add_triggers_ctkpy(const std::vector<trigger_tuple>& xs) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            std::vector<v1::Trigger> ys(xs.size());
-            std::transform(begin(xs), end(xs), begin(ys), triggertuple2v1trigger);
-            writer->AddTriggers(ys);
-        }
-
-        auto add_impedance(const v1::EventImpedance& x) -> void {
-            events.AddImpedance(x);
-        }
-
-        auto add_impedances(const std::vector<v1::EventImpedance>& xs) -> void {
-            events.AddImpedances(xs);
-        }
-
-        auto add_video(const v1::EventVideo& x) -> void {
-            events.AddVideo(x);
-        }
-
-        auto add_videos(const std::vector<v1::EventVideo>& xs) -> void {
-            events.AddVideos(xs);
-        }
-
-        auto add_epoch(const v1::EventEpoch& x) -> void {
-            events.AddEpoch(x);
-        }
-
-        auto add_epochs(const std::vector<v1::EventEpoch>& xs) -> void {
-            events.AddEpochs(xs);
-        }
-
-        auto embed(const v1::UserFile& x) -> void {
-            if (!writer) {
-                initialize();
-            }
-
-            writer->Embed(x);
-        }
-    };
-
-
-    struct ctkpy_reader
-    {
-        std::unique_ptr<v1::CntReaderReflib> reader;
-
-        std::filesystem::path file_name;
-        v1::RiffType type;
-        v1::TimeSeries header;
-        v1::Info recording_info;
-        std::vector<v1::Trigger> triggers;
-        std::vector<v1::EventImpedance> impedances;
-        std::vector<v1::EventVideo> videos;
-        std::vector<v1::EventEpoch> epochs;
-        std::vector<v1::UserFile> embedded;
-
-        ctkpy_reader(const std::string& fname)
-        : reader{ new v1::CntReaderReflib{ fname } }
-        , file_name{ fname } {
-            type = reader->CntType();
-            header = reader->ParamEeg();
-            recording_info = reader->RecordingInfo();
-            triggers = reader->Triggers();
-            embedded = reader->EmbeddedFiles();
-
-            const auto evt_fname{ file_name.replace_extension("evt") };
-            if (!std::filesystem::exists(evt_fname)) {
-                return;
-            }
-
-            v1::EventReader events{ evt_fname };
-            impedances = events.ImpedanceEvents();
-            videos = events.VideoEvents();
-            epochs = events.EpochEvents();
-        }
-
-        auto sample_count() -> int64_t {
-            assert(reader);
-            return reader->SampleCount();
-        }
-
-
-        auto column_major(int64_t i, int64_t length) -> py::array_t<double> {
-            assert(reader);
-
-            auto xs{ reader->RangeColumnMajor(i, length) };
-            if (xs.empty()) {
-                throw std::runtime_error("can not load range");
-            }
-
-            assert(!header.Electrodes.empty());
-
-            const size_t channels{ header.Electrodes.size() };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
-            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            return to_column_major(xs, l, h);
-        }
-
-
-        auto row_major(int64_t i, int64_t length) -> py::array_t<double> {
-            assert(reader);
-
-            auto xs{ reader->RangeRowMajor(i, length) };
-            if (xs.empty()) {
-                throw std::runtime_error("can not load range");
-            }
-
-            assert(!header.Electrodes.empty());
-
-            const size_t channels{ header.Electrodes.size() };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
-            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            return to_row_major(xs, l, h);
-        }
-
-
-        auto epoch_count() -> int64_t {
-            assert(reader);
-            return reader->Epochs();
-        }
-
-
-        auto epoch_column_major(int64_t i) -> py::array_t<double> {
-            assert(reader);
-
-            auto xs{ reader->EpochColumnMajor(i) };
-            if (xs.empty()) {
-                throw std::runtime_error("can not load epoch");
-            }
-
-            assert(!header.Electrodes.empty());
-
-            const size_t channels{ header.Electrodes.size() };
-            const size_t length{ xs.size() / channels };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
-            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            return to_column_major(xs, l, h);
-        }
-
-
-        auto epoch_row_major(int64_t i) -> py::array_t<double> {
-            assert(reader);
-
-            auto xs{ reader->EpochRowMajor(i) };
-            if (xs.empty()) {
-                throw std::runtime_error("can not load epoch");
-            }
-
-            assert(!header.Electrodes.empty());
-
-            const size_t channels{ header.Electrodes.size() };
-            const size_t length{ xs.size() / channels };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
-            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
-            return to_row_major(xs, l, h);
-        }
-
-
-        auto epoch_compressed(int64_t i) -> std::vector<uint8_t> {
-            assert(reader);
-
-            return reader->EpochCompressed(i);
-        }
-
-
-        auto extract_embedded_file(const v1::UserFile& x) -> bool {
-            assert(reader);
-            if (x.FileName.empty()) {
-                throw std::runtime_error("no output file name is provided in the field file_name");
-            }
-
-            reader->ExtractEmbeddedFile(x);
-            return true;
-        }
-    };
-
-
     template<typename Compressor>
     // Compressor has interface compatible with CompressReflib, CompressInt16, CompressInt32, CompressInt64, CompressUInt16, CompressUInt32, CompressUInt64
     struct enc_matrix
@@ -557,8 +295,8 @@ namespace {
         auto operator=(enc_matrix&&) -> enc_matrix& = default;
         ~enc_matrix() = default;
 
-        auto sensors(int64_t height) -> bool {
-            return compress.Sensors(height);
+        auto sensors(int64_t x) -> bool {
+            return compress.Sensors(x);
         }
 
         auto order(const std::vector<int16_t>& xs) -> bool {
@@ -590,8 +328,8 @@ namespace {
         auto operator=(dec_matrix&&) -> dec_matrix& = default;
         ~dec_matrix() = default;
 
-        auto sensors(int64_t height) -> bool {
-            return decompress.Sensors(height);
+        auto sensors(int64_t x) -> bool {
+            return decompress.Sensors(x);
         }
 
         auto order(const std::vector<int16_t>& xs) -> bool {
@@ -599,11 +337,11 @@ namespace {
         }
 
         auto column_major(const std::vector<uint8_t>& xs, int64_t length) -> py::array_t<T> {
-            if (length <= 0) {
-                throw std::runtime_error("invalid length");
+            if (length < 1) {
+                throw std::runtime_error("[column_major] invalid length");
             }
 
-            // TODO: add height getter to the matrix interface and pass temporary to to_column_major
+            // TODO: add height getter to the matrix interface and pass temporary to to_column_major?
             const auto ys{ decompress.ColumnMajor(xs, length) };
             const ssize_t h{ ctk::impl::cast(ctk::impl::vsize(ys) / length, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
@@ -611,11 +349,11 @@ namespace {
         }
 
         auto row_major(const std::vector<uint8_t>& xs, int64_t length) -> py::array_t<T> {
-            if (length <= 0) {
-                throw std::runtime_error("invalid length");
+            if (length < 1) {
+                throw std::runtime_error("[row_major] invalid length");
             }
 
-            // TODO: add height getter to the matrix interface and pass temporary to to_row_major
+            // TODO: add height getter to the matrix interface and pass temporary to to_row_major?
             const auto ys{ decompress.RowMajor(xs, length) };
             const ssize_t h{ ctk::impl::cast(ctk::impl::vsize(ys) / length, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
@@ -655,7 +393,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::FileVersion { // __setstate__
             if (xs.size() != 2) {
-                throw std::runtime_error("file_version pickle: invalid state");
+                throw std::runtime_error("[file_version::__setstate__] invalid");
             }
             return v1::FileVersion{ xs[0].cast<uint32_t>(), xs[1].cast<uint32_t>() };
         }
@@ -667,7 +405,20 @@ PYBIND11_MODULE(ctkpy, m) {
     py::class_<v1::Trigger> t(m, "trigger", py::module_local());
     t.def(py::init<int64_t, const std::string&>())
      .def_readwrite("sample", &v1::Trigger::Sample)
-     .def_readwrite("code", &v1::Trigger::Code)
+     .def_property("code"
+                  , [](const v1::Trigger& self) -> std::string {
+                      return self.Code;
+                  }
+                  , [](v1::Trigger& self, const std::string& x) -> void {
+                      if (v1::sizes::evt_trigger_code < x.size()) { // TODO: duplication
+                          std::ostringstream oss;
+                          oss << "[trigger::code] " << x << " longer than " << v1::sizes::evt_trigger_code << " bytes";
+                          const auto msg{ oss.str() };
+                          throw std::runtime_error(msg);
+                      }
+                      self.Code = x;
+                  }
+      )
      .def(py::self == py::self) // __eq__
      .def(py::self != py::self) // __ne__
      .def(py::pickle(
@@ -676,7 +427,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::Trigger { // __setstate__
             if (xs.size() != 2) {
-                throw std::runtime_error("trigger pickle: invalid state");
+                throw std::runtime_error("[trigger::__setstate__] invalid");
             }
             return v1::Trigger { xs[0].cast<int64_t>(), xs[1].cast<std::string>() };
         }
@@ -687,13 +438,73 @@ PYBIND11_MODULE(ctkpy, m) {
 
     py::class_<v1::Electrode> e(m, "electrode", py::module_local());
     e.def(py::init<const std::string&, const std::string&, const std::string&, double, double>())
-     .def_readwrite("label", &v1::Electrode::ActiveLabel)
-     .def_readwrite("reference", &v1::Electrode::Reference)
-     .def_readwrite("unit", &v1::Electrode::Unit)
-     .def_readwrite("status", &v1::Electrode::Status)
-     .def_readwrite("type", &v1::Electrode::Type)
-     .def_readwrite("iscale", &v1::Electrode::IScale)
-     .def_readwrite("rscale", &v1::Electrode::RScale)
+     .def_property("label"
+                  , [](const v1::Electrode& self) -> std::string {
+                      return self.ActiveLabel;
+                  }
+                  , [](v1::Electrode& self, const std::string& x) -> void {
+                      ctk::impl::validate_electrode_label_reflib(x);
+                      self.ActiveLabel = x;
+                  }
+      )
+     .def_property("reference"
+                  , [](const v1::Electrode& self) -> std::string {
+                      return self.Reference;
+                  }
+                  , [](v1::Electrode& self, const std::string& x) -> void {
+                      ctk::impl::validate_electrode_reference_reflib(x);
+                      self.Reference = x;
+                  }
+      )
+     .def_property("unit"
+                  , [](const v1::Electrode& self) -> std::string {
+                      return self.Unit;
+                  }
+                  , [](v1::Electrode& self, const std::string& x) -> void {
+                      ctk::impl::validate_electrode_unit_reflib(x);
+                      self.Unit = x;
+                  }
+      )
+     .def_property("status"
+                  , [](const v1::Electrode& self) -> std::string {
+                      return self.Status;
+                  }
+                  , [](v1::Electrode& self, const std::string& x) -> void {
+                      ctk::impl::validate_electrode_status_reflib(x);
+                      self.Status = x;
+                  }
+      )
+     .def_property("type"
+                  , [](const v1::Electrode& self) -> std::string {
+                      return self.Type;
+                  }
+                  , [](v1::Electrode& self, const std::string& x) -> void {
+                      ctk::impl::validate_electrode_type_reflib(x);
+                      self.Type = x;
+                  }
+      )
+     .def_property("iscale"
+                  , [](const v1::Electrode& self) -> double {
+                      return self.IScale;
+                  }
+                  , [](v1::Electrode& self, double x) -> void {
+                      if (!std::isfinite(x)) { // TODO: duplication
+                          throw std::runtime_error("[electrode::iscale] invalid");
+                      }
+                      self.IScale = x;
+                  }
+      )
+     .def_property("rscale"
+                  , [](const v1::Electrode& self) -> double {
+                      return self.RScale;
+                  }
+                  , [](v1::Electrode& self, double x) -> void {
+                      if (!std::isfinite(x)) { // TODO: duplication
+                          throw std::runtime_error("[electrode::rscale] invalid");
+                      }
+                      self.RScale = x;
+                  }
+      )
      .def(py::self == py::self) // __eq__
      .def(py::self != py::self) // __ne__
      .def(py::pickle(
@@ -702,7 +513,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::Electrode { // __setstate__
             if (xs.size() != 7) {
-                throw std::runtime_error("electrode pickle: invalid state");
+                throw std::runtime_error("[electrode::__setstate__] invalid");
             }
 
             v1::Electrode y;
@@ -711,8 +522,8 @@ PYBIND11_MODULE(ctkpy, m) {
             y.Unit = xs[2].cast<std::string>();
             y.Status = xs[3].cast<std::string>();
             y.Type = xs[4].cast<std::string>();
-            y.IScale = xs[0].cast<double>();
-            y.RScale = xs[0].cast<double>();
+            y.IScale = xs[5].cast<double>();
+            y.RScale = xs[6].cast<double>();
             return y;
 
         }
@@ -738,7 +549,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::TimeSeries { // __setstate__
             if (xs.size() != 4) {
-                throw std::runtime_error("time_series pickle: invalid state");
+                throw std::runtime_error("[time_series::__setstate__] invalid");
             }
             return v1::TimeSeries{ xs[0].cast<std::chrono::system_clock::time_point>(),
                                    xs[1].cast<double>(),
@@ -770,7 +581,7 @@ PYBIND11_MODULE(ctkpy, m) {
      .def_readwrite("comment", &v1::Info::Comment)
      .def(py::self == py::self) // __eq__
      .def(py::self != py::self) // __ne__
-      .def(py::pickle(
+     .def(py::pickle(
         [](const v1::Info& x) -> py::tuple { // __getstate__
             return py::make_tuple(x.Hospital,
                                   x.TestName,
@@ -791,7 +602,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::Info { // __setstate__
             if (xs.size() != 16) {
-                throw std::runtime_error("info pickle: invalid state");
+                throw std::runtime_error("[info::__setstate__] invalid");
             }
             v1::Info y;
             y.Hospital = xs[0].cast<std::string>();
@@ -819,7 +630,7 @@ PYBIND11_MODULE(ctkpy, m) {
 
     py::class_<v1::UserFile> uf(m, "user_file", py::module_local());
     uf.def(py::init<const std::string&, const std::string&>())
-      .def_readwrite("label", &v1::UserFile::Label)
+      .def_readonly("label", &v1::UserFile::Label)
       .def_readwrite("file_name", &v1::UserFile::FileName)
       .def(py::self == py::self) // __eq__
       .def(py::self != py::self) // __ne__
@@ -829,7 +640,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::UserFile { // __setstate__
             if (xs.size() != 2) {
-                throw std::runtime_error("trigger pickle: invalid state");
+                throw std::runtime_error("[user_file::__setstate__] invalid");
             }
             return v1::UserFile{ xs[0].cast<std::string>(), xs[1].cast<std::string>() };
         }
@@ -851,7 +662,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::EventImpedance { // __setstate__
             if (xs.size() != 2) {
-                throw std::runtime_error("trigger pickle: invalid state");
+                throw std::runtime_error("[event_impedance::__setstate__] invalid");
             }
             return v1::EventImpedance{ xs[0].cast<std::chrono::system_clock::time_point>(), xs[1].cast<std::vector<float>>() };
         }
@@ -880,7 +691,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::EventVideo { // __setstate__
             if (xs.size() != 6) {
-                throw std::runtime_error("trigger pickle: invalid state");
+                throw std::runtime_error("[event_video::__setstate__] invalid");
             }
             v1::EventVideo y;
             y.Stamp = xs[0].cast<std::chrono::system_clock::time_point>();
@@ -915,7 +726,7 @@ PYBIND11_MODULE(ctkpy, m) {
         },
         [](py::tuple xs) -> v1::EventEpoch { // __setstate__
             if (xs.size() != 5) {
-                throw std::runtime_error("trigger pickle: invalid state");
+                throw std::runtime_error("[event_epoch::__setstate__] invalid");
             }
             v1::EventEpoch y;
             y.Stamp = xs[0].cast<std::chrono::system_clock::time_point>();
@@ -935,48 +746,162 @@ PYBIND11_MODULE(ctkpy, m) {
       });
 
 
-    // 1) cnt + evt file
-    py::class_<ctkpy_writer> rw(m, "writer_reflib", py::module_local());
-    rw.def(py::init<const std::string&, v1::RiffType>(), py::arg("fname"), py::arg("type") = v1::RiffType::riff64 )
-      .def_readwrite("param", &ctkpy_writer::header)
-      .def_readwrite("info", &ctkpy_writer::recording_info)
-      .def("add_electrode", &ctkpy_writer::add_ar_electrode)
-      .def("add_electrode", &ctkpy_writer::add_v4_electrode)
-      .def("add_electrode", &ctkpy_writer::add_electrode)
-      .def("row_major", &ctkpy_writer::row_major)
-      .def("column_major", &ctkpy_writer::column_major)
-      .def("close", &ctkpy_writer::close, "Constructs the output cnt file")
-      .def("trigger", &ctkpy_writer::add_trigger)
-      .def("trigger", &ctkpy_writer::add_trigger_ctkpy)
-      .def("triggers", &ctkpy_writer::add_triggers)
-      .def("triggers", &ctkpy_writer::add_triggers_ctkpy)
-      .def("impedance", &ctkpy_writer::add_impedance)
-      .def("impedances", &ctkpy_writer::add_impedances)
-      .def("video", &ctkpy_writer::add_video)
-      .def("videos", &ctkpy_writer::add_videos)
-      .def("epoch", &ctkpy_writer::add_epoch)
-      .def("epochs", &ctkpy_writer::add_epochs)
-      .def("embed", &ctkpy_writer::embed)
-      .def("__repr__", [](const ctkpy_writer& x) { return print(x.header); });
+    py::class_<ctkpy_version> lv(m, "lib_version", py::module_local());
+    lv.def(py::init<>())
+      .def_readonly("major", &ctkpy_version::major)
+      .def_readonly("minor", &ctkpy_version::minor)
+      .def_readonly("patch", &ctkpy_version::patch)
+      .def_readonly("build", &ctkpy_version::build)
+      .def(py::self == py::self) // __eq__
+      .def(py::self != py::self) // __ne__
+      .def(py::pickle(
+        [](const ctkpy_version& x) -> py::tuple { // __getstate__
+            return py::make_tuple(x.major, x.minor, x.patch, x.build);
+        },
+        [](py::tuple xs) -> ctkpy_version { // __setstate__
+            if (xs.size() != 4) {
+                throw std::runtime_error("[lib_version::__setstate__] invalid");
+            }
+            ctkpy_version x;
+            x.major = xs[0].cast<uint32_t>();
+            x.minor = xs[1].cast<uint32_t>();
+            x.patch = xs[2].cast<uint32_t>();
+            x.build = xs[3].cast<uint32_t>();
+            return x;
+        }
+      ))
+      .def("__copy__", [](const ctkpy_version& x){ return ctkpy_version(x); })
+      .def("__deepcopy__", [](const ctkpy_version& x, py::dict){ return ctkpy_version(x); })
+      .def("__repr__", [](const ctkpy_version& x) { return print(x); });
 
-    py::class_<ctkpy_reader> rr(m, "reader_reflib", py::module_local());
+
+    // 1) cnt + evt file
+    py::class_<v1::WriterReflib> rw(m, "writer_reflib", py::module_local());
+    rw.def(py::init<const std::string&, v1::RiffType>(), py::arg("fname"), py::arg("type") = v1::RiffType::riff64 )
+      .def_readwrite("param", &v1::WriterReflib::ParamEeg)
+      .def_readwrite("info", &v1::WriterReflib::RecordingInfo)
+      .def("close", &v1::WriterReflib::Close, "Constructs the output cnt/evt files")
+      .def("add_electrode", [](v1::WriterReflib& self, const v1::Electrode& x) -> void {
+          ctk::impl::validate(x);
+          self.ParamEeg.Electrodes.push_back(x);
+      })
+      .def("add_electrode", [](v1::WriterReflib& self, const active_ref_tuple& x) -> void {
+          const v1::Electrode y{ ar2elc(x) };
+          ctk::impl::validate(y);
+          self.ParamEeg.Electrodes.push_back(y);
+      })
+      .def("row_major", [](v1::WriterReflib& self, const py::array_t<double>& xs) -> void {
+          self.cnt_ptr()->RangeRowMajor(from_row_major(xs));
+      })
+      .def("column_major", [](v1::WriterReflib& self, const py::array_t<double>& xs) -> void {
+          self.cnt_ptr()->RangeRowMajor(from_column_major(xs));
+      })
+      .def("trigger", [](v1::WriterReflib& self, const v1::Trigger& x) -> void {
+          self.cnt_ptr()->AddTrigger(x);
+      })
+      .def("trigger", [](v1::WriterReflib& self, const trigger_tuple& x) -> void {
+          self.cnt_ptr()->AddTrigger(triggertuple2v1trigger(x));
+      })
+      .def("triggers", [](v1::WriterReflib& self, const std::vector<v1::Trigger>& xs) -> void {
+          self.cnt_ptr()->AddTriggers(xs);
+      })
+      .def("triggers", [](v1::WriterReflib& self, const std::vector<trigger_tuple>& xs) -> void {
+          std::vector<v1::Trigger> ys(xs.size());
+          std::transform(begin(xs), end(xs), begin(ys), triggertuple2v1trigger);
+          self.cnt_ptr()->AddTriggers(ys);
+      })
+      .def("impedance", [](v1::WriterReflib& self, const v1::EventImpedance& x) -> void {
+          self.evt_ptr()->AddImpedance(x);
+      })
+      .def("impedances", [](v1::WriterReflib& self, const std::vector<v1::EventImpedance>& xs) -> void {
+          self.evt_ptr()->AddImpedances(xs);
+      })
+      .def("video", [](v1::WriterReflib& self, const v1::EventVideo& x) -> void {
+          self.evt_ptr()->AddVideo(x);
+      })
+      .def("videos", [](v1::WriterReflib& self, const std::vector<v1::EventVideo>& xs) -> void {
+          self.evt_ptr()->AddVideos(xs);
+      })
+      .def("epoch", [](v1::WriterReflib& self, const v1::EventEpoch& x) -> void {
+          self.evt_ptr()->AddEpoch(x);
+      })
+      .def("epochs", [](v1::WriterReflib& self, const std::vector<v1::EventEpoch>& xs) -> void {
+          self.evt_ptr()->AddEpochs(xs);
+      })
+      .def("embed", [](v1::WriterReflib& self, const v1::UserFile& x) -> void {
+          self.cnt_ptr()->Embed(x);
+      })
+      .def("__repr__", [](const v1::WriterReflib& x) { return print(x.ParamEeg); });
+
+    py::class_<v1::ReaderReflib> rr(m, "reader_reflib", py::module_local());
     rr.def(py::init<const std::string&>())
-      .def_readwrite("param", &ctkpy_reader::header)
-      .def_readwrite("info", &ctkpy_reader::recording_info)
-      .def_readwrite("triggers", &ctkpy_reader::triggers)
-      .def_readwrite("impedances", &ctkpy_reader::impedances)
-      .def_readwrite("videos", &ctkpy_reader::videos)
-      .def_readwrite("epochs", &ctkpy_reader::epochs)
-      .def_property_readonly("sample_count", &ctkpy_reader::sample_count)
-      .def("row_major", &ctkpy_reader::row_major)
-      .def("column_major", &ctkpy_reader::column_major)
-      .def_property_readonly("epoch_count", &ctkpy_reader::epoch_count)
-      .def("epoch_row_major", &ctkpy_reader::epoch_row_major)
-      .def("epoch_column_major", &ctkpy_reader::epoch_column_major)
-      .def("epoch_compressed", &ctkpy_reader::epoch_compressed)
-      .def_readonly("embedded", &ctkpy_reader::embedded)
-      .def("extract_embedded", &ctkpy_reader::extract_embedded_file)
-      .def("__repr__", [](const ctkpy_reader& x) { return print(x.header); });
+      .def_readonly("cnt_type", &v1::ReaderReflib::Type)
+      .def_readonly("sample_count", &v1::ReaderReflib::SampleCount)
+      .def_readonly("epoch_count", &v1::ReaderReflib::EpochCount)
+      .def_readonly("param", &v1::ReaderReflib::ParamEeg)
+      .def_readonly("triggers", &v1::ReaderReflib::Triggers)
+      .def_readonly("impedances", &v1::ReaderReflib::Impedances)
+      .def_readonly("videos", &v1::ReaderReflib::Videos)
+      .def_readonly("epochs", &v1::ReaderReflib::Epochs)
+      .def_readonly("info", &v1::ReaderReflib::RecordingInfo)
+      .def("row_major", [] (v1::ReaderReflib& self, int64_t i, int64_t length) -> py::array_t<double> {
+            auto xs{ self.RangeRowMajor(i, length) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::row_major] can not load range");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because RangeRowMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(xs, l, h);
+      })
+      .def("column_major", [] (v1::ReaderReflib& self, int64_t i, int64_t length) -> py::array_t<double> {
+            auto xs{ self.RangeColumnMajor(i, length) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::column_major] can not load range");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because RangeColumnMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(xs, l, h);
+      })
+      .def("epoch_row_major", [] (v1::ReaderReflib& self, int64_t i) -> py::array_t<double> {
+            auto xs{ self.EpochRowMajor(i) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::epoch_row_major] can not load epoch");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because EpochRowMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const size_t length{ xs.size() / channels };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(xs, l, h);
+      })
+      .def("epoch_column_major", [] (v1::ReaderReflib& self, int64_t i) -> py::array_t<double> {
+            auto xs{ self.EpochColumnMajor(i) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::epoch_column_major] can not load epoch");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because EpochColumnMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const size_t length{ xs.size() / channels };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(xs, l, h);
+      })
+      .def("epoch_compressed", &v1::ReaderReflib::EpochCompressed)
+      .def_readwrite("embedded", &v1::ReaderReflib::Embedded)
+      .def("extract_embedded", &v1::ReaderReflib::ExtractEmbedded)
+      .def("__repr__", [](const v1::ReaderReflib& x) { return print(x.ParamEeg); });
 
 
     // 2) evt file only
@@ -988,9 +913,9 @@ PYBIND11_MODULE(ctkpy, m) {
       .def("impedance", &v1::EventReader::ImpedanceEvent)
       .def("video", &v1::EventReader::VideoEvent)
       .def("epoch", &v1::EventReader::EpochEvent)
-      .def_property_readonly("impedances", &v1::EventReader::ImpedanceEvents)
-      .def_property_readonly("videos", &v1::EventReader::VideoEvents)
-      .def_property_readonly("epochs", &v1::EventReader::EpochEvents);
+      .def("impedances", &v1::EventReader::ImpedanceEvents)
+      .def("videos", &v1::EventReader::VideoEvents)
+      .def("epochs", &v1::EventReader::EpochEvents);
 
     py::class_<v1::EventWriter> ew(m, "event_writer", py::module_local());
     ew.def(py::init<const std::string&>())
@@ -1004,22 +929,22 @@ PYBIND11_MODULE(ctkpy, m) {
 
 
     // 3) pyeep interface
-    py::class_<libeep_reader> lr(m, "cnt_in", py::module_local());
+    py::class_<reader_v4> lr(m, "cnt_in", py::module_local());
     lr.def(py::init<const std::string&>())
-      .def("get_channel_count", &libeep_reader::get_channel_count)
-      .def("get_channel", &libeep_reader::get_channel)
-      .def("get_sample_frequency", &libeep_reader::get_sample_frequency)
-      .def("get_sample_count", &libeep_reader::get_sample_count)
-      .def("get_samples", &libeep_reader::get_samples)
-      .def("get_trigger_count", &libeep_reader::get_trigger_count)
-      .def("get_trigger", &libeep_reader::get_trigger);
+      .def("get_channel_count", &reader_v4::get_channel_count)
+      .def("get_channel", &reader_v4::get_channel)
+      .def("get_sample_frequency", &reader_v4::get_sample_frequency)
+      .def("get_sample_count", &reader_v4::get_sample_count)
+      .def("get_samples", &reader_v4::get_samples)
+      .def("get_trigger_count", &reader_v4::get_trigger_count)
+      .def("get_trigger", &reader_v4::get_trigger);
 
     m.def("read_cnt", &read_cnt, "Opens a CNT file for reading");
 
-    py::class_<libeep_writer> lw(m, "cnt_out", py::module_local());
-    lw.def(py::init<const std::string&, int, const std::vector<channel_v4_tuple>&, int>())
-      .def("add_samples", &libeep_writer::add_samples)
-      .def("close", &libeep_writer::close, "Constructs the output cnt file");
+    py::class_<writer_v4> lw(m, "cnt_out", py::module_local());
+    lw.def(py::init<const std::string&, double, const std::vector<channel_v4_tuple>&, int>())
+      .def("add_samples", &writer_v4::add_samples)
+      .def("close", &writer_v4::close, "Constructs the output cnt file");
 
     m.def("write_cnt", &write_cnt, "Opens a CNT file for writing");
 
