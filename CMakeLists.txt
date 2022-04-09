@@ -10,7 +10,7 @@ set(CMAKE_VISIBILITY_INLINES_HIDDEN 1)
 
 option(CTK_PYTHON "Build ctk python bindings?" OFF)
 option(CTK_TEST_SELF "Build ctk test suite?" OFF)
-option(CTK_TEST_LIBEEP "Build lieep/ctk comparison test suite? (downloads and compiles libeep)" OFF)
+option(CTK_TEST_LIBEEP "Build libeep/ctk comparison test suite?" OFF)
 option(CTK_TEST_AFL "Build ctk afl tests?" OFF)
 
 if(MSVC)
@@ -148,8 +148,6 @@ if(CTK_TEST_LIBEEP)
     add_subdirectory(${libeep_SOURCE_DIR}/trunk ${libeep_BINARY_DIR})
     include(CTest)
     add_subdirectory(test/libeep)
-    add_test(NAME compress_epochmux COMMAND compress_epochmux)
-    add_test(NAME file_compeeg COMMAND file_compeeg)
 endif()
 
 if(CTK_TEST_AFL)

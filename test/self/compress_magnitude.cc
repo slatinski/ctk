@@ -20,14 +20,15 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "../catch.hpp"
 
-#include "test/util.h"
-#include "test/wrap_thislib.h"
-
 #include <vector>
 #include <numeric>
 #include <memory>
 #include <iostream>
 #include <chrono>
+
+#include "test/util.h"
+#include "ctk.h"
+#include "file/cnt_reflib.h"
 
 
 namespace ctk { namespace impl { namespace test {
@@ -345,12 +346,14 @@ auto reduction_time(const compressed_epoch& e, const std::vector<int16_t>& order
     matrix_buffer<T> data;
     data.resize(height, e.length);
 
-    libthis reader{ e.length, order, int32_t{}, reflib{} };
-    const auto[input, u0]{ reader.decode(e.data) };
+    api::v1::DecompressReflib reader;
+    reader.sensors(order);
+    const int64_t epoch_length{ static_cast<measurement_count::value_type>(e.length) };
+    const auto input{ reader.column_major(e.data, epoch_length) };
     assert(input.size() == size_t(std::distance(data.matrix(), data.buffer())));
     std::copy(begin(input), end(input), data.matrix());
 
-    const auto i_length{ static_cast<sint>(e.length)};
+    const ptrdiff_t i_length{ cast(static_cast<sint>(e.length), ptrdiff_t{}, ok{}) };
     auto previous{ data.previous() };
     auto first{ data.matrix() };
     auto buffer{ first + i_length };
@@ -399,12 +402,14 @@ auto restore_time(const compressed_epoch& e, const std::vector<int16_t>& order, 
     matrix_buffer<T> data;
     data.resize(height, e.length);
 
-    libthis reader{ e.length, order, int32_t{}, reflib{} };
-    const auto[input, u0]{ reader.decode(e.data) };
+    api::v1::DecompressReflib reader;
+    reader.sensors(order);
+    const int64_t epoch_length{ static_cast<measurement_count::value_type>(e.length) };
+    const auto input{ reader.column_major(e.data, epoch_length) };
     assert(input.size() == size_t(std::distance(data.matrix(), data.buffer())));
     std::copy(begin(input), end(input), data.matrix());
 
-    const auto i_length{ static_cast<sint>(e.length)};
+    const ptrdiff_t i_length{ cast(static_cast<sint>(e.length), ptrdiff_t{}, ok{}) };
     auto previous{ data.previous() };
     auto first{ data.matrix() };
     auto first_buffer{ first + i_length };
@@ -456,8 +461,8 @@ auto restore_time(const compressed_epoch& e, const std::vector<int16_t>& order, 
 auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg = std::string{}) -> void {
     std::cerr << msg << " reduce:";
     if (enc.time2_from_input_one_pass.count() > 0) {
-        const auto time_input{ 100.0 * enc.time2_from_time.count() / enc.time2_from_input_one_pass.count() };
-        const auto two_one{ 100.0 * enc.time2_from_input_two_pass.count() / enc.time2_from_input_one_pass.count() };
+        const double time_input{ 100.0 * static_cast<double>(enc.time2_from_time.count()) / static_cast<double>(enc.time2_from_input_one_pass.count()) };
+        const double two_one{ 100.0 * static_cast<double>(enc.time2_from_input_two_pass.count()) / static_cast<double>(enc.time2_from_input_one_pass.count()) };
 
         std::cerr << " t2 i1[t" << d2s(time_input) << "%,";
         std::cerr << " i2" << d2s(two_one) << "%],";
@@ -468,8 +473,8 @@ auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg =
     }
 
     if (enc.chan_from_input.count() > 0 ) {
-        const auto time_input{ 100.0 * enc.chan_from_time.count() / enc.chan_from_input.count() };
-        const auto alt_input{ 100.0 * enc.chan_from_input_alt.count() / enc.chan_from_input.count() };
+        const double time_input{ 100.0 * static_cast<double>(enc.chan_from_time.count()) / static_cast<double>(enc.chan_from_input.count()) };
+        const double alt_input{ 100.0 * static_cast<double>(enc.chan_from_input_alt.count()) / static_cast<double>(enc.chan_from_input.count()) };
 
         std::cerr << " ch i[t" << d2s(time_input) << "%, a" << d2s(alt_input) << "%]";
     }
@@ -480,7 +485,7 @@ auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg =
 
     std::cerr << " | restore:";
     if (dec.time.count() > 0) {
-        const auto buffer_inplace{ 100.0 * dec.time_buffer.count() / dec.time.count() };
+        const double buffer_inplace{ 100.0 * static_cast<double>(dec.time_buffer.count()) / static_cast<double>(dec.time.count()) };
 
         std::cerr << " t i[b" << d2s(buffer_inplace) << "%],";
     }
@@ -489,7 +494,7 @@ auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg =
     }
 
     if (dec.time2_inplace.count() > 0) {
-        const auto buffer_inplace{ 100.0 * dec.time2_buffer.count() / dec.time2_inplace.count() };
+        const double buffer_inplace{ 100.0 * static_cast<double>(dec.time2_buffer.count()) / static_cast<double>(dec.time2_inplace.count()) };
 
         std::cerr << " t2 i[b" << d2s(buffer_inplace) << "%],";
     }
@@ -498,7 +503,7 @@ auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg =
     }
 
     if (dec.chan_plus.count() > 0) {
-        const auto buffer_plus{ 100.0 * dec.chan_buffer.count() / dec.chan_plus.count() };
+        const double buffer_plus{ 100.0 * static_cast<double>(dec.chan_buffer.count()) / static_cast<double>(dec.chan_plus.count()) };
 
         std::cerr << " ch a[b" << d2s(buffer_plus) << "%]";
     }
