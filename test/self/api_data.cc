@@ -138,7 +138,7 @@ TEST_CASE("odd input", "[consistency]") {
     const auto sys_max{ system_clock::time_point::max() };
     const date::year_month_day epoch{ date::December/30/1899 };
     const auto e_len{ date::sys_days{ epoch }.time_since_epoch() }; // negative: 1899/12/30 < 1970/1/1
-    const auto t_min{ sys_min + 1h + 1ns };
+    const auto t_min{ sys_min + 1h + 1us };
     const auto t_max{ sys_max + e_len - 2h };
     REQUIRE(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(t_min)) == t_min);
     REQUIRE(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(t_max)) == t_max);
