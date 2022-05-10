@@ -119,13 +119,10 @@ namespace ctk { namespace api {
             // assemblies the generated files into a single RIFF file.
             // Close is the last function to call before destroying the object.
             auto Close() -> void;
-            auto IsClosed() const -> bool;
+            auto IsClosed() const -> bool; // can be called after Close
 
             auto RecordingInfo(const Info&) -> void;
             auto ParamEeg(const TimeSeries&) -> void;
-            //auto add_avg_series(const mean_series& description) -> bool;
-            //auto add_stddev_series(const mean_series& description) -> bool;
-            //auto add_wav_series(const wav_series& description) -> bool;
 
             /*
             the input is in column major format.
@@ -136,8 +133,8 @@ namespace ctk { namespace api {
                 13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
                 14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
             } */
-            auto RangeColumnMajor(const std::vector<double>&) -> void;
-            auto RangeColumnMajorInt32(const std::vector<int32_t>&) -> void;
+            auto ColumnMajor(const std::vector<double>&) -> void;
+            auto ColumnMajorInt32(const std::vector<int32_t>&) -> void;
 
             /*
             the input is in row major format.
@@ -147,11 +144,11 @@ namespace ctk { namespace api {
                 21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
                 31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
             } */
-            auto RangeRowMajor(const std::vector<double>&) -> void;
-            auto RangeRowMajorInt32(const std::vector<int32_t>&) -> void;
+            auto RowMajor(const std::vector<double>&) -> void;
+            auto RowMajorInt32(const std::vector<int32_t>&) -> void;
 
             // libeep v4 interface: column major, float
-            auto RangeV4(const std::vector<float>&) -> void;
+            auto LibeepV4(const std::vector<float>&) -> void;
 
             auto AddTrigger(const Trigger&) -> void;
             auto AddTriggers(const std::vector<Trigger>&) -> void;
@@ -163,16 +160,19 @@ namespace ctk { namespace api {
             // compatible extension: user supplied content placed into a top-level chunk.
             // UserFile::file_name should exist and be accessible when Close is called.
             // UserFile::label is a 4 byte label.
-            // UserFile::label cannot be any of: "eeph", "info", "evt ", "raw3", "rawf", "stdd", "tfh ", "tfd ", "refh" or "imp ".
-            // at most one user supplied chunk can have this label.
+            // UserFile::label can not be any of: "eeph", "info", "evt ", "raw3",
+            // "rawf", "stdd", "tfh ", "tfd ", "refh", "imp ", "nsh ", "vish", "egih",
+            // "egig", "egiz", "binh", "xevt", "xseg", "xsen", "xtrg".
+            // a label can not be used for more than one user supplied chunk.
             auto Embed(const UserFile&) -> void;
 
-            // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case)
+            // reader functionality (completely untested, especially for unsynchronized reads during writing - the intended use case).
+            // these functions will not work without application-side synchronization.
             auto Commited() const -> int64_t;
-            auto ReadRangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
-            auto ReadRangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
-            auto ReadRangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
-            auto ReadRangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto ReadRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto ReadColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto ReadRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto ReadColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
 
         private:
             struct impl;

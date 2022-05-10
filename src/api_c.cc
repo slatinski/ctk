@@ -240,7 +240,7 @@ namespace {
                 std::vector<double> xs(size);
                 std::copy(matrix, matrix + size, begin(xs));
 
-                writer.cnt_ptr()->RangeColumnMajor(xs);
+                writer.cnt_ptr()->ColumnMajor(xs);
                 return EXIT_SUCCESS;
             }
             catch(const std::exception&) {
@@ -255,7 +255,7 @@ namespace {
                 std::vector<int32_t> xs(size);
                 std::copy(matrix, matrix + size, begin(xs));
 
-                writer.cnt_ptr()->RangeColumnMajorInt32(xs);
+                writer.cnt_ptr()->ColumnMajorInt32(xs);
                 return EXIT_SUCCESS;
             }
             catch(const std::exception&) {
@@ -270,7 +270,7 @@ namespace {
                 std::vector<double> xs(size);
                 std::copy(matrix, matrix + size, begin(xs));
 
-                writer.cnt_ptr()->RangeRowMajor(xs);
+                writer.cnt_ptr()->RowMajor(xs);
                 return EXIT_SUCCESS;
             }
             catch(const std::exception&) {
@@ -285,7 +285,7 @@ namespace {
                 std::vector<int32_t> xs(size);
                 std::copy(matrix, matrix + size, begin(xs));
 
-                writer.cnt_ptr()->RangeRowMajorInt32(xs);
+                writer.cnt_ptr()->RowMajorInt32(xs);
                 return EXIT_SUCCESS;
             }
             catch(const std::exception&) {
@@ -300,7 +300,7 @@ namespace {
                 std::vector<float> xs(size);
                 std::copy(matrix, matrix + size, begin(xs));
 
-                writer.cnt_ptr()->RangeV4(xs);
+                writer.cnt_ptr()->LibeepV4(xs);
                 return EXIT_SUCCESS;
             }
             catch(const std::exception&) {

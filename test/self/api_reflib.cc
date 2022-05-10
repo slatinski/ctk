@@ -40,9 +40,9 @@ TEST_CASE("read write column major", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.ParamEeg(header);
 
-        writer.RangeColumnMajorInt32(xs);
-        writer.RangeColumnMajorInt32(xs);
-        writer.RangeColumnMajorInt32(xs);
+        writer.ColumnMajorInt32(xs);
+        writer.ColumnMajorInt32(xs);
+        writer.ColumnMajorInt32(xs);
 
         writer.Close();
     }
@@ -73,9 +73,9 @@ TEST_CASE("read write column major scaled", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.ParamEeg(header);
 
-        writer.RangeColumnMajor(xs);
-        writer.RangeColumnMajor(xs);
-        writer.RangeColumnMajor(xs);
+        writer.ColumnMajor(xs);
+        writer.ColumnMajor(xs);
+        writer.ColumnMajor(xs);
 
         writer.Close();
     }
@@ -114,9 +114,9 @@ TEST_CASE("read write row major", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.ParamEeg(header);
 
-        writer.RangeRowMajorInt32(xs);
-        writer.RangeRowMajorInt32(xs);
-        writer.RangeRowMajorInt32(xs);
+        writer.RowMajorInt32(xs);
+        writer.RowMajorInt32(xs);
+        writer.RowMajorInt32(xs);
 
         writer.Close();
     }
@@ -155,9 +155,9 @@ TEST_CASE("read write row major scaled", "[consistency] [read] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         writer.ParamEeg(header);
 
-        writer.RangeRowMajor(xs);
-        writer.RangeRowMajor(xs);
-        writer.RangeRowMajor(xs);
+        writer.RowMajor(xs);
+        writer.RowMajor(xs);
+        writer.RowMajor(xs);
 
         writer.Close();
     }
@@ -211,7 +211,7 @@ TEST_CASE("writer close", "[consistency] [write]") {
         ctk::CntWriterReflib writer{ temporary, RiffType::riff64 };
         REQUIRE_THROWS(writer.AddTrigger({ 0, "0" }));
         REQUIRE_THROWS(writer.AddTriggers({ { 0, "0" }, { 0, "1" } }));
-        REQUIRE_THROWS(writer.RangeColumnMajor({ 0 }));
+        REQUIRE_THROWS(writer.ColumnMajor({ 0 }));
         REQUIRE_THROWS(writer.Flush());
         writer.History("");
         writer.Close();
@@ -226,7 +226,7 @@ TEST_CASE("writer close", "[consistency] [write]") {
         x.Electrodes.emplace_back("1", "ref");
         x.SamplingFrequency = 1;
         writer.ParamEeg(x);
-        writer.RangeColumnMajor({ 0 });
+        writer.ColumnMajor({ 0 });
         writer.Close();
         REQUIRE(writer.IsClosed());
     }
@@ -245,7 +245,7 @@ TEST_CASE("writer close", "[consistency] [write]") {
         x.SamplingFrequency = 1;
         REQUIRE_THROWS(writer.ParamEeg(x));
         REQUIRE_THROWS(writer.RecordingInfo(ctk::Info{}));
-        REQUIRE_THROWS(writer.RangeColumnMajor({ 0 }));
+        REQUIRE_THROWS(writer.ColumnMajor({ 0 }));
         REQUIRE_THROWS(writer.AddTrigger({ 0, "0" }));
         REQUIRE_THROWS(writer.AddTriggers({ { 0, "0" }, { 0, "1" } }));
         REQUIRE_THROWS(writer.Flush());

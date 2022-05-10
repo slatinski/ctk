@@ -192,7 +192,7 @@ namespace {
         }
 
         auto add_samples(const std::vector<float>& xs) -> void {
-            writer.cnt_ptr()->RangeV4(xs);
+            writer.cnt_ptr()->LibeepV4(xs);
         }
 
         auto close() -> void {
@@ -791,10 +791,10 @@ PYBIND11_MODULE(ctkpy, m) {
           self.ParamEeg.Electrodes.push_back(y);
       })
       .def("row_major", [](v1::WriterReflib& self, const py::array_t<double>& xs) -> void {
-          self.cnt_ptr()->RangeRowMajor(from_row_major(xs));
+          self.cnt_ptr()->RowMajor(from_row_major(xs));
       })
       .def("column_major", [](v1::WriterReflib& self, const py::array_t<double>& xs) -> void {
-          self.cnt_ptr()->RangeRowMajor(from_column_major(xs));
+          self.cnt_ptr()->RowMajor(from_column_major(xs));
       })
       .def("trigger", [](v1::WriterReflib& self, const v1::Trigger& x) -> void {
           self.cnt_ptr()->AddTrigger(x);

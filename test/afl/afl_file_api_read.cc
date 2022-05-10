@@ -57,7 +57,7 @@ auto generate_input_file(const std::string& fname) -> void {
     writer.History(note);
 
     for (size_t epoch{ 0 }; epoch < 3; ++epoch) {
-        writer.RangeColumnMajorInt32(input);
+        writer.ColumnMajorInt32(input);
     }
 
     std::vector<ctk::Trigger> triggers;

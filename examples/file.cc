@@ -55,7 +55,7 @@ auto write(const std::filesystem::path& fname) -> void {
         11, 21, 31, 41,
         12, 22, 32, 42
     };
-    writer.RangeColumnMajor(column_major_matrix);
+    writer.ColumnMajor(column_major_matrix);
 
     // 2 samples, 4 channels, row major first
     std::vector<double> row_major_matrix{
@@ -64,8 +64,8 @@ auto write(const std::filesystem::path& fname) -> void {
         33, 34,
         43, 44
     };
-    writer.RangeRowMajor(row_major_matrix);
-    writer.RangeColumnMajor(column_major_matrix);
+    writer.RowMajor(row_major_matrix);
+    writer.ColumnMajor(column_major_matrix);
 
     std::vector<ctk::Trigger> triggers{ { 0, "1" }, { 12, "2", }, { 32, "1" } };
     writer.AddTriggers(triggers);
