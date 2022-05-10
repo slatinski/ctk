@@ -655,30 +655,6 @@ public:
         range_column_major_scaled(ys);
     }
 
-    /*
-    NB: do NOT interleave calls to range_xxx_major and epoch_xxx_major.
-    use either only the range interface or the epoch interface functions for time signal writing.
-
-    epoch interface:
-    omits the intermediate buffer used to store the variable sized user input until epoch length measurements are collected.
-    this interface needs to be called in the following fashion:
-        - all input epochs but the last consist of epoch length measurements
-        - the last epoch might be shorter
-    */
-    auto epoch_row_major(const std::vector<T>& client) -> void {
-        commit(client, signal_length(client, height));
-    }
-
-    auto epoch_column_major(const std::vector<T>& client) -> void {
-        const auto length{ signal_length(client, height) };
-
-        buffer.resize(client.size());
-        constexpr const column_major2row_major transpose;
-        transpose.from_client(begin(client), begin(buffer), encode.row_order(), length); // demultiplex
-
-        commit(buffer, length);
-    }
-
     auto trigger(const api::v1::Trigger& x) -> void {
         epoch_writer.append(x);
     }
@@ -798,9 +774,8 @@ private:
             ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
-        const auto epoch_length{ epoch_writer.epoch_length() };
-        closed = length < epoch_length;
 
+        const auto epoch_length{ epoch_writer.epoch_length() };
         if (cache.size() < input.size() || length < 1 || epoch_length < length) {
             std::ostringstream oss;
             oss << "[cnt_writer_flat::commit, cnt_reflib] invalid input cache size " << cache.size()
