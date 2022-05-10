@@ -160,7 +160,7 @@ auto apply_scaling(const std::vector<T>& xs, const std::vector<double>& scales, 
     auto first_in{ begin(xs) };
     auto first_out{ begin(ys) };
     for (double factor : scales) {
-        Op convert{ factor };
+        const Op convert{ factor };
 
         const auto last_in{ first_in + length };
         const auto last_out{ std::transform(first_in, last_in, first_out, convert) };
@@ -195,7 +195,7 @@ public:
     explicit
     reflib_reader_common(const std::filesystem::path& fname)
     : reader{ fname }
-    , cached{ std::numeric_limits<measurement_count::value_type>::max() }
+    , cached{ std::numeric_limits<epoch_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
     , scales{ reader_scales(reader.common_epoch_reader().param_eeg().Electrodes)  } {
@@ -205,7 +205,7 @@ public:
     // constructs epoch_reader_flat reader
     reflib_reader_common(const std::filesystem::path& fname, const std::vector<tagged_file>& available)
     : reader{ fname, available }
-    , cached{ std::numeric_limits<measurement_count::value_type>::max() }
+    , cached{ std::numeric_limits<epoch_count::value_type>::max() }
     , cached_epoch_length{ 0 }
     , cache_index{ measurement_count{ std::numeric_limits<measurement_count::value_type>::max() } }
     , scales{ reader_scales(reader.common_epoch_reader().param_eeg().Electrodes)  } {
@@ -468,7 +468,7 @@ private:
         buffer.resize(as_sizet(matrix_size(height, amount)));
         const buf_win<IOut> output{ begin(buffer), end(buffer), height, amount};
 
-        while(0 < due && load_epoch(i)) {
+        while (0 < due && load_epoch(i)) {
             using I = decltype(begin(cache));
             const buf_win<I> input{ begin(cache), end(cache), height, cached_epoch_length };
 
@@ -562,7 +562,6 @@ public:
     ~cnt_writer_flat() = default;
 
     /*
-    range interface: encodes variable amount of samples
     the input is in row major format.
     used internally by libeep and by this library.
     vector<T> client {
@@ -753,7 +752,7 @@ private:
         using IOut = decltype(begin(cache));
         const buf_win<IOut> output{ begin(cache), end(cache), height, epoch_length};
 
-        auto input_index{ measurement_count{ 0 } };
+        measurement_count input_index{ 0 };
         while(input_index < length) {
             const auto stride{ std::min(epoch_length - cache_index, length - input_index) };
             submatrix(stride, input, input_index, output, cache_index);
