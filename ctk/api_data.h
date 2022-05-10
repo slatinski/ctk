@@ -75,8 +75,8 @@ namespace v1 {
         friend auto operator!=(const DcDate&, const DcDate&) -> bool = default;
     };
     auto operator<<(std::ostream&, const DcDate&) -> std::ostream&;
-    auto dcdate2timepoint(v1::DcDate) -> std::chrono::system_clock::time_point;
-    auto timepoint2dcdate(std::chrono::system_clock::time_point) -> v1::DcDate;
+    auto dcdate2timepoint(DcDate) -> std::chrono::system_clock::time_point;
+    auto timepoint2dcdate(std::chrono::system_clock::time_point) -> DcDate;
     auto print(std::ostream&, std::chrono::system_clock::time_point) -> std::ostream&;
 
 
