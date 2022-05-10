@@ -54,15 +54,15 @@ int ctk_reflib_writer_epoch_length(ctk_reflib_writer*, int64_t);
 int ctk_reflib_writer_start_time(ctk_reflib_writer*, const struct timespec*);
 
 // data input phase
-int ctk_reflib_writer_column_major(ctk_reflib_writer*, const double* matrix, size_t element_count);
-int ctk_reflib_writer_column_major_int32(ctk_reflib_writer*, const int32_t* matrix, size_t element_count);
-int ctk_reflib_writer_row_major(ctk_reflib_writer*, const double* matrix, size_t element_count);
-int ctk_reflib_writer_row_major_int32(ctk_reflib_writer*, const int32_t* matrix, size_t element_count);
-int ctk_reflib_writer_v4(ctk_reflib_writer*, const float* matrix, size_t element_count);
+int ctk_reflib_writer_column_major(ctk_reflib_writer*, const double* matrix, size_t msize);
+int ctk_reflib_writer_column_major_int32(ctk_reflib_writer*, const int32_t* matrix, size_t msize);
+int ctk_reflib_writer_row_major(ctk_reflib_writer*, const double* matrix, size_t msize);
+int ctk_reflib_writer_row_major_int32(ctk_reflib_writer*, const int32_t* matrix, size_t msize);
+int ctk_reflib_writer_v4(ctk_reflib_writer*, const float* matrix, size_t msize);
 
 int ctk_reflib_writer_trigger(ctk_reflib_writer*, int64_t sample, const char* code);
 
-int ctk_reflib_writer_impedance(ctk_reflib_writer*, const struct timespec*, const float* impedances, size_t element_count);
+int ctk_reflib_writer_impedance(ctk_reflib_writer*, const struct timespec*, const float* impedances, size_t isize);
 int ctk_reflib_writer_video(ctk_reflib_writer*, const struct timespec*, double duration, int32_t trigger_code);
 int ctk_reflib_writer_epoch(ctk_reflib_writer*, const struct timespec*, double duration, double offset, int32_t trigger_code);
 
@@ -113,11 +113,11 @@ double ctk_reflib_reader_sampling_frequency(ctk_reflib_reader*);
 int64_t ctk_reflib_reader_epoch_length(ctk_reflib_reader*);
 
 int64_t ctk_reflib_reader_sample_count(ctk_reflib_reader*);
-int64_t ctk_reflib_reader_column_major(ctk_reflib_reader*, int64_t i, int64_t samples, double* matrix, size_t element_count);
-int64_t ctk_reflib_reader_column_major_int32(ctk_reflib_reader*, int64_t i, int64_t samples, int32_t* matrix, size_t element_count);
-int64_t ctk_reflib_reader_row_major(ctk_reflib_reader*, int64_t i, int64_t samples, double* matrix, size_t element_count);
-int64_t ctk_reflib_reader_row_major_int32(ctk_reflib_reader*, int64_t i, int64_t samples, int32_t* matrix, size_t element_count);
-int64_t ctk_reflib_reader_v4(ctk_reflib_reader*, int64_t i, int64_t samples, float* matrix, size_t element_count);
+int64_t ctk_reflib_reader_column_major(ctk_reflib_reader*, int64_t i, int64_t samples, double* matrix, size_t msize);
+int64_t ctk_reflib_reader_column_major_int32(ctk_reflib_reader*, int64_t i, int64_t samples, int32_t* matrix, size_t msize);
+int64_t ctk_reflib_reader_row_major(ctk_reflib_reader*, int64_t i, int64_t samples, double* matrix, size_t msize);
+int64_t ctk_reflib_reader_row_major_int32(ctk_reflib_reader*, int64_t i, int64_t samples, int32_t* matrix, size_t msize);
+int64_t ctk_reflib_reader_v4(ctk_reflib_reader*, int64_t i, int64_t samples, float* matrix, size_t msize);
 
 size_t ctk_reflib_reader_trigger_count(ctk_reflib_reader*);
 int ctk_reflib_reader_trigger(ctk_reflib_reader*, size_t i, int64_t* sample, char* code, size_t csize);
