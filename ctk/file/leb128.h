@@ -23,6 +23,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <vector>
 #include <string>
 #include <cmath>
+#include <cassert>
 
 #include "exception.h"
 #include "logger.h"
