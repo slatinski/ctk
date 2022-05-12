@@ -159,7 +159,6 @@ namespace ctk { namespace impl {
     auto restore_row_time2_from_buffer(I first, I last, I output) -> I {
         using T = typename std::iterator_traits<I>::value_type;
         static_assert(std::is_unsigned<T>::value, "signed integer overflow");
-        assert(first != output);
 
         if (first == last) {
             return output;

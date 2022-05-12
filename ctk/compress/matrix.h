@@ -870,7 +870,6 @@ public:
 
         auto previous{ common.data.previous() };
         auto first{ common.data.matrix() };
-        auto last{ common.data.buffer() };
         multiplex.from_client(begin(input), first, common.order, samples); // signed -> unsigned conversion
 
         const measurement_count::value_type l{ samples };
