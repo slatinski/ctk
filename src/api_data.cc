@@ -387,7 +387,7 @@ namespace ctk { namespace api {
 
 
         // performs the computation and comparison on doubles in order to avoid signed integer overflow.
-        // because of that the precision around the extremes suffers.
+        // because of that the precision around the extremes is reduced.
         static
         auto clock_guard(const ctk::api::v1::DcDate& x) -> bool {
             using namespace std::chrono;
@@ -396,16 +396,18 @@ namespace ctk { namespace api {
             using sys_tp = time_point<system_clock, dsys>;
             using T = system_clock::rep;
 
-            constexpr const sys_tp epoch{ date::sys_days{ dcdate_epoch } };
-            constexpr const sys_tp tmin{ dsys{ static_cast<double>(std::numeric_limits<T>::min()) } };
-            constexpr const sys_tp tmax{ dsys{ static_cast<double>(std::numeric_limits<T>::max()) } };
-            constexpr const dsys min_slack{ 1h };
-            constexpr const dsys max_slack{ date::years{ 70 } + date::days{ 10 } };
+            constexpr const sys_tp t_min{ dsys{ static_cast<double>(std::numeric_limits<T>::min()) } };
+            constexpr const sys_tp t_max{ dsys{ static_cast<double>(std::numeric_limits<T>::max()) } };
+            constexpr const sys_tp e{ date::sys_days{ dcdate_epoch } }; // negative: 1899/12/30 < 1970/1/1
+            constexpr const dsys slack{ 1h };
+            constexpr const sys_tp e_max{ t_max + e.time_since_epoch() - slack };
+            constexpr const sys_tp e_min{ t_min + slack };
 
             const dsec seconds{ days2seconds(x.Date) };
             const dsys subseconds{ to_sys_clock(x.Fraction) };
-            const sys_tp y{ epoch + seconds + subseconds };
-            return ((tmin + min_slack) < y) && (y < (tmax - max_slack));
+            const sys_tp y{ e + seconds + subseconds };
+
+            return e_min < y && y < e_max;
         }
 
 

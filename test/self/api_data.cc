@@ -136,23 +136,23 @@ TEST_CASE("odd input", "[consistency]") {
 
     const auto sys_min{ system_clock::time_point::min() };
     const auto sys_max{ system_clock::time_point::max() };
+    const date::year_month_day epoch{ date::December/30/1899 };
+    const auto e_len{ date::sys_days{ epoch }.time_since_epoch() }; // negative: 1899/12/30 < 1970/1/1
+    const auto t_min{ sys_min + 1h + 1ns };
+    const auto t_max{ sys_max + e_len - 2h };
+    REQUIRE(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(t_min)) == t_min);
+    REQUIRE(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(t_max)) == t_max);
+    REQUIRE_THROWS(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(sys_min + 1h)));
+    REQUIRE_THROWS(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(sys_max + e_len - 1h)));
 
-    const auto almost_min{ sys_min + days{ 1 } + 1us };
-    const auto dmin{ api::v1::timepoint2dcdate(almost_min) };
-    REQUIRE(api::v1::dcdate2timepoint(dmin) == almost_min);
-
-    const auto almost_max{ sys_max - (date::years{ 70 } + date::days{ 10 } + 30min) };
-    const auto dmax{ api::v1::timepoint2dcdate(almost_max) };
-    REQUIRE(api::v1::dcdate2timepoint(dmax) == almost_max);
-
-    auto begin{ almost_min };
+    auto begin{ t_min };
     auto end{ begin + 3ms };
     while (begin != end) {
         REQUIRE(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(begin)) == begin);
         begin += 1us;
     }
 
-    begin = almost_max;
+    begin = t_max;
     end = begin - 3ms;
     while (begin != end) {
         REQUIRE(api::v1::dcdate2timepoint(api::v1::timepoint2dcdate(begin)) == begin);
