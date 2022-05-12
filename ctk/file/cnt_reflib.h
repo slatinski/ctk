@@ -382,15 +382,12 @@ private:
         return !cache.empty() && cache_index < cached_epoch_length;
     }
 
-    auto load_epoch(epoch_count i) -> bool {
-        if (i == cached) {
-            return is_valid();
-        }
-
-        const compressed_epoch ce{ reader.common_epoch_reader().epoch(i) };
+    auto load_epoch(epoch_count n) -> bool {
+        const compressed_epoch ce{ reader.common_epoch_reader().epoch(n) };
         if (ce.data.empty()) {
             cache.clear();
             cached_epoch_length = measurement_count{ 0 };
+            cached = epoch_count{ std::numeric_limits<epoch_count::value_type>::max() };
             return false;
         }
 
@@ -398,26 +395,34 @@ private:
         constexpr const row_major2row_major copy;
 
         cache = decode(ce.data, ce.length, copy);
-        cached = i;
         cached_epoch_length = ce.length;
+        cached = n;
         assert(cached_epoch_length <= epoch_length());
-
-        return is_valid();
+        return !cache.empty();
     }
 
     auto load_epoch(measurement_count n) -> bool {
-        using Int = measurement_count::value_type;
-
         if (n < 0 || epoch_length() < 1 || sample_count() <= n) {
             return false;
         }
 
-        const Int i{ n };
-        const Int el{ epoch_length() };
+        const measurement_count::value_type i{ n };
+        const epoch_count::value_type el{ epoch_length() };
         const auto[quot, rem]{ std::div(i, el) };
 
-        cache_index = measurement_count{ cast(rem, sint{}, guarded{}) };
-        return load_epoch(epoch_count{ cast(quot, sint{}, guarded{}) });
+        const epoch_count epoch_index{ quot };
+        cache_index = measurement_count{ rem };
+        if (cached == epoch_index) {
+            return is_valid();
+        }
+
+        if (!load_epoch(epoch_index)) {
+            assert(cache.empty());
+            cache_index = measurement_count{ std::numeric_limits<measurement_count::value_type>::max() };
+            return false;
+        }
+
+        return is_valid();
     }
 
     auto populate_buffer(measurement_count i, measurement_count amount) -> bool {
