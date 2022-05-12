@@ -18,100 +18,123 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 #include <iostream>
-#include <numeric>
 #include "ctk.h"
 
-auto write(const std::string& fname) -> void {
-    std::cerr << "writing " << fname << "\n";
-
-    const std::string note{ "initial recording" };
-    ctk::Info info;
-    info.SubjectName = "Jane Doe";
-    info.Physician = "Dr X";
-    info.Technician = "Mr Y";
-    info.MachineMake = "eego";
-    info.MachineModel = "201";
-    info.MachineSn = "0000";
-
-    constexpr const int64_t epoch_length{ 4 };
-    constexpr const int64_t height{ 3 };
-    std::vector<int32_t> input(epoch_length * height);
-    std::iota(begin(input), end(input), 0);
-
-    ctk::TimeSeries description;
-    description.EpochLength = epoch_length;
-    description.SamplingFrequency = 1024;
-    description.StartTime = std::chrono::system_clock::now();
-    description.Electrodes.resize(height);
-    for (int64_t i{ 0 }; i < height; ++i) {
-        description.Electrodes[i].ActiveLabel = "fpx";
-        description.Electrodes[i].Reference = "ref";
-        description.Electrodes[i].Unit = "u";
-        description.Electrodes[i].IScale = 1.0;
-        description.Electrodes[i].RScale = 1.0;
-    }
+auto write(const std::filesystem::path& fname) -> void {
+    std::cout << "writing " << fname << "\n";
+    std::cout << "ctk " << CTK_MAJOR << "." << CTK_MINOR << "." << CTK_PATCH << "." << CTK_BUILD << "\n";
 
     ctk::CntWriterReflib writer{ fname, ctk::RiffType::riff64 };
-    writer.ParamEeg(description);
+
+    // mandatory
+    ctk::TimeSeries param;
+    param.SamplingFrequency = 4096;
+    param.Electrodes = {
+        { "1", "ref" }, // active label, reference
+        { "2", "ref" },
+        { "3", "ref", "uV" }, // active label, reference, unit
+        { "4", "ref", "uV", 1, 1/ctk::Electrode::default_scaling_factor() } // active label, reference, unit, iscale, rscale
+    };
+    param.StartTime = std::chrono::system_clock::now();
+    writer.ParamEeg(param);
+    // note: for compatibility reasons do not use "V" in the electrode unit. on the other hand "uV", "nV", etc are fine.
+    // for interoperability please use utf8 compatible strings. eg use "uV" instead of "µV"
+
+    // optional
+    ctk::Info info;
+    info.SubjectName = "Person X";
+    info.Physician = "Doctor Y";
+    info.Technician = "Operator Z";
+    info.MachineMake = "eego";
+    info.MachineModel = "ee-201";
+    info.MachineSn = "0000";
     writer.RecordingInfo(info);
-    writer.History(note);
 
-    for (int epoch{ 0 }; epoch < 25; ++epoch) {
-        writer.RangeColumnMajorInt32(input);
-    }
+    // 2 samples, 4 channels, column major first
+    std::vector<double> column_major_matrix{
+        11, 21, 31, 41,
+        12, 22, 32, 42
+    };
+    writer.RangeColumnMajor(column_major_matrix);
 
-    std::vector<ctk::Trigger> triggers;
-    for (int sample{ 0 }; sample < 16; ++sample) {
-        triggers.emplace_back(sample, "code");
-    }
+    // 2 samples, 4 channels, row major first
+    std::vector<double> row_major_matrix{
+        13, 14,
+        23, 24,
+        33, 34,
+        43, 44
+    };
+    writer.RangeRowMajor(row_major_matrix);
+    writer.RangeColumnMajor(column_major_matrix);
+
+    std::vector<ctk::Trigger> triggers{ { 0, "1" }, { 12, "2", }, { 32, "1" } };
+    writer.AddTriggers(triggers);
+    writer.AddTrigger({ 3, "14" });
     writer.AddTriggers(triggers);
 
     writer.Close();
 }
 
-auto read(const std::string& fname) -> void {
+auto read(const std::filesystem::path& fname) -> void {
+    std::cout << "reading " << fname << "\n";
+
     ctk::CntReaderReflib reader{ fname };
 
-    const auto total{ reader.SampleCount() };
-    const auto description{ reader.ParamEeg() };
-    const auto information{ reader.RecordingInfo() };
-    const auto triggers{ reader.Triggers() };
-    const auto history{ reader.History() };
+    auto total{ reader.SampleCount() };
+    auto param{ reader.ParamEeg() };
+    auto info{ reader.RecordingInfo() };
+    auto triggers{ reader.Triggers() };
 
-    std::cerr << "sample count: " << total << "\n";
-    std::cerr << "channel count: " << description.Electrodes.size() << "\n";
-    std::cerr << description << "\n";
-    std::cerr << "info: " << information << "\n";
-    std::cerr << "triggers: " << triggers.size() << "\n";
-    std::cerr << "history: " << history << "\n";
+    std::cout << param << "\n";
 
-    size_t accessible{ 0 };
+    std::cout << "triggers { ";
+    for (const auto& t : triggers) {
+        std::cout << "["<< t << "] ";
+    }
+    std::cout << "}\n\n";
+
+    std::cout << "data matrix " << total << " samples, " << param.Electrodes.size() << " channels: \n";
     for (int64_t i{ 0 }; i < total; ++i) {
-        const auto sample{ reader.RangeColumnMajorInt32(i, 1) };
-        if (sample.size() == description.Electrodes.size()) {
-            ++accessible;
+        const auto one_sample{ reader.RangeRowMajor(i, 1) };
+        if (one_sample.size() != param.Electrodes.size()) {
+            std::cerr << "sample " << i << " is not accessible\n";
+            continue;
         }
+
+        for (double x : one_sample) {
+            std::cout << x << " ";
+        }
+        std::cout << "\n";
     }
 
-    std::cerr << accessible << "/" << total << " samples accessible\n";
+    std::cout << info.SubjectName << "\n";
 }
 
-auto main(int argc, char* argv[]) -> int {
+auto main(int, char*[]) -> int {
     try {
-        if (argc < 2) {
-            const std::string fname{ "cnt_file.cnt" };
+        std::filesystem::path fname{ "example.cnt" };
 
-            write(fname);
-            read(fname);
-        }
-        else {
-            const std::string fname{ argv[1] };
+        write(fname);
+        read(fname);
 
-            read(fname);
-        }
+        std::cout << "removing " << fname << "\n";
+        std::filesystem::remove(fname);
+    }
+    catch(const ctk::CtkData& x) {
+        std::cerr << x.what() << "\n";
+        return 1;
+    }
+    catch(const ctk::CtkLimit& x) {
+        std::cerr << x.what() << "\n";
+        return 1;
+    }
+    catch(const ctk::CtkBug& x) {
+        std::cerr << x.what() << "\n";
+        return 1;
     }
     catch(const std::exception& x) {
         std::cerr << x.what() << "\n";
+        return 1;
     }
 
     return 0;

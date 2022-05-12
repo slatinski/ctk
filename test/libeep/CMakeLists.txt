@@ -1,0 +1,13 @@
+add_executable(api_v4 api_v4.c input_txt.c comparison.c)
+target_link_libraries(api_v4 PRIVATE ctk_static EepStatic ${LIB_FS})
+target_include_directories(api_v4 PRIVATE ctk_static ${CMAKE_SOURCE_DIR} ${libeep_SOURCE_DIR}/trunk/src)
+target_link_directories(api_v4 PRIVATE ${libeep_BINARY_DIR})
+target_compile_options(api_v4 PRIVATE ${LIBEEP_C_FLAGS})
+target_compile_definitions(api_v4 PRIVATE _FILE_OFFSET_BITS=64)
+
+add_executable(api_eeg api_eeg.c input_txt.c comparison.c)
+target_link_libraries(api_eeg PRIVATE ctk_static EepStatic ${LIB_FS})
+target_include_directories(api_eeg PRIVATE ctk_static ${CMAKE_SOURCE_DIR} ${libeep_SOURCE_DIR}/trunk/src)
+target_link_directories(api_eeg PRIVATE ${libeep_BINARY_DIR})
+target_compile_options(api_eeg PRIVATE ${LIBEEP_C_FLAGS})
+target_compile_definitions(api_eeg PRIVATE _FILE_OFFSET_BITS=64)

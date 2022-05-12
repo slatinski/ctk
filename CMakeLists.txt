@@ -95,6 +95,8 @@ add_library(ctk_static
         src/api_reflib.cc
         ctk/api_bindings.h
         src/api_bindings.cc
+        ctk/api_c.h
+        src/api_c.cc
 )
 target_include_directories(ctk_static
     PUBLIC
@@ -117,6 +119,8 @@ add_library(ctk
         src/api_reflib.cc
         ctk/api_bindings.h
         src/api_bindings.cc
+        ctk/api_c.h
+        src/api_c.cc
 )
 target_include_directories(ctk
     PUBLIC
