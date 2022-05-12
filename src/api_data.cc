@@ -27,6 +27,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "exception.h"
 #include "arithmetic.h"
 #include "file/cnt_epoch.h"
+#include "logger.h"
 
 namespace ctk { namespace api {
 
@@ -122,6 +123,9 @@ namespace ctk { namespace api {
         // compatibility: uV is stored in some files as µV so that the first character is not valid utf8
         auto utf8compat_hack(std::string x) -> std::string {
             if (!x.empty() && x[0] == -75) {
+                std::ostringstream oss;
+                oss << "[Electrode, api_data] replacement " << x << " -> uV";
+                ctk_log_trace(oss.str());
                 x[0] = 'u';
             }
             return x;
@@ -239,6 +243,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[operator<<(RiffType), api_data] invalid " << static_cast<int>(x);
                 const auto e{ oss.str() };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
                 }
             }
@@ -360,6 +365,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[regular, api_data] negative subseconds " << x;
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw ctk::api::v1::CtkLimit{ e };
             }
             const double i_fraction{ floor(x.Fraction) };
@@ -371,6 +377,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[regular, api_data] infinite component " << x;
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw ctk::api::v1::CtkLimit{ e };
             }
             assert(std::fabs(subseconds) < 1);
@@ -412,6 +419,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[dcdate2timepoint, api_data] out of clock range " << x;
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw ctk::api::v1::CtkLimit{ e };
             }
 

@@ -4,6 +4,7 @@
 
 #include "compress/matrix.h"
 #include "file/cnt_epoch.h"
+#include "logger.h"
 
 namespace ctk { namespace impl {
 
@@ -24,12 +25,14 @@ struct buf_win
             std::ostringstream oss;
             oss << "[buf_win, cnt_reflib] invalid size: expected " << (length * height) << ", got " << std::distance(first, last);
             const auto msg{ oss.str() };
+            ctk_log_critical(msg);
             throw api::v1::CtkBug{ msg };
         }
         if (length < 0 || height < 0) {
             std::ostringstream oss;
             oss << "[buf_win, cnt_reflib] negative dimension: length " << length << ", height " << height;
             const auto msg{ oss.str() };
+            ctk_log_critical(msg);
             throw api::v1::CtkBug{ msg };
         }
     }
@@ -51,6 +54,7 @@ auto first_i(const buf_win<I>& x, ptrdiff_t offset) -> I {
         std::ostringstream oss;
         oss << "[first_i, cnt_reflib] invalid offset " << (offset + 1) << "/" << x.length;
         const auto e{ oss.str() };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -63,6 +67,7 @@ auto last_i(const buf_win<I>& x, ptrdiff_t offset, ptrdiff_t length) -> I {
         std::ostringstream oss;
         oss << "[last_i, cnt_reflib] invalid offset " << (offset + length) << "/" << x.length;
         const auto e{ oss.str() };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -79,6 +84,7 @@ auto submatrix(ptrdiff_t amount, const buf_win<I>& input, ptrdiff_t i_offset, co
         std::ostringstream oss;
         oss << "[submatrix, cnt_reflib] incompatible height: input " << input.height << ", output " << output.height;
         const auto e{ oss.str() };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -92,6 +98,7 @@ auto submatrix(ptrdiff_t amount, const buf_win<I>& input, ptrdiff_t i_offset, co
         std::ostringstream oss;
         oss << "[submatrix, cnt_reflib] invalid distance: input " << std::distance(fi, li) << ", output " << std::distance(fo, lo);
         const auto e{ oss.str() };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -388,6 +395,10 @@ private:
             cache.clear();
             cached_epoch_length = measurement_count{ 0 };
             cached = epoch_count{ std::numeric_limits<epoch_count::value_type>::max() };
+
+            std::ostringstream oss;
+            oss << "[reflib_reader_common::load_epoch, cnt_reflib] can not read epoch " <<  n;
+            ctk_log_error(oss.str());
             return false;
         }
 
@@ -403,6 +414,12 @@ private:
 
     auto load_epoch(measurement_count n) -> bool {
         if (n < 0 || epoch_length() < 1 || sample_count() <= n) {
+            std::ostringstream oss;
+            oss << "[reflib_reader_common::load_epoch, cnt_reflib] invalid input n < 0 || epoch_length < 1 || sample_count <= n, n " << n
+                << ", epoch_length " << epoch_length()
+                << ", sample_count " << sample_count();
+
+            ctk_log_error(oss.str());
             return false;
         }
 
@@ -433,6 +450,13 @@ private:
         const Int requested{ plus(si, size, ok{}) };
         const Int total{ sample_count() };
         if (i < 0 || sample_count() <= i || amount < 1 || total < requested) {
+            std::ostringstream oss;
+            oss << "[reflib_reader_common::populate_buffer, cnt_reflib] invalid input i < 0 || sample_count <= i || amount < 1 || sample_count < requested, i " << i
+                << ", amount " << amount
+                << ", sample_count " << total
+                << ", requested " << requested;
+
+            ctk_log_error(oss.str());
             return false;
         }
 
@@ -488,6 +512,7 @@ template<typename T>
 auto signal_length(const std::vector<T>& v, sensor_count height) -> measurement_count {
     if (height < 1) {
         const std::string e{ "[signal_length, cnt_reflib] not initialized" };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -498,6 +523,7 @@ auto signal_length(const std::vector<T>& v, sensor_count height) -> measurement_
         std::ostringstream oss;
         oss << "[signal_length, cnt_reflib] invalid input dimensions, " << area << " % " << channels << " = " << rem << " (!= 0)";
         const auto e{ oss.str() };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -547,6 +573,7 @@ public:
     auto range_row_major(const std::vector<T>& xs) -> void {
         if (closed) {
             const std::string e{ "[cnt_writer_flat::range_row_major, cnt_reflib] already closed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -562,6 +589,7 @@ public:
     auto range_row_major_scaled(const std::vector<double>& xs) -> void {
         if (closed) {
             const std::string e{ "[cnt_writer_flat::range_row_major_scaled, cnt_reflib] already closed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -588,6 +616,7 @@ public:
     auto range_column_major(const std::vector<T>& xs) -> void {
         if (closed) {
             const std::string e{ "[cnt_writer_flat::range_column_major, cnt_reflib] already closed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -603,6 +632,7 @@ public:
     auto range_column_major_scaled(const std::vector<double>& xs) -> void {
         if (closed) {
             const std::string e{ "[cnt_writer_flat::range_column_major_scaled, cnt_reflib] already closed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -765,6 +795,7 @@ private:
     auto commit(const std::vector<T>& input, measurement_count length) -> void {
         if (closed) {
             const std::string e{ "[cnt_writer_flat::commit, cnt_reflib] already closed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
         const auto epoch_length{ epoch_writer.epoch_length() };
@@ -777,6 +808,7 @@ private:
                 << ", length " << length
                 << ", epoch_length " << epoch_length;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 

@@ -60,6 +60,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[dimensions, matrix] invalid " << height << " x " << length;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkLimit{ e };
         }
     }
@@ -78,6 +79,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[natural_row_order, matrix] invalid row count " << n;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkLimit{ e };
         }
 
@@ -96,6 +98,7 @@ namespace ctk { namespace impl {
     auto is_valid_row_order(std::vector<int16_t> xs) -> bool {
         std::sort(begin(xs), end(xs));
         if (xs != natural_row_order(sensor_count{ vsize(xs) })) {
+            ctk_log_error("[is_valid_row_order, matrix] invalid");
             return false;
         }
 

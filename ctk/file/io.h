@@ -26,6 +26,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <filesystem>
 
 #include "exception.h"
+#include "logger.h"
 
 namespace ctk { namespace impl {
 
@@ -40,6 +41,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read, io] can not read " << sizeof(result) << " byte(s) sized value";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -70,6 +72,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read, io] can not read " << length << " values of size " << sizeof(T) << " byte(s)";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }
@@ -80,6 +83,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[write, io] can not write " << sizeof(T) << " byte(s) sized value";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }
@@ -98,6 +102,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[write, io] can not write " << length << " values of size " << sizeof(T) << " byte(s)";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }

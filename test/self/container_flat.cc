@@ -310,7 +310,9 @@ TEST_CASE("write without close", "[correct]") {
     REQUIRE(triggers_flat.size() <= triggers_riff.size());
     std::ostringstream oss_samples, oss_triggers;
     oss_samples << "input samples " << r_riff.sample_count() << ", output samples " << r_flat.sample_count();
+    ctk_log_info(oss_samples.str());
     oss_triggers << "input triggers " << triggers_riff.size() << ", output triggers " << triggers_flat.size();
+    ctk_log_info(oss_triggers.str());
 
     for (measurement_count i{ 0 }; i < r_flat.sample_count(); ++i) {
         REQUIRE(r_riff.range_column_major(i, ch) == r_flat.range_column_major(i, ch));

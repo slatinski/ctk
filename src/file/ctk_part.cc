@@ -25,6 +25,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "exception.h"
 #include "file/io.h"
+#include "logger.h"
 
 namespace ctk { namespace impl {
 
@@ -67,6 +68,7 @@ namespace ctk { namespace impl {
 
         if (tell(f) != part_header_size) {
             const std::string e{ "[write_part_header, ctk_part] invalid size or not the first record in a file" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
     }
@@ -97,6 +99,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_part_header_impl, ctk_part] invalid part file tag " << tag_id << ", expected " << expected_tag;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -105,6 +108,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_part_header_impl, ctk_part] invalid part file cnt label " << chunk_id << ", expected " << expected_label;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -117,6 +121,7 @@ namespace ctk { namespace impl {
         }
 
         const std::string msg{ "[skip_part_header, ctk_part] can not seek" };
+        ctk_log_error(msg);
         throw api::v1::CtkData{ msg };
     }
 
@@ -127,18 +132,22 @@ namespace ctk { namespace impl {
         }
         else if (e == part_error::not_ctk_part) {
             const std::string msg{ "[read_part_header, ctk_part] not a ctk part file" };
+            ctk_log_error(msg);
             throw api::v1::CtkData{ msg };
         }
         else if (e == part_error::unknown_version) {
             const std::string msg{ "[read_part_header, ctk_part] unknown version" };
+            ctk_log_error(msg);
             throw api::v1::CtkData{ msg };
         }
         else if (e == part_error::invalid_tag) {
             const std::string msg{ "[read_part_header, ctk_part] invalid file_tag enumeration" };
+            ctk_log_error(msg);
             throw api::v1::CtkData{ msg };
         }
 
         const std::string msg{ "[read_part_header, ctk_part] unknown error code" };
+        ctk_log_critical(msg);
         throw api::v1::CtkBug{ msg };
     }
 
@@ -158,6 +167,7 @@ namespace ctk { namespace impl {
             case file_tag::satellite_evt: os << "evt data"; break;
             default: {
                 const std::string e{ "[operator<<(file_tag), ctk_part] invalid" };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
         }

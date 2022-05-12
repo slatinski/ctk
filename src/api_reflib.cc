@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "file/cnt_reflib.h"
 #include "file/evt.h"
 #include "exception"
+#include "logger.h"
 
 
 
@@ -184,6 +185,7 @@ namespace ctk { namespace api {
 
             std::ostringstream oss;
             oss << "[" << func << ", api_reflib] invalid phase '" << x << "', expected '" << expected << "'";
+            ctk_log_error(oss.str());
             throw CtkLimit{ oss.str() };
         }
 
@@ -202,6 +204,7 @@ namespace ctk { namespace api {
                     std::ostringstream oss;
                     oss << "[CntWriterReflib, api_reflib] no filename '" << fname.string() << "'";
                     const auto e{ oss.str() };
+                    ctk_log_error(e);
                     throw CtkData{ e };
                 }
             }
@@ -250,6 +253,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[CntWriterReflib::RecordingInfo, api_reflib] invalid phase '" << p->phase << "'";
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -260,15 +264,17 @@ namespace ctk { namespace api {
             assert(p);
             if (p->raw3) {
                 const std::string e{ "[CntWriterReflib::ParamEeg, api_reflib] one segment only" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
             assert(p->raw3 == nullptr);
 
-            validate_writer_phase(p->phase, WriterPhase::Setup, "CntWriterReflib::TimeSignal");
+            validate_writer_phase(p->phase, WriterPhase::Setup, "CntWriterReflib::ParamEeg");
 
             p->raw3 = p->writer.add_time_signal(param_eeg);
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::ParamEeg, api_reflib] add_time_signal failed silently" };
+                ctk_log_error(e);
                 throw CtkBug{ e };
             }
 
@@ -282,6 +288,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::RangeColumnMajorInt32, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -295,6 +302,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::RangeRowMajorInt32, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -308,6 +316,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::RangeColumnMajor, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -321,6 +330,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::RangeRowMajor, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -334,6 +344,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::RangeV4, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -347,6 +358,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::Trigger, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -360,6 +372,7 @@ namespace ctk { namespace api {
 
             if (!p->raw3) {
                 const std::string e{ "[CntWriterReflib::Triggers, api_reflib] invalid pointer" };
+                ctk_log_critical(e);
                 throw CtkBug{ e };
             }
 
@@ -372,6 +385,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[CntWriterReflib::History, api_reflib] invalid phase '" << p->phase << "'";
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkBug{ e };
             }
 
@@ -392,6 +406,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[CntWriterReflib::Embed, api_reflib] invalid phase '" << p->phase << "'";
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkBug{ e };
             }
 
@@ -511,6 +526,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[EventReader::ImpedanceEvent, api_reflib] " << (i + 1) << "/" << p->lib.impedances.size();
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -523,6 +539,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[EventReader::VideoEvent, api_reflib] " << (i + 1) << "/" << p->lib.videos.size();
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -535,6 +552,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[EventReader::EpochEvent, api_reflib] " << (i + 1) << "/" << p->lib.epochs.size();
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -610,6 +628,7 @@ namespace ctk { namespace api {
                 std::ostringstream oss;
                 oss << "[update_size, api_reflib] unsigned wrap around " << x << " + " << y << " = " << sum;
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -642,6 +661,7 @@ namespace ctk { namespace api {
         auto EventWriter::AddImpedance(const EventImpedance& x) -> void {
             if (p->f_temp == nullptr) {
                 const std::string e{ "[EventWriter::AddImpedance, api_reflib] close already invoked" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -654,6 +674,7 @@ namespace ctk { namespace api {
         auto EventWriter::AddVideo(const EventVideo& x) -> void {
             if (p->f_temp == nullptr) {
                 const std::string e{ "[EventWriter::AddVideo, api_reflib] close already invoked" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -666,6 +687,7 @@ namespace ctk { namespace api {
         auto EventWriter::AddEpoch(const EventEpoch& x) -> void {
             if (p->f_temp == nullptr) {
                 const std::string e{ "[EventWriter::AddEpoch, api_reflib] close already invoked" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -678,6 +700,7 @@ namespace ctk { namespace api {
         auto EventWriter::AddImpedances(const std::vector<EventImpedance>& xs) -> void {
             if (p->f_temp == nullptr) {
                 const std::string e{ "[EventWriter::AddImpedances, api_reflib] close already invoked" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -695,6 +718,7 @@ namespace ctk { namespace api {
         auto EventWriter::AddVideos(const std::vector<EventVideo>& xs) -> void {
             if (p->f_temp == nullptr) {
                 const std::string e{ "[EventWriter::AddVideos, api_reflib] close already invoked" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -712,6 +736,7 @@ namespace ctk { namespace api {
         auto EventWriter::AddEpochs(const std::vector<EventEpoch>& xs) -> void {
             if (p->f_temp == nullptr) {
                 const std::string e{ "[EventWriter::AddEpochs, api_reflib] close already invoked" };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 

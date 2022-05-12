@@ -150,6 +150,17 @@ const char* ctk_reflib_reader_test_serial(ctk_reflib_reader*);
 const char* ctk_reflib_reader_comment(ctk_reflib_reader*);
 
 
+/* type: "console", "file", "visual studio" */
+/*       if set to "file" the output file is located under ./logs/ctk_YYYY-MM-DD.txt */
+/* level: "trace", "debug", "info", "warning", "error", "critical", "off" */
+int ctk_set_logger(const char* type, const char* level);
+int ctk_log_trace(const char* msg);
+int ctk_log_debug(const char* msg);
+int ctk_log_info(const char* msg);
+int ctk_log_warning(const char* msg);
+int ctk_log_error(const char* msg);
+int ctk_log_critical(const char* msg);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

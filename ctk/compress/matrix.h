@@ -218,6 +218,7 @@ auto evaluate_histogram(measurement_count samples, bit_count nexc, encoding_size
             std::ostringstream oss;
             oss << "[evaluate_histogram, matrix] variable width " << output << " > " << e.max_output_size << " max";
             const auto msg{ oss.str() };
+            ctk_log_critical(msg);
             throw api::v1::CtkBug{ msg };
         }
 
@@ -233,6 +234,7 @@ auto evaluate_histogram(measurement_count samples, bit_count nexc, encoding_size
         std::ostringstream oss;
         oss << "[evaluate_histogram, matrix] fixed width " << output << " > " << e.max_output_size << " max";
         const auto msg{ oss.str() };
+        ctk_log_critical(msg);
         throw api::v1::CtkBug{ msg };
     }
 
@@ -286,6 +288,7 @@ auto compressed_parameters(reduction<T>& r, estimation<T>& e, Format format) -> 
     const auto last{ end(residual_sizes) };
     if (std::transform(begin(residuals), end(residuals), first, count_raw3{}) != last) {
         const std::string error{ "[compressed_parameters, matrix] can not count bits" };
+        ctk_log_critical(error);
         throw api::v1::CtkBug{ error };
     }
 
@@ -341,6 +344,7 @@ auto restore_magnitude(I previous, I first, I last, I buffer, encoding_method me
     std::ostringstream oss;
     oss << "[restore_magnitude, matrix] invalid method " << int(method);
     const auto e{ oss.str() };
+    ctk_log_critical(e);
     throw api::v1::CtkBug{ e };
 }
 
@@ -385,6 +389,7 @@ auto build_encoding_map(reduction<T>& r) -> void {
     // variable width encoding
     if (std::transform(first_residual, last_residual, first_size, first_map, is_exception{ r.n }) != last_map) {
         const std::string e{ "[build_encoding_map, matrix] can not compute exception map" };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 }
@@ -394,6 +399,7 @@ template<typename I, typename T, typename IByte, typename Format>
 auto encode_residuals(I first, I last, const reduction<T>& r, bit_writer<IByte>& bits, T type_tag, Format format) -> IByte {
     if (!valid_block_encoding(r.data_size, r.method, r.n, r.nexc, type_tag, format)) {
         const auto e{ invalid_row_header(r.data_size, r.method, r.n, r.nexc, sizeof(T)) };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -403,6 +409,7 @@ auto encode_residuals(I first, I last, const reduction<T>& r, bit_writer<IByte>&
 
     if (byte_count{ cast(std::distance(first_out, last_out), byte_count::value_type{}, ok{}) } != r.output_size) {
         const std::string e{ "[encode_residuals, matrix] encoding failed" };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -468,6 +475,7 @@ public:
         const auto best{ select_reduction(begin(reductions), end(reductions)) };
         if (best == end(reductions) || max_block_size(first, last, Format{}) < best->output_size) {
             const std::string e{ "[row_encoder, matrix] reduction failed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -499,6 +507,7 @@ private:
         const I lt{ reduce_row_time(first, last, ft) };
         if (lt != end(residuals_time)) {
             const std::string e{ "[reduce_magnitude, matrix] reduction time failed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -506,6 +515,7 @@ private:
         const I lt2{ reduce_row_time2_from_time(ft, lt, ft2) };
         if (lt2 != end(residuals_time2)) {
             const std::string e{ "[reduce_magnitude, matrix] reduction time2 failed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -513,6 +523,7 @@ private:
         const I lch{ reduce_row_chan_from_time(previous, first, ft, lt, fch) };
         if (lch != end(residuals_chan)) {
             const std::string e{ "[reduce_magnitude, matrix] reduction chan failed" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
     }
@@ -534,6 +545,7 @@ auto decode_row(bit_reader<IByteConst>& bits, I previous, I first, I last, I buf
 
     if (restore_magnitude(previous, first, last, buffer, method) != last) {
         const std::string e{ "[decode_row, matrix] can not restore magnitude" };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -608,6 +620,7 @@ public:
             std::ostringstream oss;
             oss << "[matrix_buffer::resize, matrix] invalid dimensions " << electrodes << " x " << samples;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -676,6 +689,7 @@ struct matrix_common
                 << ", requested " << isize
                 << " (" << electrodes << " electrodes x " << samples << " samples)";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }
@@ -692,6 +706,7 @@ struct matrix_common
 
     auto row_order(const std::vector<int16_t>& input) -> bool {
         if (!is_valid_row_order(input)) {
+            ctk_log_error("[row_order, matrix] invalid row order");
             return false;
         }
 
@@ -782,6 +797,7 @@ public:
 
         if (first_in != last_in) {
             const std::string e{ "[matrix_decoder_general, matrix] partial input consumption" };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -871,6 +887,7 @@ public:
         const auto output_size{ as_sizet(std::distance(begin(bytes), first_out)) };
         if (bytes.size() < output_size) {
             const std::string e{ "[matrix_encoder_general, matrix] write memory access violation" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 

@@ -24,6 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "api_bindings.h"
 #include "arithmetic.h"
+#include "logger.h"
 #include "file/cnt_epoch.h" // for tm2timepoint
 
 namespace {
@@ -81,6 +82,7 @@ namespace {
         std::ostringstream oss;
         oss << "[" << func << ", api_c] input pointer is zero";
         const auto e{ oss.str() };
+        ctk_log_error(e);
         throw CtkLimit{ e };
     }
 
@@ -93,6 +95,7 @@ namespace {
         std::ostringstream oss;
         oss << "[" << func << ", api_c] empty array";
         const auto e{ oss.str() };
+        ctk_log_error(e);
         throw CtkLimit{ e };
     }
 
@@ -104,6 +107,7 @@ namespace {
         std::ostringstream oss;
         oss << "[" << func << ", api_c] invalid index " << (i + 1) << "/" << size;
         const auto e{ oss.str() };
+        ctk_log_error(e);
         throw CtkLimit{ e };
     }
 
@@ -188,6 +192,7 @@ namespace {
                 validate_writer_phase(writer.Phase(), WriterPhase::Setup, "WriterReflibNothrow::sampling_frequency");
 
                 if (!std::isfinite(x) || x <= 0) { // TODO duplication
+                    ctk_log_error("[WriterReflibNothrow::sampling_frequency, api_c] non positive");
                     return EXIT_FAILURE;
                 }
 
@@ -204,6 +209,7 @@ namespace {
                 validate_writer_phase(writer.Phase(), WriterPhase::Setup, "WriterReflibNothrow::epoch_length");
 
                 if (x < 1) { // TODO: duplication
+                    ctk_log_error("[WriterReflibNothrow::epoch_length, api_c] non positive");
                     return EXIT_FAILURE;
                 }
                 writer.ParamEeg.EpochLength = x;
@@ -515,6 +521,7 @@ namespace {
     auto makeReflibWriterNothrow(const char* fname, int riff64) -> ReflibWriterNothrow* {
         try {
             if (!fname) {
+                ctk_log_error("[makeReflibWriterNothrow, api_c] zero pointer");
                 return nullptr;
             }
 
@@ -559,6 +566,7 @@ namespace {
                 std::ostringstream oss;
                 oss << "[" << func << ", api_c] invalid index " << index;
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
 
@@ -566,6 +574,7 @@ namespace {
                 std::ostringstream oss;
                 oss << "[" << func << ", api_c] invalid matrix dimensions " << reader.ParamEeg.Electrodes.size() << "x" << amount;
                 const auto e{ oss.str() };
+                ctk_log_error(e);
                 throw CtkLimit{ e };
             }
         }
@@ -576,6 +585,9 @@ namespace {
 
                 std::vector<double> xs{ reader.RangeColumnMajor(i, samples) };
                 if (size < xs.size()) {
+                    std::ostringstream oss;
+                    oss << "[ReflibReaderNothrow::column_major, api_c] requested " << size << ", available " << xs.size();
+                    ctk_log_error(oss.str());
                     return 0;
                 }
 
@@ -593,6 +605,9 @@ namespace {
 
                 std::vector<double> xs{ reader.RangeRowMajor(i, samples) };
                 if (size < xs.size()) {
+                    std::ostringstream oss;
+                    oss << "[ReflibReaderNothrow::row_major, api_c] requested " << size << ", available " << xs.size();
+                    ctk_log_error(oss.str());
                     return 0;
                 }
 
@@ -610,6 +625,9 @@ namespace {
 
                 std::vector<float> xs{ reader.RangeV4(i, samples) };
                 if (size < xs.size()) {
+                    std::ostringstream oss;
+                    oss << "[ReflibReaderNothrow::v4, api_c] requested " << size << ", available " << xs.size();
+                    ctk_log_error(oss.str());
                     return 0;
                 }
 
@@ -627,6 +645,9 @@ namespace {
 
                 std::vector<int32_t> xs{ reader.RangeColumnMajorInt32(i, samples) };
                 if (size < xs.size()) {
+                    std::ostringstream oss;
+                    oss << "[ReflibReaderNothrow::column_major_int32, api_c] requested " << size << ", available " << xs.size();
+                    ctk_log_error(oss.str());
                     return 0;
                 }
 
@@ -644,6 +665,9 @@ namespace {
 
                 std::vector<int32_t> xs{ reader.RangeRowMajorInt32(i, samples) };
                 if (size < xs.size()) {
+                    std::ostringstream oss;
+                    oss << "[ReflibReaderNothrow::row_major_int32, api_c] requested " << size << ", available " << xs.size();
+                    ctk_log_error(oss.str());
                     return 0;
                 }
 
@@ -695,6 +719,9 @@ namespace {
 
                 const EventImpedance& x{ xs[i] };
                 if (isize != x.Values.size()) {
+                    std::ostringstream oss;
+                    oss << "[ReflibReaderNothrow::impedance, api_c] requested " << isize << ", available " << x.Values.size();
+                    ctk_log_error(oss.str());
                     return EXIT_FAILURE;
                 }
 
@@ -837,6 +864,7 @@ namespace {
     auto makeReflibReaderNothrow(const char* cnt) -> ReflibReaderNothrow* {
         try {
             if (!cnt) {
+                ctk_log_error("[makeReflibReaderNothrow, ctk] zero pointer");
                 return nullptr;
             }
 
@@ -1314,4 +1342,74 @@ auto ctk_reflib_reader_comment(ctk_reflib_reader* p) -> const char* {
     return reinterpret_cast<ReflibReaderNothrow*>(p)->info(rec::comment);
 }
 
+
+auto ctk_set_logger(const char* log_type, const char* log_level) -> int {
+    try {
+        ctk::impl::set_logger(log_type, log_level);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
+
+auto ctk_log_trace(const char* msg) -> int {
+    try {
+        ctk::impl::ctk_log_trace(msg);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
+
+auto ctk_log_debug(const char* msg) -> int {
+    try {
+        ctk::impl::ctk_log_debug(msg);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
+
+auto ctk_log_info(const char* msg) -> int {
+    try {
+        ctk::impl::ctk_log_info(msg);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
+
+auto ctk_log_warning(const char* msg) -> int {
+    try {
+        ctk::impl::ctk_log_warning(msg);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
+
+auto ctk_log_error(const char* msg) -> int {
+    try {
+        ctk::impl::ctk_log_error(msg);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
+
+auto ctk_log_critical(const char* msg) -> int {
+    try {
+        ctk::impl::ctk_log_critical(msg);
+        return EXIT_SUCCESS;
+    }
+    catch(const std::exception&) {
+        return EXIT_FAILURE;
+    }
+}
 

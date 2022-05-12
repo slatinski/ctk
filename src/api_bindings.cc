@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "file/cnt_reflib.h"
 #include "file/evt.h"
 #include "exception"
+#include "logger.h"
 
 
 namespace ctk { namespace api {

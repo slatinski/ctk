@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 
 #include "type_wrapper.h"
+#include "logger.h"
 
 namespace ctk { namespace impl {
 
@@ -35,6 +36,7 @@ namespace ctk { namespace impl {
             case encoding_size::eight_bytes: return sizeof(uint64_t);
             default: {
                 const std::string e{ "[sizeof_word, block] 2 bits = 4 possible interpretations" };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
         }
@@ -54,6 +56,7 @@ namespace ctk { namespace impl {
 
         if (static_cast<unsigned>(encoding_method::chan) < pattern) {
             const std::string e{ "[decode_method, block] 2 bits = 4 possible interpretations" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -93,11 +96,15 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[is_valid_uncompressed, block] n != nexc, " << n << " != " << nexc;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
         const auto sizeof_t{ field_width_master(data_size) };
         if (n != sizeof_t) {
+            std::ostringstream oss;
+            oss << "[is_valid_uncompressed, block] size_in_bits(T) != n, " << sizeof_t << " != " << n;
+            ctk_log_error(oss.str());
             return false;
         }
 
@@ -109,16 +116,26 @@ namespace ctk { namespace impl {
         constexpr const auto lowest{ pattern_size_min() };
         // not possible with this encoding scheme
         if (n < lowest || nexc < lowest) {
+            std::ostringstream oss;
+            oss << "[is_valid_compressed, block] n < min || nexc < min, " << n << " < " << lowest
+                << " || " << nexc << " < " << lowest;
+            ctk_log_error(oss.str());
             return false;
         }
 
         // not possible with this encoding scheme
         if (nexc < n) {
+            std::ostringstream oss;
+            oss << "[is_valid_compressed, block] nexc < n, " << nexc << " < " << n;
+            ctk_log_error(oss.str());
             return false;
         }
 
         const auto sizeof_t{ field_width_master(data_size) };
         if (sizeof_t < nexc) {
+            std::ostringstream oss;
+            oss << "[is_valid_compressed, block] size_in_bits(T) < nexc, " << sizeof_t << " < " << nexc;
+            ctk_log_error(oss.str());
             return false;
         }
 

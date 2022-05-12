@@ -25,6 +25,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cmath>
 
 #include "exception.h"
+#include "logger.h"
 #include "file/io.h"
 
 
@@ -130,6 +131,7 @@ namespace ctk { namespace impl {
             constexpr unsigned size{ sizeof(T) * 8 };
             if (size <= shift) {
                 const std::string e{ "[leb128::decode_byte, leb128] invalid encoding" };
+                ctk_log_error(e);
                 throw api::v1::CtkData{ e };
             }
 
@@ -171,6 +173,7 @@ namespace ctk { namespace impl {
 
             if (more) {
                 const std::string e{ "[leb128::encode, leb128] insufficient output buffer" };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -202,6 +205,7 @@ namespace ctk { namespace impl {
 
             if (more) {
                 const std::string e{ "[leb128::decode, leb128] invalid encoding" };
+                ctk_log_error(e);
                 throw api::v1::CtkData{ e };
             }
 
@@ -253,6 +257,7 @@ namespace ctk { namespace impl {
 
             if (more) {
                 const auto e{ "[leb128::from_file, leb128] invalid encoding" };
+                ctk_log_error(e);
                 throw api::v1::CtkData{ e };
             }
 
@@ -405,6 +410,7 @@ namespace ctk { namespace impl {
         const auto [x, next]{ decode_leb128(first, last, type_tag) };
         if (next != last) {
             const std::string e{ "[decode_leb128_v, leb128] invalid encoding" };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
         return x;

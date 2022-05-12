@@ -23,7 +23,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "type_wrapper.h"
 #include "compress/bit_stream.h"
-
+#include "logger.h"
 
 /*
     A data block consists of a (reflib/extended) header and (compressed/uncompressed) payload.
@@ -240,6 +240,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[reflib::field_width_n, block] invalid data size " << static_cast<int>(data_size);
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -277,6 +278,7 @@ namespace ctk { namespace impl {
 
             if (static_cast<unsigned>(encoding_size::eight_bytes) < pattern) {
                 const std::string e{ "[extended::decode_size, block] 2 bits = 4 possible interpretations" };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -289,6 +291,7 @@ namespace ctk { namespace impl {
                 std::ostringstream oss;
                 oss << "[extended::encode_size, block] invalid encoding size " << static_cast<unsigned>(data_size);
                 const auto e{ oss.str() };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -315,6 +318,7 @@ namespace ctk { namespace impl {
                     std::ostringstream oss;
                     oss << "[extended::field_width_n, block] invalid encoding size " << static_cast<int>(data_size);
                     const auto e{ oss.str() };
+                    ctk_log_critical(e);
                     throw api::v1::CtkBug{ e };
                 }
             }
@@ -334,6 +338,7 @@ namespace ctk { namespace impl {
                     std::ostringstream oss;
                     oss << "[extended::as_size, block] invalid encoding size " << sizeof(T);
                     const auto e{ oss.str() };
+                    ctk_log_critical(e);
                     throw api::v1::CtkBug{ e };
                 }
             }
@@ -476,6 +481,9 @@ namespace ctk { namespace impl {
     template<typename T, typename Format>
     auto valid_block_encoding(encoding_size data_size, encoding_method m, bit_count n, bit_count nexc, T type_tag, Format) -> bool {
         if (!Format::is_valid_size(type_tag, data_size)) {
+            std::ostringstream oss;
+            oss << "[valid_block_encoding, block] invalid data size " << data_size;
+            ctk_log_error(oss.str());
             return false;
         }
 
@@ -501,11 +509,13 @@ namespace ctk { namespace impl {
             oss << "[read_encoding_compressed, block] master field width " << field_width_master(data_size)
                 << ", size_in_bits(T) " << size_in_bits(T{});
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
         if (first == last) {
             const std::string e{ "[read_encoding_compressed, block] empty output range" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -564,6 +574,7 @@ namespace ctk { namespace impl {
         using T = typename std::iterator_traits<I>::value_type;
         if (!valid_block_encoding(data_size, method, n, nexc, T{}, format)) {
             const auto e{ invalid_row_header(data_size, method, n, nexc, sizeof(T)) };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 

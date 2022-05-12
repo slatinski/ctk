@@ -27,6 +27,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "type_wrapper.h"
 #include "maybe_cast.h"
 #include "exception.h"
+#include "logger.h"
 
 
 namespace ctk { namespace impl {
@@ -111,6 +112,7 @@ namespace ctk { namespace impl {
 
             default: {
                 const std::string e{ "[invalid_addition, arithmetic] unexpected cause" };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
         }
@@ -155,6 +157,7 @@ namespace ctk { namespace impl {
 
             default: {
                 const std::string e{ "[invalid_subtraction, arithmetic] unexpected cause" };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
         }
@@ -226,6 +229,7 @@ namespace ctk { namespace impl {
             default: {
                 oss << "[invalid_multiplication, arithmetic] unexpected cause";
                 const auto e{ oss.str() };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
         }
@@ -269,6 +273,7 @@ namespace ctk { namespace impl {
             default: {
                 oss << "[invalid_division, arithmetic] unexpected cause";
                 const auto e{ oss.str() };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
         }
@@ -331,6 +336,7 @@ namespace ctk { namespace impl {
             const auto maybe_y{ maybe_cast(x, type_tag) };
             if (!maybe_y) {
                 const auto e{ invalid_cast(x, type_tag) };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -343,6 +349,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_addition(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_addition(a, b, valid) };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -354,6 +361,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_subtraction(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_subtraction(a, b, valid) };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -366,6 +374,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_multiplication_impl(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_multiplication(a, b, valid) };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -377,6 +386,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_division(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_division(a, b, valid) };
+                ctk_log_critical(e);
                 throw api::v1::CtkBug{ e };
             }
 
@@ -393,6 +403,7 @@ namespace ctk { namespace impl {
             const auto maybe_y{ maybe_cast(x, type_tag) };
             if (!maybe_y) {
                 const auto e{ invalid_cast(x, type_tag) };
+                ctk_log_error(e);
                 throw api::v1::CtkLimit{ e };
             }
 
@@ -405,6 +416,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_addition(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_addition(a, b, valid) };
+                ctk_log_error(e);
                 throw api::v1::CtkLimit{ e };
             }
 
@@ -416,6 +428,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_subtraction(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_subtraction(a, b, valid) };
+                ctk_log_error(e);
                 throw api::v1::CtkLimit{ e };
             }
 
@@ -428,6 +441,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_multiplication_impl(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_multiplication(a, b, valid) };
+                ctk_log_error(e);
                 throw api::v1::CtkLimit{ e };
             }
 
@@ -439,6 +453,7 @@ namespace ctk { namespace impl {
             const auto [result, valid]{ signed_division(a, b) };
             if (valid != arithmetic_error::none) {
                 const auto e{ invalid_division(a, b, valid) };
+                ctk_log_error(e);
                 throw api::v1::CtkLimit{ e };
             }
 

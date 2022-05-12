@@ -44,12 +44,16 @@ long accessible_chunks_v4(const char* fname, long chunk) {
 
     const cntfile_t v4 = libeep_read(fname);
     if(v4 == -1) {
+        snprintf(msg, sizeof(msg), "[accessible_chunks_v4] can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         return accessible;
     }
 
     const int electrodes = libeep_get_channel_count(v4);
     const long samples = libeep_get_sample_count(v4);
     if (electrodes < 1 || samples < 1) {
+        snprintf(msg, sizeof(msg), "[accessible_chunks_v4] invalid matrix dimensions %dx%ld", electrodes, samples);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -59,6 +63,8 @@ long accessible_chunks_v4(const char* fname, long chunk) {
 
         float* matrix = libeep_get_samples(v4, sample, sample + due);
         if (!matrix) {
+            snprintf(msg, sizeof(msg), "[accessible_chunks_v4] can not access range [%ld-%ld)", sample, sample + due);
+            ctk_log_warning(msg);
             continue;
         }
         libeep_free_samples(matrix);
@@ -79,18 +85,24 @@ int64_t accessible_chunks_ctk(const char* fname, long chunk) {
 
     ctk_reflib_reader* ctk = ctk_reflib_reader_make(fname);
     if (!ctk) {
+        snprintf(msg, sizeof(msg), "[accessible_chunks_ctk] can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         return accessible;
     }
 
     const size_t electrodes = ctk_reflib_reader_electrode_count(ctk);
     const int64_t samples = ctk_reflib_reader_sample_count(ctk);
     if (electrodes < 1 || samples < 1) {
+        snprintf(msg, sizeof(msg), "[accessible_chunks_ctk] invalid matrix dimensions %ldx%ld", electrodes, samples);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const size_t area = electrodes * (size_t)chunk;
     float* matrix = (float*)malloc(area * sizeof(float));
     if (!matrix) {
+        snprintf(msg, sizeof(msg), "[accessible_chunks_ctk] can not allocate %ldx%ld matrix", electrodes, chunk);
+        ctk_log_error(msg);
         goto cleanup;
     }
     const int64_t matrix_size = (int64_t)area;
@@ -101,6 +113,8 @@ int64_t accessible_chunks_ctk(const char* fname, long chunk) {
 
         const int64_t received = ctk_reflib_reader_v4(ctk, sample, due, matrix, matrix_size);
         if (received != due) {
+            snprintf(msg, sizeof(msg), "[accessible_chunks_ctk] can not access range [%ld-%ld)", sample, sample + due);
+            ctk_log_warning(msg);
             continue;
         }
         accessible += due;
@@ -128,18 +142,24 @@ long write_in_chunks_v4(const char* fname, long chunk) {
 
     reader = ctk_reflib_reader_make(fname);
     if (!reader) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_v4] ctk can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const size_t electrodes = ctk_reflib_reader_electrode_count(reader);
     const int64_t samples = ctk_reflib_reader_sample_count(reader);
     if (electrodes < 1 || samples < 1) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_v4] invalid matrix dimensions %ldx%ld", electrodes, samples);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const size_t area = electrodes * (size_t)chunk;
     matrix = (float*)malloc(area * sizeof(float));
     if (!matrix) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_v4] can not allocate %ldx%ld matrix", electrodes, chunk);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -149,6 +169,8 @@ long write_in_chunks_v4(const char* fname, long chunk) {
         const char* ref = ctk_reflib_reader_electrode_reference(reader, i);
         const char* unit = ctk_reflib_reader_electrode_unit(reader, i);
         if (libeep_add_channel(channels, label, ref, unit) != i + 1) {
+            snprintf(msg, sizeof(msg), "[write_in_chunks_v4] can not write electrode %ld: '%s'-'%s' '%s'", i, label, ref, unit);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
@@ -156,6 +178,8 @@ long write_in_chunks_v4(const char* fname, long chunk) {
 
     writer = libeep_write_cnt(delme_cnt, (int)rate, channels, cnt64);
     if (writer == -1) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_v4] v4 can not open '%s' for writing", delme_cnt);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -163,6 +187,8 @@ long write_in_chunks_v4(const char* fname, long chunk) {
     double day_seconds, subseconds;
     if (ctk_timespec2dcdate(&stamp, &day_seconds, &subseconds) != EXIT_SUCCESS) {
         print_timespec(&stamp, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[write_in_chunks_v4] start time conversion to dcdate %s", stamp_str);
+        ctk_log_error(msg);
         goto cleanup;
     }
     recinfo_t recinfo = libeep_create_recinfo();
@@ -175,6 +201,8 @@ long write_in_chunks_v4(const char* fname, long chunk) {
 
         const int64_t received = ctk_reflib_reader_v4(reader, sample, due, matrix, due_size);
         if (received != due) {
+            snprintf(msg, sizeof(msg), "[write_in_chunks_v4] can not read range [%ld-%ld)", sample, sample + due);
+            ctk_log_warning(msg);
             goto cleanup;
         }
 
@@ -203,23 +231,31 @@ long write_in_chunks_ctk(const char* fname, long chunk) {
 
     reader = ctk_reflib_reader_make(fname);
     if (!reader) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const size_t electrodes = ctk_reflib_reader_electrode_count(reader);
     const int64_t samples = ctk_reflib_reader_sample_count(reader);
     if (electrodes < 1 || samples < 1) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] invalid matrix dimensions %ldx%ld", electrodes, samples);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const size_t area = electrodes * (size_t)chunk;
     matrix = (float*)malloc(area * sizeof(float));
     if (!matrix) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not allocate %ldx%ld matrix", electrodes, chunk);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     writer = ctk_reflib_writer_make(delme_cnt, cnt64);
     if (!writer) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not open '%s' for writing", delme_cnt);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -230,22 +266,32 @@ long write_in_chunks_ctk(const char* fname, long chunk) {
         const double iscale = ctk_reflib_reader_electrode_iscale(reader, i);
         const double rscale = ctk_reflib_reader_electrode_rscale(reader, i);
         if (ctk_reflib_writer_electrode(writer, label, ref, unit, iscale, rscale) != EXIT_SUCCESS) {
+            snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not write electrode %ld: '%s'-'%s' '%s' %f %f", i, label, ref, unit, iscale, rscale);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
 
     const double rate = ctk_reflib_reader_sampling_frequency(reader);
     if (ctk_reflib_writer_sampling_frequency(writer, rate) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not write sampling frequency %f", rate);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const int64_t epoch = ctk_reflib_reader_epoch_length(reader);
     if (ctk_reflib_writer_epoch_length(writer, epoch) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not write epoch length %ld", epoch);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const struct timespec stamp = ctk_reflib_reader_start_time(reader);
     if (ctk_reflib_writer_start_time(writer, &stamp) != EXIT_SUCCESS) {
+        char stamp_str[256];
+        print_timespec(&stamp, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not write eeg start time %s", stamp_str);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -256,10 +302,14 @@ long write_in_chunks_ctk(const char* fname, long chunk) {
 
         const int64_t received = ctk_reflib_reader_v4(reader, sample, due, matrix, due_size);
         if (received != due) {
+            snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not read range [%ld-%ld)", sample, sample + due);
+            ctk_log_warning(msg);
             goto cleanup;
         }
 
         if (ctk_reflib_writer_v4(writer, matrix, due_size) != EXIT_SUCCESS) {
+            snprintf(msg, sizeof(msg), "[write_in_chunks_ctk] can not write range [%ld-%ld)", sample, sample + due);
+            ctk_log_warning(msg);
             goto cleanup;
         }
 
@@ -278,6 +328,10 @@ cleanup:
 
 
 void compare_reader_performance(const char* fname, long chunk) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[compare_reader_performance] processing '%s'", last_n(fname, 40));
+    ctk_log_info(msg);
+
     stderr_read_speed_begin(fname, chunk);
 
     const clock_t b_ctk = clock();
@@ -299,6 +353,10 @@ void compare_reader_performance(const char* fname, long chunk) {
 }
 
 void compare_writer_performance(const char* fname, long chunk) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[compare_writer_performance] processing '%s'", last_n(fname, 40));
+    ctk_log_info(msg);
+
     stderr_write_speed_begin(fname, chunk);
 
     const clock_t b_ctk = clock();
@@ -381,12 +439,16 @@ enum summary compare_electrodes_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk, enu
 
     const int electrodes_v4 = libeep_get_channel_count(v4);
     if (electrodes_v4 < 0) {
+        snprintf(msg, sizeof(msg), "[compare_electrodes_v4_ctk] v4 negative count %d", electrodes_v4);
+        ctk_log_error(msg);
         return header_elc;
     }
 
     const size_t electrodes_ctk = ctk_reflib_reader_electrode_count(ctk);
     if (electrodes_v4 != electrodes_ctk) {
         result = header_elc;
+        snprintf(msg, sizeof(msg), "[compare_electrodes_v4_ctk] count %d != %ld", electrodes_v4, electrodes_ctk);
+        ctk_log_error(msg);
     }
 
     for (size_t i = 0; i < electrodes_ctk; ++i) {
@@ -406,6 +468,8 @@ enum summary compare_electrodes_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y) 
     const size_t electrodes_y = ctk_reflib_reader_electrode_count(y);
     if (electrodes_x != electrodes_y) {
         result = header_elc;
+        snprintf(msg, sizeof(msg), "[compare_electrodes_ctk] count %ld != %ld", electrodes_x, electrodes_y);
+        ctk_log_error(msg);
     }
 
     for (size_t i = 0; i < electrodes_x; ++i) {
@@ -423,16 +487,22 @@ enum summary compare_electrodes_v4(cntfile_t x, cntfile_t y) {
 
     const int electrodes_x = libeep_get_channel_count(x);
     if (electrodes_x < 0) {
+        snprintf(msg, sizeof(msg), "[compare_electrodes_v4] x negative count %d", electrodes_x);
+        ctk_log_error(msg);
         return header_elc;
     }
 
     const int electrodes_y = libeep_get_channel_count(y);
     if (electrodes_y < 0) {
+        snprintf(msg, sizeof(msg), "[compare_electrodes_v4] y negative count %d", electrodes_y);
+        ctk_log_error(msg);
         return header_elc;
     }
 
     if (electrodes_x != electrodes_y) {
         result = header_elc;
+        snprintf(msg, sizeof(msg), "[compare_electrodes_v4] count %d != %d", electrodes_x, electrodes_y);
+        ctk_log_error(msg);
     }
 
     for (int i = 0; i < electrodes_x; ++i) {
@@ -482,6 +552,8 @@ enum summary compare_sample_rate_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk) {
     const double rate_ctk = ctk_reflib_reader_sampling_frequency(ctk);
 
     if (rate_v4 != (int)round(rate_ctk)) {
+        snprintf(msg, sizeof(msg), "[compare_sample_rate_v4_ctk] %d != %f", rate_v4, rate_ctk);
+        ctk_log_error(msg);
         return header_srate;
     }
 
@@ -496,6 +568,8 @@ enum summary compare_sample_rate_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y)
     const double rate_y = ctk_reflib_reader_sampling_frequency(y);
 
     if (rate_x != rate_y) {
+        snprintf(msg, sizeof(msg), "[compare_sample_rate_ctk] %f != %f", rate_x, rate_y);
+        ctk_log_error(msg);
         return header_srate;
     }
 
@@ -510,6 +584,8 @@ enum summary compare_sample_rate_v4(cntfile_t x, cntfile_t y) {
     const int rate_y = libeep_get_sample_frequency(y);
 
     if (rate_x != rate_y) {
+        snprintf(msg, sizeof(msg), "[compare_sample_rate_v4] %d != %d", rate_x, rate_y);
+        ctk_log_error(msg);
         return header_srate;
     }
 
@@ -524,6 +600,8 @@ enum summary compare_sample_count_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk) {
     const long samples_v4 = libeep_get_sample_count(v4);
     const int64_t samples_ctk = ctk_reflib_reader_sample_count(ctk);
     if (samples_v4 != samples_ctk) {
+        snprintf(msg, sizeof(msg), "[compare_sample_count_v4_ctk] %ld != %ld", samples_v4, samples_ctk);
+        ctk_log_error(msg);
         return header_smpl;
     }
 
@@ -537,6 +615,8 @@ enum summary compare_sample_count_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y
     const int64_t samples_x = ctk_reflib_reader_sample_count(x);
     const int64_t samples_y = ctk_reflib_reader_sample_count(y);
     if (samples_x != samples_y) {
+        snprintf(msg, sizeof(msg), "[compare_sample_count_ctk] %ld != %ld", samples_x, samples_y);
+        ctk_log_error(msg);
         return header_smpl;
     }
 
@@ -550,6 +630,8 @@ enum summary compare_sample_count_v4(cntfile_t x, cntfile_t y) {
     const long samples_x = libeep_get_sample_count(x);
     const long samples_y = libeep_get_sample_count(y);
     if (samples_x != samples_y) {
+        snprintf(msg, sizeof(msg), "[compare_sample_count_v4] %ld != %ld", samples_x, samples_y);
+        ctk_log_error(msg);
         return header_smpl;
     }
 
@@ -764,6 +846,8 @@ enum bool compare_trigger_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk, size_t i)
     char code_ctk[9];
     int64_t sample_ctk;
     if (ctk_reflib_reader_trigger(ctk, i, &sample_ctk, code_ctk, sizeof(code_ctk)) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[compare_trigger_v4_ctk] ctk can not obtain trigger %ld", i);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -778,10 +862,14 @@ enum bool compare_trigger_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y, size_t
     int64_t sample_x, sample_y;
 
     if (ctk_reflib_reader_trigger(x, i, &sample_x, code_x, sizeof(code_x)) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[compare_trigger_ctk] x can not obtain trigger %ld", i);
+        ctk_log_error(msg);
         return nope;
     }
 
     if (ctk_reflib_reader_trigger(y, i, &sample_y, code_y, sizeof(code_y)) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[compare_trigger_ctk] y can not obtain trigger %ld", i);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -802,12 +890,16 @@ enum summary compare_triggers_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk) {
 
     const int count_v4 = libeep_get_trigger_count(v4);
     if (count_v4 < 0) {
+        snprintf(msg, sizeof(msg), "[compare_triggers_v4_ctk] v4 invalid count %d", count_v4);
+        ctk_log_error(msg);
         return trg;
     }
 
     const size_t count_ctk = ctk_reflib_reader_trigger_count(ctk);
     if (count_v4 != count_ctk) {
         result = trg;
+        snprintf(msg, sizeof(msg), "[compare_triggers_v4_ctk] count %d != %ld", count_v4, count_ctk);
+        ctk_log_error(msg);
     }
 
     for (size_t i = 0; i < count_ctk; ++i) {
@@ -827,6 +919,8 @@ enum summary compare_triggers_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y) {
     const size_t triggers_y = ctk_reflib_reader_trigger_count(y);
     if (triggers_x != triggers_y) {
         result = trg;
+        snprintf(msg, sizeof(msg), "[compare_triggers_ctk] count %ld != %ld", triggers_x, triggers_y);
+        ctk_log_error(msg);
     }
 
     for (size_t i = 0; i < triggers_x; ++i) {
@@ -846,11 +940,15 @@ enum summary compare_triggers_v4(cntfile_t x, cntfile_t y) {
     const int triggers_y = libeep_get_trigger_count(y);
 
     if (triggers_x < 0 || triggers_y < 0) {
+        snprintf(msg, sizeof(msg), "[compare_triggers_v4] invalid count %d, %d", triggers_x, triggers_y);
+        ctk_log_error(msg);
         return trg;
     }
 
     if (triggers_x != triggers_y) {
         result = trg;
+        snprintf(msg, sizeof(msg), "[compare_triggers_v4] count %d != %d", triggers_x, triggers_y);
+        ctk_log_error(msg);
     }
 
     for (int i = 0; i < triggers_x; ++i) {
@@ -914,11 +1012,15 @@ enum summary compare_sample_data_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk, en
     const int64_t samples_ctk = ctk_reflib_reader_sample_count(ctk);
     const size_t electrodes_ctk = ctk_reflib_reader_electrode_count(ctk);
     if (samples_ctk < 1 || electrodes_ctk < 1) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_v4_ctk] ctk invalid matrix dimensions %ldx%ld", electrodes_ctk, samples_ctk);
+        ctk_log_error(msg);
         return header_elc | header_smpl;
     }
 
     float* sample_ctk = (float*)malloc(electrodes_ctk * sizeof(float));
     if (!sample_ctk) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_v4_ctk] can not allocate 1x%ld matrix", electrodes_ctk);
+        ctk_log_error(msg);
         return aux;
     }
 
@@ -927,11 +1029,15 @@ enum summary compare_sample_data_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk, en
     for (int64_t sample = 0; sample < samples_ctk; ++sample) {
         int64_t received = ctk_reflib_reader_v4(ctk, sample, 1, sample_ctk, electrodes_ctk);
         if (received != 1) {
+            snprintf(msg, sizeof(msg), "[compare_sample_data_v4_ctk] ctk can not access sample %ld", sample);
+            ctk_log_warning(msg);
             continue;
         }
 
         float* sample_v4 = libeep_get_samples(v4, (long)sample, (long)(sample + 1));
         if (!sample_v4) {
+            snprintf(msg, sizeof(msg), "[compare_sample_data_v4_ctk] v4 can not access sample %ld", sample);
+            ctk_log_warning(msg);
             continue;
         }
 
@@ -954,9 +1060,11 @@ enum summary compare_sample_data_v4_ctk(cntfile_t v4, ctk_reflib_reader* ctk, en
         snprintf(msg, sizeof(msg), "[compare_sample_data_v4_ctk] maximum value difference %.23f%s", max_diff, unit);
 
         if (v4_truncated_scale) {
+            ctk_log_warning(msg);
         }
         else {
             result = eeg_data;
+            ctk_log_error(msg);
         }
     }
 
@@ -976,20 +1084,28 @@ enum summary compare_sample_data_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y)
     const size_t electrodes_y = ctk_reflib_reader_electrode_count(y);
 
     if (samples_x < 1 || electrodes_x < 1) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] x invalid matrix dimensions %ldx%ld", electrodes_x, samples_x);
+        ctk_log_error(msg);
         return header_elc | header_smpl;
     }
 
     if (samples_y < 1 || electrodes_y < 1) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] y invalid matrix dimensions %ldx%ld", electrodes_y, samples_y);
+        ctk_log_error(msg);
         return header_elc | header_smpl;
     }
 
     if (samples_x != samples_y) {
         result = header_smpl;
+        snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] sample count x = %ld y = %ld", samples_x, samples_y);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     if (electrodes_x != electrodes_y) {
         result = header_elc;
+        snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] electrode count x = %ld y = %ld", electrodes_x, electrodes_y);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -998,12 +1114,16 @@ enum summary compare_sample_data_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y)
     matrix_x = (double*)malloc(area * sizeof(double));
     if (!matrix_x) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] x can not allocate %ldx%ld matrix", electrodes_x, chunk);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     matrix_y = (double*)malloc(area * sizeof(double));
     if (!matrix_y) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] y can not allocate %ldx%ld matrix", electrodes_x, chunk);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1015,18 +1135,24 @@ enum summary compare_sample_data_ctk(ctk_reflib_reader* x, ctk_reflib_reader* y)
         const int64_t received_x = ctk_reflib_reader_row_major(x, sample, due, matrix_x, due_size);
         if (received_x != due) {
             result = eeg_data;
+            snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] x can not access range [%ld, %ld)", sample, sample + due);
+            ctk_log_error(msg);
             goto cleanup;
         }
 
         const int64_t received_y = ctk_reflib_reader_row_major(y, sample, due, matrix_y, due_size);
         if (received_y != due) {
             result = eeg_data;
+            snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] y can not access range [%ld, %ld)", sample, sample + due);
+            ctk_log_error(msg);
             goto cleanup;
         }
 
         for (size_t i = 0; i < due_size; ++i) {
             if (matrix_x[i] != matrix_y[i]) {
                 result = eeg_data;
+                snprintf(msg, sizeof(msg), "[compare_sample_data_ctk] data mismatch at %ld/%ld: %f != %f", i, due_size, matrix_x[i], matrix_y[i]);
+                ctk_log_error(msg);
                 goto cleanup;
             }
         }
@@ -1049,18 +1175,26 @@ enum summary compare_sample_data_v4(cntfile_t x, cntfile_t y) {
     const long samples_x = libeep_get_sample_count(x);
     const long samples_y = libeep_get_sample_count(y);
     if (electrodes_x < 1 || samples_x < 1) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_v4] x invalid matrix dimensions %dx%ld", electrodes_x, samples_x);
+        ctk_log_error(msg);
         return eeg_data;
     }
 
     if (electrodes_y < 1 || samples_y < 1) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_v4] y invalid matrix dimensions %dx%ld", electrodes_y, samples_y);
+        ctk_log_error(msg);
         return eeg_data;
     }
 
     if (samples_x != samples_y) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_v4] sample count x = %ld y = %ld", samples_x, samples_y);
+        ctk_log_error(msg);
         return eeg_data;
     }
 
     if (electrodes_x != electrodes_y) {
+        snprintf(msg, sizeof(msg), "[compare_sample_data_v4] electrode count x = %d y = %d", electrodes_x, electrodes_y);
+        ctk_log_error(msg);
         return eeg_data;
     }
 
@@ -1079,12 +1213,16 @@ enum summary compare_sample_data_v4(cntfile_t x, cntfile_t y) {
         float* matrix_y = libeep_get_samples(x, (long)sample, (long)(sample + due));
         if (!matrix_y) {
             free(matrix_x);
+            snprintf(msg, sizeof(msg), "[compare_sample_data_v4] y can not access range [%ld, %ld)", sample, sample + due);
+            ctk_log_error(msg);
             continue;
         }
 
         for (size_t i = 0; i < due_size; ++i) {
             if (matrix_x[i] != matrix_y[i]) {
                 result = eeg_data;
+                snprintf(msg, sizeof(msg), "[compare_sample_data_v4] data mismatch at %ld/%ld: %f != %f", i, due_size, matrix_x[i], matrix_y[i]);
+                ctk_log_error(msg);
                 break;
             }
         }
@@ -1100,6 +1238,10 @@ enum summary compare_sample_data_v4(cntfile_t x, cntfile_t y) {
 
 
 enum summary compare_files_ctk(const char* fname_x, const char* fname_y) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[compare_files_ctk] processing '%s' and '%s'", last_n(fname_x, 40), last_n(fname_y, 40));
+    ctk_log_info(msg);
+
     ctk_reflib_reader* reader_x = NULL;
     ctk_reflib_reader* reader_y = NULL;
     enum summary result = ok;
@@ -1109,6 +1251,8 @@ enum summary compare_files_ctk(const char* fname_x, const char* fname_y) {
     reader_x = ctk_reflib_reader_make(fname_x);
     if (!reader_x) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_files_ctk] x can not open '%s' for reading", last_n(fname_x, 40));
+        ctk_log_error(msg);
         stderr_failed_reader(fname_x);
         goto cleanup;
     }
@@ -1116,6 +1260,8 @@ enum summary compare_files_ctk(const char* fname_x, const char* fname_y) {
     reader_y = ctk_reflib_reader_make(fname_y);
     if (!reader_y) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_files_ctk] y can not open '%s' for reading", last_n(fname_y, 40));
+        ctk_log_error(msg);
         stderr_failed_reader(fname_y);
         goto cleanup;
     }
@@ -1133,6 +1279,10 @@ cleanup:
 
 
 enum summary compare_files_v4(const char* fname_x, const char* fname_y) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[compare_files_v4] processing '%s' and '%s'", last_n(fname_x, 40), last_n(fname_y, 40));
+    ctk_log_info(msg);
+
     cntfile_t reader_x = -1;
     cntfile_t reader_y = -1;
     enum summary result = ok;
@@ -1142,6 +1292,8 @@ enum summary compare_files_v4(const char* fname_x, const char* fname_y) {
     reader_x = libeep_read(fname_x);
     if (reader_x == -1) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_files_v4] x can not open '%s' for reading", last_n(fname_x, 40));
+        ctk_log_error(msg);
         stderr_failed_reader(fname_x);
         goto cleanup;
     }
@@ -1149,6 +1301,8 @@ enum summary compare_files_v4(const char* fname_x, const char* fname_y) {
     reader_y = libeep_read(fname_y);
     if (reader_y == -1) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_files_v4] y can not open '%s' for reading", last_n(fname_y, 40));
+        ctk_log_error(msg);
         stderr_failed_reader(fname_y);
         goto cleanup;
     }
@@ -1167,6 +1321,10 @@ cleanup:
 
 
 enum summary compare_reader_v4_ctk(const char* fname) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[compare_reader_v4_ctk] processing (v4, ctk) '%s'", last_n(fname, 40));
+    ctk_log_info(msg);
+
     ctk_reflib_reader* ctk = NULL;
     cntfile_t v4 = -1;
     enum summary result = ok;
@@ -1176,6 +1334,8 @@ enum summary compare_reader_v4_ctk(const char* fname) {
     ctk = ctk_reflib_reader_make(fname);
     if (!ctk) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_reader_v4_ctk] ctk can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         stderr_compare_1file_2readers_failed("ctk");
         goto cleanup;
     }
@@ -1183,6 +1343,8 @@ enum summary compare_reader_v4_ctk(const char* fname) {
     v4 = libeep_read(fname);
     if(v4 == -1) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[compare_reader_v4_ctk] v4 can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         stderr_compare_1file_2readers_failed(" v4");
         goto cleanup;
     }
@@ -1210,6 +1372,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     const int64_t samples = ctk_reflib_reader_sample_count(reader);
     if (samples < 1 || electrodes < 1) {
         result = header_elc | header_smpl;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] invalid matrix dimensions %ldx%ld", electrodes, samples);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1222,6 +1386,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
 
         if (ctk_reflib_writer_electrode(writer, label, ref, unit, iscale, rscale) != EXIT_SUCCESS) {
             result = header_elc;
+            snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write electrode %ld: '%s'-'%s' '%s' %f %f", i, label, ref, unit, iscale, rscale);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
@@ -1229,12 +1395,16 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     const double rate = ctk_reflib_reader_sampling_frequency(reader);
     if (ctk_reflib_writer_sampling_frequency(writer, rate) != EXIT_SUCCESS) {
         result = header_srate;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write sampling frequency %f", rate);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const int64_t epoch = ctk_reflib_reader_epoch_length(reader);
     if (ctk_reflib_writer_epoch_length(writer, epoch) != EXIT_SUCCESS) {
         result = header_epoch;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write epoch length %ld", epoch);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1242,6 +1412,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     if (ctk_reflib_writer_start_time(writer, &stamp) != EXIT_SUCCESS) {
         result = header_stamp;
         print_timespec(&stamp, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write eeg start time %s", stamp_str);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1251,11 +1423,15 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     for (size_t i = 0; i < triggers; ++i) {
         if (ctk_reflib_reader_trigger(reader, i, &trigger_sample, trigger_code, sizeof(trigger_code)) != EXIT_SUCCESS) {
             result = trg;
+            snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not read trigger %ld", i);
+            ctk_log_error(msg);
             goto cleanup;
         }
 
         if (ctk_reflib_writer_trigger(writer, trigger_sample, trigger_code) != EXIT_SUCCESS) {
             result = trg;
+            snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write trigger %ld: %ld '%s'", i, trigger_sample, trigger_code);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
@@ -1269,6 +1445,9 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     const struct timespec dob = ctk_reflib_reader_subject_dob(reader);
     if (ctk_reflib_writer_subject(writer, id, name, address, phone, sex, hand, &dob) != EXIT_SUCCESS) {
         result = info;
+        print_timespec(&dob, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write: id '%s', name '%s', address '%s', phone '%s', sex %c, hand %c, dob %s", id, name, address, phone, sex, hand, stamp_str);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1277,6 +1456,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     const char* technician = ctk_reflib_reader_technician(reader);
     if (ctk_reflib_writer_institution(writer, hospital, physician, technician) != EXIT_SUCCESS) {
         result = info;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write: hospital '%s', physician '%s', technician '%s'", hospital, physician, technician);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1285,6 +1466,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     const char* sn = ctk_reflib_reader_machine_sn(reader);
     if (ctk_reflib_writer_equipment(writer, make, model, sn) != EXIT_SUCCESS) {
         result = info;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write: make '%s', model '%s', sn '%s'", make, model, sn);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1293,6 +1476,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     const char* comment = ctk_reflib_reader_comment(reader);
     if (ctk_reflib_writer_experiment(writer, test_name, test_serial, comment) != EXIT_SUCCESS) {
         result = info;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write: test name '%s', test serial '%s', comment '%s'", test_name, test_serial, comment);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1301,6 +1486,8 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
     matrix = (double*)malloc(area * sizeof(double));
     if (!matrix) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not allocate %ldx%ld matrix", electrodes, chunk);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1312,11 +1499,15 @@ enum summary copy_ctk2ctk(ctk_reflib_reader* reader, ctk_reflib_writer* writer) 
         const int64_t received = ctk_reflib_reader_row_major(reader, sample, due, matrix, due_size);
         if (received != due) {
             result = eeg_data;
+            snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not read range [%ld-%ld)", sample, sample + due);
+            ctk_log_error(msg);
             goto cleanup;
         }
 
         if (ctk_reflib_writer_row_major(writer, matrix, due_size) != EXIT_SUCCESS) {
             result = eeg_data;
+            snprintf(msg, sizeof(msg), "[copy_ctk2ctk] can not write range [%ld-%ld)", sample, sample + due);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
@@ -1338,6 +1529,8 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     const long samples = libeep_get_sample_count(reader);
     if (samples < 1 || electrodes < 1) {
         result = header_elc | header_smpl;
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] invalid matrix dimensions %dx%ld", electrodes, samples);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1349,6 +1542,8 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
 
         if (ctk_reflib_writer_electrode(writer, label, ref, unit, 1, scale) != EXIT_SUCCESS) {
             result = header_elc;
+            snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write electrode %d: '%s'-'%s' '%s' %f", i, label, ref, unit, scale);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
@@ -1356,6 +1551,8 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     const int rate = libeep_get_sample_frequency(reader);
     if (ctk_reflib_writer_sampling_frequency(writer, (double)rate) != EXIT_SUCCESS) {
         result = header_srate;
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write sampling frequency %d", rate);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1364,16 +1561,22 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     struct timespec stamp;
     if (ctk_dcdate2timespec(day_seconds, subseconds, &stamp) != EXIT_SUCCESS) {
         result = header_stamp;
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] conversion of (%f, %f) to time failed", day_seconds, subseconds);
+        ctk_log_error(msg);
         goto cleanup;
     }
     if (ctk_reflib_writer_start_time(writer, &stamp) != EXIT_SUCCESS) {
         result = header_stamp;
         print_timespec(&stamp, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write eeg start time (%f %f) [%s]", day_seconds, subseconds, stamp_str);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
     const int triggers = libeep_get_trigger_count(reader);
     if (triggers < 0) {
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] invalid trigger count %d", triggers);
+        ctk_log_error(msg);
         return trg;
     }
     uint64_t trigger_sample;
@@ -1382,11 +1585,15 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
 
         if (LLONG_MAX < trigger_sample) {
             result = trg;
+            snprintf(msg, sizeof(msg), "[copy_v42ctk] trigger sample %d > %lld (max)", triggers, LLONG_MAX);
+            ctk_log_error(msg);
             continue;
         }
 
         if (ctk_reflib_writer_trigger(writer, (int64_t)trigger_sample, trigger_code) != EXIT_SUCCESS) {
             result = trg;
+            snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write trigger %ld: %ld '%s'", i, trigger_sample, trigger_code);
+            ctk_log_error(msg);
             goto cleanup;
         }
     }
@@ -1407,10 +1614,14 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     struct timespec dob;
     if (ctk_tm2timespec(&ymd, &dob) != EXIT_SUCCESS) {
         result = info;
+        ctk_log_error("[copy_eeg2ctk] dob conversion from tm");
         goto cleanup;
     }
     if (ctk_reflib_writer_subject(writer, id, name, address, phone, sex, hand, &dob) != EXIT_SUCCESS) {
         result = info;
+        print_timespec(&dob, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write: id '%s', name '%s', address '%s', phone '%s', sex %c, hand %c, dob %s", id, name, address, phone, sex, hand, stamp_str);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1419,6 +1630,8 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     const char* technician = libeep_get_technician(reader);
     if (ctk_reflib_writer_institution(writer, hospital, physician, technician) != EXIT_SUCCESS) {
         result = info;
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write: hospital '%s', physician '%s', technician '%s'", hospital, physician, technician);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1427,6 +1640,8 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     const char* sn = libeep_get_machine_serial_number(reader);
     if (ctk_reflib_writer_equipment(writer, make, model, sn) != EXIT_SUCCESS) {
         result = info;
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write: make '%s', model '%s', sn '%s'", make, model, sn);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1435,6 +1650,8 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
     const char* comment = libeep_get_comment(reader);
     if (ctk_reflib_writer_experiment(writer, test_name, test_serial, comment) != EXIT_SUCCESS) {
         result = info;
+        snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write: test name '%s', test serial '%s', comment '%s'", test_name, test_serial, comment);
+        ctk_log_error(msg);
         goto cleanup;
     }
 
@@ -1447,11 +1664,15 @@ enum summary copy_v42ctk(cntfile_t reader, ctk_reflib_writer* writer) {
         float* matrix = libeep_get_samples(reader, sample, sample + due);
         if (!matrix) {
             result = eeg_data;
+            snprintf(msg, sizeof(msg), "[copy_v42ctk] can not read range [%ld-%ld)", sample, sample + due);
+            ctk_log_error(msg);
             goto cleanup;
         }
 
         if (ctk_reflib_writer_v4(writer, matrix, due_size) != EXIT_SUCCESS) {
             result = eeg_data;
+            snprintf(msg, sizeof(msg), "[copy_v42ctk] can not write range [%ld-%ld)", sample, sample + due);
+            ctk_log_error(msg);
             goto cleanup;
         }
 
@@ -1465,6 +1686,10 @@ cleanup:
 }
 
 enum bool ctkread_ctkwrite_compareall(const char* fname) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[ctkread_ctkwrite_compareall] processing '%s'", last_n(fname, 40));
+    ctk_log_error(msg);
+
     const char* delme_cnt = "ctkread_ctkwrite_compareall.cnt";
     stderr_copy_begin(fname, delme_cnt, "ctk", "ctk");
 
@@ -1475,6 +1700,8 @@ enum bool ctkread_ctkwrite_compareall(const char* fname) {
     reader_ctk = ctk_reflib_reader_make(fname);
     if (!reader_ctk) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[ctkread_ctkwrite_compareall] can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         stderr_failed_reader(fname);
         goto cleanup;
     }
@@ -1483,6 +1710,8 @@ enum bool ctkread_ctkwrite_compareall(const char* fname) {
     writer_ctk = ctk_reflib_writer_make(delme_cnt, cnt64);
     if (!writer_ctk) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[ctkread_ctkwrite_compareall] can not open '%s' for writing", delme_cnt);
+        ctk_log_error(msg);
         stderr_failed_writer(delme_cnt);
         goto cleanup;
     }
@@ -1505,6 +1734,10 @@ cleanup:
 
 
 enum bool v4read_ctkwrite_compareall(const char* fname) {
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[v4read_ctkwrite_compareall] processing '%s'", last_n(fname, 40));
+    ctk_log_info(msg);
+
     ctk_reflib_writer* writer_ctk = NULL;
     cntfile_t reader_v4 = -1;
     enum summary result = ok;
@@ -1515,6 +1748,8 @@ enum bool v4read_ctkwrite_compareall(const char* fname) {
     reader_v4 = libeep_read(fname);
     if(reader_v4 == -1) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[v4read_ctkwrite_compareall] v4 can not open '%s' for reading", last_n(fname, 40));
+        ctk_log_error(msg);
         stderr_failed_reader(fname);
         goto cleanup;
     }
@@ -1523,6 +1758,8 @@ enum bool v4read_ctkwrite_compareall(const char* fname) {
     writer_ctk = ctk_reflib_writer_make(delme_cnt, cnt64);
     if (!writer_ctk) {
         result |= aux;
+        snprintf(msg, sizeof(msg), "[v4read_ctkwrite_compareall] ctk can not open '%s' for writing", delme_cnt);
+        ctk_log_error(msg);
         stderr_failed_writer(fname);
         goto cleanup;
     }
@@ -1549,6 +1786,10 @@ int main(int argc, char* argv[]) {
     (void)(argv); // unused
 
     libeep_init();
+
+    if (ctk_set_logger("file", "warning") != EXIT_SUCCESS) {
+        return EXIT_FAILURE;
+    }
 
     struct input_txt cnt_files = make_input_txt();
     const char* fname = NULL;

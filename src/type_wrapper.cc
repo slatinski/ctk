@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 
 #include "exception.h"
+#include "logger.h"
 
 namespace ctk { namespace impl {
 
@@ -35,6 +36,7 @@ namespace ctk { namespace impl {
                 std::ostringstream oss;
                 oss << "[operator<<(encoding_size), type_wrapper] invalid size " << static_cast<int>(x);
                 const auto e{ oss.str() };
+                ctk_log_critical(e);
                 throw ctk::api::v1::CtkBug{ e };
             }
         }
@@ -51,6 +53,7 @@ namespace ctk { namespace impl {
                 std::ostringstream oss;
                 oss << "[operator<<(encoding_method), type_wrapper] invalid size " << static_cast<int>(x);
                 const auto e{ oss.str() };
+                ctk_log_critical(e);
                 throw ctk::api::v1::CtkBug{ e };
             }
         }

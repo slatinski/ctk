@@ -19,6 +19,8 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "file/cnt_reflib.h"
 
+#include "logger.h"
+
 
 namespace ctk { namespace impl {
 
@@ -29,6 +31,7 @@ auto flat2riff(const std::filesystem::path& input_name, const std::filesystem::p
     const auto epochs{ reader.common_epoch_reader().count() };
     if (epochs == 0) {
         const std::string e{ "[flat2riff, cnt_reflib] no compressed data" };
+        ctk_log_error(e);
         throw api::v1::CtkData{ e };
     }
     reader.common_epoch_reader().epoch(epochs - epoch_count{ 1 });
@@ -104,6 +107,7 @@ auto cnt_writer_reflib_riff::history(const std::string& x) -> void {
 auto cnt_writer_reflib_riff::add_time_signal(const api::v1::TimeSeries& param) -> cnt_writer_reflib_flat* {
     if (flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::add_time_signal, cnt_reflib] one segment only" };
+        ctk_log_critical(e);
         throw api::v1::CtkBug{ e };
     }
     flat_writer.reset(new cnt_writer_reflib_flat{ fname_flat(file_name), param, riff });
@@ -126,6 +130,7 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
         std::ostringstream oss;
         oss << "[cnt_writer_reflib_riff::embed, cnt_reflib] reserved label " << *verboten;
         const auto e{ oss.str() };
+        ctk_log_error(e);
         throw api::v1::CtkLimit{ e };
     }
 
@@ -135,6 +140,7 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
         std::ostringstream oss;
         oss << "[cnt_writer_reflib_riff::embed, cnt_reflib] duplicated label " << used_up->label;
         const auto e{ oss.str() };
+        ctk_log_error(e);
         throw api::v1::CtkLimit{ e };
     }
 
@@ -144,6 +150,7 @@ auto cnt_writer_reflib_riff::embed(std::string label, const std::filesystem::pat
 auto cnt_writer_reflib_riff::commited() const -> measurement_count {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::commited, cnt_reflib] invalid operation" };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -153,6 +160,7 @@ auto cnt_writer_reflib_riff::commited() const -> measurement_count {
 auto cnt_writer_reflib_riff::range_row_major(measurement_count i, measurement_count samples) -> std::vector<double> {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::range_row_major, cnt_reflib] invalid operation" };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -162,6 +170,7 @@ auto cnt_writer_reflib_riff::range_row_major(measurement_count i, measurement_co
 auto cnt_writer_reflib_riff::range_column_major(measurement_count i, measurement_count samples) -> std::vector<double> {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::range_column_major, cnt_reflib] invalid operation" };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -171,6 +180,7 @@ auto cnt_writer_reflib_riff::range_column_major(measurement_count i, measurement
 auto cnt_writer_reflib_riff::range_row_major_int32(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::range_row_major_int32, cnt_reflib] invalid operation" };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -180,6 +190,7 @@ auto cnt_writer_reflib_riff::range_row_major_int32(measurement_count i, measurem
 auto cnt_writer_reflib_riff::range_column_major_int32(measurement_count i, measurement_count samples) -> std::vector<int32_t> {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::range_column_major_int32, cnt_reflib] invalid operation" };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -189,6 +200,7 @@ auto cnt_writer_reflib_riff::range_column_major_int32(measurement_count i, measu
 auto cnt_writer_reflib_riff::flush() -> void {
     if (!flat_writer) {
         const std::string e{ "[cnt_writer_reflib_riff::flush, cnt_reflib] invalid operation" };
+        ctk_log_error(e);
         throw api::v1::CtkBug{ e };
     }
 
@@ -215,6 +227,7 @@ auto cnt_writer_reflib_riff::close() -> void {
     std::transform(begin(tokens), end(tokens), begin(temporary_files), get_fname);
     if (!delete_files(temporary_files)) {
         const std::string e{ "[cnt_writer_reflib_riff::close, cnt_reflib] cannot delete temporary files" };
+        ctk_log_error(e);
         throw api::v1::CtkData{ e };
     }
 }

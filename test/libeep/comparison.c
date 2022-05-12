@@ -35,10 +35,15 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 
 enum bool equal_strings(const char* x, const char* y, const char* func) {
+    char msg[512];
+
     if (x && y) {
         if (strcmp(x, y) == 0) {
             return yep;
         }
+
+        snprintf(msg, sizeof(msg), "[%s] '%s' != '%s'", func, x, y);
+        ctk_log_error(msg);
         return nope;
     }
     else if (!x && !y) {
@@ -54,12 +59,18 @@ enum bool equal_strings(const char* x, const char* y, const char* func) {
         return yep;
     }
     else {
+        const char* present_x = x ? "present" : "absent";
+        const char* present_y = y ? "present" : "absent";
+        snprintf(msg, sizeof(msg), "[%s] availability %s != %s", func, present_x, present_y);
+        ctk_log_error(msg);
         return nope;
     }
 }
 
 
 enum bool equal_unit(const char* x, const char* y, const char* func) {
+    char msg[512];
+
     if (x == NULL || y == NULL) {
         return nope;
     }
@@ -69,9 +80,13 @@ enum bool equal_unit(const char* x, const char* y, const char* func) {
     if (len_x == 2 && len_y == 2) {
         if (x[1] == 'V' && y[1] == 'V') {
             if (x[0] == 'u' && y[0] == -75) {
+                snprintf(msg, sizeof(msg), "[%s] ignoring difference between '%s' != '%s'", func, x, y);
+                ctk_log_trace(msg);
                 return yep;
             }
             if (x[0] == -75 && y[0] == 'u') {
+                snprintf(msg, sizeof(msg), "[%s] ignoring difference between '%s' != '%s'", func, x, y);
+                ctk_log_trace(msg);
                 return yep;
             }
         }
@@ -87,10 +102,18 @@ enum bool known_sex(char x) {
 }
 
 enum bool equal_sex(char x, char y, const char* func) {
+    char msg[512];
+
     if (known_sex(x) && known_sex(y) && x == y) {
         return yep;
     }
 
+    const char* valid_x = known_sex(x) ? "valid" : "invalid";
+    const char* valid_y = known_sex(y) ? "valid" : "invalid";
+    const char disp_x = x == 0 ? '0' : x;
+    const char disp_y = y == 0 ? '0' : y;
+    snprintf(msg, sizeof(msg), "[%s] %s != %s ('%c' != '%c')", func, valid_x, valid_y, disp_x, disp_y);
+    ctk_log_error(msg);
     return nope;
 }
 
@@ -100,10 +123,18 @@ enum bool known_handedness(char x) {
 }
 
 enum bool equal_handedness(char x, char y, const char* func) {
+    char msg[512];
+
     if (known_handedness(x) && known_handedness(y) && x == y) {
         return yep;
     }
 
+    const char* valid_x = known_handedness(x) ? "valid" : "invalid";
+    const char* valid_y = known_handedness(y) ? "valid" : "invalid";
+    const char disp_x = x == 0 ? '0' : x;
+    const char disp_y = y == 0 ? '0' : y;
+    snprintf(msg, sizeof(msg), "[%s] %s != %s ('%c' != '%c')", func, valid_x, valid_y, disp_x, disp_y);
+    ctk_log_error(msg);
     return nope;
 }
 
@@ -118,6 +149,9 @@ enum bool equal_date(double date_x, double frac_x, double date_y, double frac_y,
         return yep;
     }
 
+    char msg[512];
+    snprintf(msg, sizeof(msg), "[%s] (%f, %f) != (%f, %f)", func, date_x, frac_x, date_y, frac_y);
+    ctk_log_error(msg);
     return nope;
 }
 
@@ -153,6 +187,10 @@ enum bool equal_tm(const struct tm* x, const struct tm* y, const char* func) {
     }
 
     if (!x || !y) {
+        const char* present_x = x ? "present" : "absent";
+        const char* present_y = y ? "present" : "absent";
+        snprintf(msg, sizeof(msg), "[%s] availability %s != %s", func, present_x, present_y);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -165,15 +203,28 @@ enum bool equal_tm(const struct tm* x, const struct tm* y, const char* func) {
 }
 
 enum bool equal_timespec(const struct timespec* x, const struct timespec* y, const char* func) {
+    char msg[512];
+    char buf_x[256];
+    char buf_y[256];
+
     if (!x && !y) {
         return yep;
     }
 
     if (!x || !y) {
+        const char* present_x = x ? "present" : "absent";
+        const char* present_y = y ? "present" : "absent";
+        snprintf(msg, sizeof(msg), "[%s] availability %s != %s", func, present_x, present_y);
+        ctk_log_error(msg);
         return nope;
     }
 
     if (x->tv_sec != y->tv_sec || x->tv_nsec != y->tv_nsec) {
+        print_timespec(y, buf_x, sizeof(buf_x));
+        print_timespec(x, buf_y, sizeof(buf_y));
+        snprintf(msg, sizeof(msg), "[%s] '%s' != '%s'", func, buf_x, buf_y);
+        //snprintf(msg, sizeof(msg), "[%s] timespec '%d.%d' != '%d.%d'", func, x->tv_sec, x->tv_nsec, y->tv_sec, y->tv_nsec);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -181,13 +232,21 @@ enum bool equal_timespec(const struct timespec* x, const struct timespec* y, con
 }
 
 enum bool equal_date_timespec(double date_x, double frac_x, const struct timespec* time_y, const char* func) {
+    char msg[512];
+    char stamp_str[256];
+
     struct timespec time_x;
     if (ctk_dcdate2timespec(date_x, frac_x, &time_x) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[%s] failed conversion to timespec (%f, %f)", func, date_x, frac_x);
+        ctk_log_error(msg);
         return nope;
     }
 
     double date_y, frac_y;
     if (ctk_timespec2dcdate(time_y, &date_y, &frac_y) != EXIT_SUCCESS) {
+        print_timespec(time_y, stamp_str, sizeof(stamp_str));
+        snprintf(msg, sizeof(msg), "[%s] failed conversion to dcdate '%s'", func, stamp_str);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -221,15 +280,21 @@ enum bool electrode_strings(const char* label_x, const char* ref_x, const char* 
 enum bool equal_electrode(const char* label_x, const char* ref_x, const char* unit_x, double iscale_x, double rscale_x
                         , const char* label_y, const char* ref_y, const char* unit_y, double iscale_y, double rscale_y
                         , const char* func) {
+    char msg[512];
+
     if (!electrode_strings(label_x, ref_x, unit_x, label_y, ref_y, unit_y, func)) {
         return nope;
     }
 
     if (iscale_x != iscale_y) {
+        snprintf(msg, sizeof(msg), "[%s iscale] %f != %f", func, iscale_x, iscale_y);
+        ctk_log_error(msg);
         return nope;
     }
 
     if (rscale_x != rscale_y) {
+        snprintf(msg, sizeof(msg), "[%s rscale] %f != %f", func, rscale_x, rscale_y);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -240,6 +305,8 @@ enum bool equal_electrode(const char* label_x, const char* ref_x, const char* un
 enum bool equal_electrode_v4(const char* label_v4, const char* ref_v4, const char* unit_v4, double scale
                            , const char* label_ctk, const char* ref_ctk, const char* unit_ctk, double iscale, double rscale
                            , const char* func, enum bool* v4_truncated_scale) {
+    char msg[512];
+
     if (!electrode_strings(label_v4, ref_v4, unit_v4, label_ctk, ref_ctk, unit_ctk, func)) {
         return nope;
     }
@@ -257,6 +324,8 @@ enum bool equal_electrode_v4(const char* label_v4, const char* ref_v4, const cha
         return yep;
     }
 
+    snprintf(msg, sizeof(msg), "[%s scale] %f != %f", func, scale, iscale * rscale);
+    ctk_log_error(msg);
     return nope;
 }
 
@@ -312,6 +381,8 @@ enum bool equal_subject(const char* id_x, const char* name_x, const char* addr_x
 enum bool equal_subject_v4( const char* id_x, const char* name_x, const char* addr_x, const char* phone_x, char sex_x, char hand_x, int year_x, int month_x, int day_x
                           , const char* id_y, const char* name_y, const char* addr_y, const char* phone_y, char sex_y, char hand_y, const struct timespec* dob_y
                           , const char* func) {
+    char msg[512];
+
     if (!subject_strings( id_x, name_x, addr_x, phone_x, sex_x, hand_x
                         , id_y, name_y, addr_y, phone_y, sex_y, hand_y
                         , func)) {
@@ -320,6 +391,8 @@ enum bool equal_subject_v4( const char* id_x, const char* name_x, const char* ad
 
     const struct tm* dob_tm = gmtime(&dob_y->tv_sec);
     if (!dob_tm) {
+        snprintf(msg, sizeof(msg), "[%s dob] gtmtime failed", func);
+        ctk_log_error(msg);
         return nope;
     }
     const int year_y = dob_tm->tm_year + 1900;
@@ -327,6 +400,8 @@ enum bool equal_subject_v4( const char* id_x, const char* name_x, const char* ad
     const int day_y = dob_tm->tm_mday;
 
     if (year_x !=  year_y || month_x != month_y || day_x != day_y) {
+        snprintf(msg, sizeof(msg), "[%s dob] %.4d/%.2d/%.2d != %.4d/%.2d/%.2d", func, year_x, month_x, day_x, year_y, month_y, day_y);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -336,6 +411,8 @@ enum bool equal_subject_v4( const char* id_x, const char* name_x, const char* ad
 enum bool equal_subject_v4_v4( const char* id_x, const char* name_x, const char* addr_x, const char* phone_x, char sex_x, char hand_x, int year_x, int month_x, int day_x
                              , const char* id_y, const char* name_y, const char* addr_y, const char* phone_y, char sex_y, char hand_y, int year_y, int month_y, int day_y
                              , const char* func) {
+    char msg[512];
+
     if (!subject_strings( id_x, name_x, addr_x, phone_x, sex_x, hand_x
                         , id_y, name_y, addr_y, phone_y, sex_y, hand_y
                         , func)) {
@@ -343,6 +420,8 @@ enum bool equal_subject_v4_v4( const char* id_x, const char* name_x, const char*
     }
 
     if (year_x !=  year_y || month_x != month_y || day_x != day_y) {
+        snprintf(msg, sizeof(msg), "[%s dob] %.4d/%.2d/%.2d != %.4d/%.2d/%.2d", func, year_x, month_x, day_x, year_y, month_y, day_y);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -352,6 +431,8 @@ enum bool equal_subject_v4_v4( const char* id_x, const char* name_x, const char*
 enum bool equal_subject_eeg_ctk( const char* id_x, const char* name_x, const char* addr_x, const char* phone_x, char sex_x, char hand_x, const struct tm* dob_x
                                , const char* id_y, const char* name_y, const char* addr_y, const char* phone_y, char sex_y, char hand_y, const struct timespec* dob_y
                                , const char* func) {
+    char msg[512];
+
     if (!subject_strings( id_x, name_x, addr_x, phone_x, sex_x, hand_x
                         , id_y, name_y, addr_y, phone_y, sex_y, hand_y
                         , func)) {
@@ -364,16 +445,22 @@ enum bool equal_subject_eeg_ctk( const char* id_x, const char* name_x, const cha
             return yep;
         }
 
+        snprintf(msg, sizeof(msg), "[%s] eeg no dob", func);
+        ctk_log_error(msg);
         return nope;
     }
 
     struct timespec dob_ts;
     if (ctk_tm2timespec(dob_x, &dob_ts) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[%s] eeg dob conversion from tm", func);
+        ctk_log_error(msg);
         return nope;
     }
 
     struct tm dob_tm;
     if (ctk_timespec2tm(dob_y, &dob_tm) != EXIT_SUCCESS) {
+        snprintf(msg, sizeof(msg), "[%s] ctk dob conversion to tm", func);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -397,6 +484,10 @@ enum bool equal_subject_eeg_eeg( const char* id_x, const char* name_x, const cha
     }
 
     if (!dob_x || !dob_y) {
+        const char* present_x = dob_x ? "present" : "absent";
+        const char* present_y = dob_y ? "present" : "absent";
+        snprintf(msg, sizeof(msg), "[%s] dob availability %s != %s", func, present_x, present_y);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -487,10 +578,14 @@ enum bool equal_trigger(const char* code_x, int64_t sample_x, const char* code_y
     }
 
     if (sample_x < 0 || sample_y < 0) {
+        snprintf(msg, sizeof(msg), "[%s] negative index x %ld, y %ld", func, sample_x, sample_y);
+        ctk_log_error(msg);
         return nope;
     }
 
     if (sample_x != sample_y) {
+        snprintf(msg, sizeof(msg), "[%s] sample %ld != %ld", func, sample_x, sample_y);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -502,6 +597,8 @@ enum bool equal_trigger_u64_s64(const char* code_x, uint64_t sample_x, const cha
     char msg[512];
 
     if (LLONG_MAX < sample_x) {
+        snprintf(msg, sizeof(msg), "[%s]  range error %ld > %lld (max)", func, sample_x, LLONG_MAX);
+        ctk_log_error(msg);
         return nope;
     }
 
@@ -513,10 +610,14 @@ enum bool equal_trigger_u64_u64(const char* code_x, uint64_t sample_x, const cha
     char msg[512];
 
     if (LLONG_MAX < sample_x) {
+        snprintf(msg, sizeof(msg), "[%s] x range error %ld > %lld (max)", func, sample_x, LLONG_MAX);
+        ctk_log_error(msg);
         return nope;
     }
 
     if (LLONG_MAX < sample_y) {
+        snprintf(msg, sizeof(msg), "[%s] y range error %ld > %lld (max)", func, sample_y, LLONG_MAX);
+        ctk_log_error(msg);
         return nope;
     }
 

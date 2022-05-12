@@ -24,6 +24,8 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include "arithmetic.h"
+#include "logger.h"
+
 
 namespace ctk { namespace impl {
 
@@ -44,6 +46,7 @@ namespace ctk { namespace impl {
 #endif
         if (result < 0) {
             const std::string e{ "[tell, io] can not obtain the current file position" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -66,6 +69,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[open_r, io] can not open " << fname.string() << " for reading";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
         assert(p);
@@ -79,6 +83,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[open_w, io] can not open " << fname.string() << " for writing";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
         assert(p);
@@ -91,6 +96,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[copy_file_portion, io] can not seek to " << x.fpos;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 

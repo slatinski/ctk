@@ -22,6 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <algorithm>
 
 #include "file/io.h"
+#include "logger.h"
 
 
 namespace ctk { namespace impl {
@@ -547,6 +548,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_archive_string, evt] character width " << character_width << ", expected 1 or 2";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -574,6 +576,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_bstring, evt] odd byte string size " << size;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -583,6 +586,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_bstring, evt] negative length " << length;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -729,6 +733,7 @@ namespace ctk { namespace impl {
         }
 
         const std::string e{ "[write_value, evt] invalid input" };
+        ctk_log_error(e);
         throw api::v1::CtkData{ e };
     }
 
@@ -817,6 +822,7 @@ namespace ctk { namespace impl {
         const auto count{ x.data.size() };
         if (count != 1) {
             const std::string e{ "[write_simple_variant, evt] not a smple variant" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -830,6 +836,7 @@ namespace ctk { namespace impl {
         const auto [array_type, valid]{ read_simple_variant(f) };
         if (!valid) {
             const std::string e{ "[read_variant_array, evt] invalid array type" };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -878,6 +885,7 @@ namespace ctk { namespace impl {
         }
         else {
             const std::string e{ "[read_variant_array, evt] invalid element type" };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }
@@ -913,6 +921,7 @@ namespace ctk { namespace impl {
         case vt_array:
         case vt_byref:
             const std::string e{ "[make_dummy_variant, evt] invalid input" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -942,6 +951,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_variant, evt] invalid vt_type {}" << x.type;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -956,6 +966,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[write_variant, evt] data size " << x.data.size() << ", vt_type " << x.type;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -1028,6 +1039,7 @@ namespace ctk { namespace impl {
 
         if (!read_class(f, class_tag, class_name) || class_tag != tags::null) {
             const std::string e{ "[read_empty_class, evt] invalid input" };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }
@@ -1102,6 +1114,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_descriptors, evt] negative array size " << size;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -1142,6 +1155,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_event, evt] unsupported file version " << version;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkLimit{ e };
         }
 
@@ -1168,6 +1182,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[write_event, evt] unsupported file version " << version;
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
@@ -1363,6 +1378,7 @@ namespace ctk { namespace impl {
         const auto i_impedance{ std::find_if(first, last, is_impedance_descriptor) };
         if (i_impedance == last || !is_float_array(i_impedance->value)) {
             const std::string e{ "[marker2impedance, evt] no impedance descriptor" };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
         const std::vector<float> impedances{ as_float_array(i_impedance->value) };
@@ -1533,6 +1549,7 @@ namespace ctk { namespace impl {
         }
         else {
             const std::string e{ "[load_event, evt] invalid class name" };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
     }
@@ -1548,6 +1565,7 @@ namespace ctk { namespace impl {
         for (uint32_t i{ 0 }; i < size; ++i) {
             if (!read_class(f, class_tag, class_name)) {
                 const std::string e{ "[load_vector_of_pointers, evt] invalid class" };
+                ctk_log_error(e);
                 throw api::v1::CtkData{ e };
             }
 
@@ -1631,6 +1649,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_archive, evt] invalid class name " << class_name << ", expected " << dc_names::library;
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 

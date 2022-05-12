@@ -30,6 +30,11 @@ struct input_txt make_input_txt() {
 
     if (!x.f) {
         x.more = 0;
+
+        char msg[256];
+        snprintf(msg, sizeof(msg), "[make_input_txt] can not open input.txt for reading\n");
+        ctk_log_error(msg);
+        fprintf(stderr, "%s", msg);
     }
     return x;
 }

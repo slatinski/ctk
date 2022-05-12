@@ -24,6 +24,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cassert>
 
 #include "arithmetic.h"
+#include "logger.h"
 
 
 /*
@@ -179,6 +180,7 @@ namespace ctk { namespace impl {
             , common{ first, last } {
             if (current == last) {
                 const std::string e{ "[bit_stream_reader, bit_stream] empty input" };
+                ctk_log_error(e);
                 throw api::v1::CtkLimit{ e };
             }
             assert(common.total != 0);
@@ -209,6 +211,7 @@ namespace ctk { namespace impl {
     // T is unsigned integral
     auto read_n(bit_stream_reader<IByteConst>& stream, bit_count n, T/* type tag */) -> T {
         using A = typename bit_stream::A;
+        using Int = bit_count::value_type;
 
         static_assert(sizeof(T) < sizeof(A), "A should be at least one byte wider");
         static_assert(std::is_unsigned<T>::value);
@@ -221,6 +224,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[read_n, bit_stream] requested " << n << ", available " << stream.common.total << " bits";
             const auto e{ oss.str() };
+            ctk_log_error(e);
             throw api::v1::CtkData{ e };
         }
 
@@ -232,7 +236,7 @@ namespace ctk { namespace impl {
         }
         assert(n <= stream.common.available);
 
-        const bit_count::value_type shift{ stream.common.available - n };
+        const Int shift{ stream.common.available - n };
         stream.common.available -= n;
         stream.common.total -= n;
 
@@ -260,6 +264,7 @@ namespace ctk { namespace impl {
             std::ostringstream oss;
             oss << "[write_n, bit_stream] requested " << n << ", available " << stream.common.total << " bits";
             const auto e{ oss.str() };
+            ctk_log_critical(e);
             throw api::v1::CtkBug{ e };
         }
 
