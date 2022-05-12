@@ -40,7 +40,7 @@ namespace ctk { namespace impl {
         constexpr const size_t sizeof_b{ sizeof(Dest) };
         std::ostringstream oss;
 
-        if (sizeof_a == 1) {
+        if constexpr (sizeof_a == 1) {
             constexpr const bool signed_a{ std::is_signed<Source>::value };
             if (signed_a) {
                 oss << "[invalid cast, arithmetic] " << static_cast<int>(a);
@@ -53,7 +53,7 @@ namespace ctk { namespace impl {
             oss << "[invalid cast, arithmetic] " << a;
         }
 
-        if (sizeof_b == 1) {
+        if constexpr (sizeof_b == 1) {
             constexpr const bool signed_b{ std::is_signed<Dest>::value };
             if (signed_b) {
                 oss << " to [" << static_cast<int>(min_b) << ",  " << static_cast<int>(max_b) << "]";
