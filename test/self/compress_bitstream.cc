@@ -23,8 +23,14 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdint>
 #include <numeric>
 #include <algorithm>
+#include <tuple>
+#include <cassert>
+#include <iostream>
 
 #include "compress/bit_stream.h"
+#include "qcheck.h"
+#include "compress/matrix.h" // count_raw3
+#include "make_block.h" // print_vector
 
 namespace ctk { namespace impl { namespace test {
 
@@ -145,7 +151,7 @@ void test_bit_writer(const std::vector<uint8_t>& expected, const std::vector<bit
 
 
 
-TEST_CASE("reading and writing of well known data", "[correct]") {
+TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 8 byte (64 bit sequence) consisting only of alternating ones and zeroes
 	const std::vector<uint8_t> input{ 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA };
 	const sint bit_count{ static_cast<sint>(size_in_bits(begin(input), end(input), unguarded{})) };
@@ -416,7 +422,7 @@ TEST_CASE("reading and writing of well known data", "[correct]") {
 }
 
 
-TEST_CASE("writer flush test", "[correct]") {
+TEST_CASE("writer flush test", "[concistency]") {
 	std::vector<uint8_t> output;
 	output.resize(8); // 8 bytes x 8 bits = 64 bits available for writing
 	const auto first{ std::begin(output) };
@@ -444,6 +450,169 @@ TEST_CASE("writer flush test", "[correct]") {
 		const auto next{ writer.flush() };
 		REQUIRE(next == first + last_index);
 	}
+}
+
+
+using namespace qcheck;
+template<typename T>
+using words_bytes = std::tuple<std::vector<T>, std::vector<uint8_t>>;
+
+template<typename T>
+struct make_encoded
+{
+    random_source* _random;
+
+    make_encoded(random_source& r, T)
+        : _random{ &r } {
+    }
+
+    auto operator()(size_t size) -> words_bytes<T> {
+        const auto xs{ gen(size, *_random, std::vector<T>{}) };
+        std::vector<bit_count> sizes(xs.size());
+        std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
+
+        std::vector<uint8_t> bytes(xs.size() * sizeof(T) * 2);
+        std::fill(begin(bytes), end(bytes), uint8_t{ 0 });
+
+        bit_writer writer{ begin(bytes), end(bytes) };
+        for (size_t i{ 0 }; i < xs.size(); ++i) {
+            writer.write(sizes[i], xs[i]);
+        }
+        const auto next{ writer.flush() };
+        bytes.resize(static_cast<size_t>(std::distance(begin(bytes), next)));
+
+        return std::make_tuple(xs, bytes);
+    }
+};
+
+
+
+
+template<typename T>
+struct property_encoded_size : arguments<std::vector<T>>
+{
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        std::vector<bit_count> sizes(xs.size());
+        std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
+
+        const bit_count bits{ std::accumulate(begin(sizes), end(sizes), bit_count{ 0 }) };
+        const byte_count expected{ as_bytes(bits) };
+
+        std::vector<uint8_t> bytes(xs.size() * sizeof(T) * 2);
+        bit_writer writer{ begin(bytes), end(bytes) };
+        for (size_t i{ 0 }; i < xs.size(); ++i) {
+            writer.write(sizes[i], xs[i]);
+        }
+
+        const auto d{ std::distance(begin(bytes), writer.flush()) };
+        const byte_count written{ static_cast<byte_count::value_type>(d) };
+
+        return written == expected;
+    }
+
+    virtual auto print(std::ostream& os, const std::vector<T>& xs) const -> std::ostream& override final {
+        return print_vector(os, xs);
+    }
+};
+
+
+template<typename T>
+struct encode_decode : arguments<std::vector<T>>
+{
+    virtual auto accepts(const std::vector<T>& xs) const -> bool override final {
+        return !xs.empty();
+    }
+
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        std::vector<bit_count> sizes(xs.size());
+        std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
+
+        std::vector<uint8_t> bytes(xs.size() * sizeof(T) * 2);
+        std::fill(begin(bytes), end(bytes), uint8_t{ 0 });
+        bit_writer writer{ begin(bytes), end(bytes) };
+        for (size_t i{ 0 }; i < xs.size(); ++i) {
+            writer.write(sizes[i], xs[i]);
+        }
+        const auto next{ writer.flush() };
+
+        std::vector<T> ys;
+        ys.reserve(xs.size());
+        bit_reader reader{ begin(bytes), next };
+        for (bit_count n : sizes) {
+            ys.push_back(reader.read(n, T{}));
+        }
+
+        return ys == xs;
+    }
+
+    virtual auto print(std::ostream& os, const std::vector<T>& xs) const -> std::ostream& override final {
+        return print_vector(os, xs);
+    }
+};
+
+template<typename T>
+struct decode_encode : arguments<words_bytes<T>>
+{
+    virtual auto accepts(const words_bytes<T>& args) const -> bool override final {
+        const auto& bytes{ std::get<1>(args) };
+        return !bytes.empty();
+    }
+
+    virtual auto holds(const words_bytes<T>& args) const -> bool override final {
+        const auto& xs{ std::get<0>(args) };
+        const auto& bytes{ std::get<1>(args) };
+
+        std::vector<bit_count> sizes(xs.size());
+        std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
+
+        std::vector<T> ys;
+        ys.reserve(xs.size());
+        bit_reader reader{ begin(bytes), end(bytes) };
+        for (bit_count n : sizes) {
+            ys.push_back(reader.read(n, T{}));
+        }
+
+        if (reader.current() != end(bytes)) {
+            return false;
+        }
+
+        std::vector<uint8_t> encoded(ys.size() * sizeof(T) * 2);
+        std::fill(begin(encoded), end(encoded), uint8_t{ 0 });
+        bit_writer writer{ begin(encoded), end(encoded) };
+        for (size_t i{ 0 }; i < ys.size(); ++i) {
+            writer.write(sizes[i], ys[i]);
+        }
+        const auto next{ writer.flush() };
+        encoded.resize(static_cast<size_t>(std::distance(begin(encoded), next)));
+
+        return encoded == bytes;
+    }
+
+    virtual auto print(std::ostream& os, const words_bytes<T>& args) const -> std::ostream& override final {
+        const auto& bytes{ std::get<1>(args) };
+        return print_vector(os, bytes);
+    }
+};
+
+
+
+TEST_CASE("qcheck", "[concistency]") {
+    random_source r;
+
+    REQUIRE(check("encoding size 8 bit",  property_encoded_size<uint8_t>{},  make_vectors{ r, uint8_t{} }));
+    REQUIRE(check("encoding size 16 bit", property_encoded_size<uint16_t>{}, make_vectors{ r, uint16_t{} }));
+    REQUIRE(check("encoding size 32 bit", property_encoded_size<uint32_t>{}, make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("encoding size 64 bit", property_encoded_size<uint64_t>{}, make_vectors{ r, uint64_t{} }));
+
+    REQUIRE(check("enc/dec 8 bit",  encode_decode<uint8_t>{},  make_vectors{ r, uint8_t{} }));
+    REQUIRE(check("enc/dec 16 bit", encode_decode<uint16_t>{}, make_vectors{ r, uint16_t{} }));
+    REQUIRE(check("enc/dec 32 bit", encode_decode<uint32_t>{}, make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("enc/dec 64 bit", encode_decode<uint64_t>{}, make_vectors{ r, uint64_t{} }));
+
+    REQUIRE(check("dec/enc 8 bit",  decode_encode<uint8_t>{},  make_encoded{ r, uint8_t{} }));
+    REQUIRE(check("dec/enc 16 bit", decode_encode<uint16_t>{}, make_encoded{ r, uint16_t{} }));
+    REQUIRE(check("dec/enc 32 bit", decode_encode<uint32_t>{}, make_encoded{ r, uint32_t{} }));
+    REQUIRE(check("dec/enc 64 bit", decode_encode<uint64_t>{}, make_encoded{ r, uint64_t{} }));
 }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */

@@ -20,9 +20,13 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
 #include "../catch.hpp"
 
+#include <tuple>
+
 #include "ctk/api_compression.h"
 #include "ctk/exception.h"
-#include "test/util.h"
+#include "compress/matrix.h"
+#include "qcheck.h"
+#include "make_block.h"
 
 namespace ctk { namespace impl { namespace test {
 
@@ -256,88 +260,212 @@ TEST_CASE("well known input", "[consistent]") {
 }
 
 
-template<typename T, typename Encoder, typename Decoder>
-void encode_decode(T, Encoder encode, Decoder decode, ptrdiff_t input_size, random_values& random) {
-    std::vector<uint8_t> bytes;
-	std::vector<T> input;
-	std::vector<T> output;
-    input.resize(size_t(input_size));
+using namespace qcheck;
 
-    try {
-        for (T factor : { T{ 1 }, T{ 2 }, T{ 4 }, T{ 8 } }) {
-            const T partial_range{ static_cast<T>(std::numeric_limits<T>::max() / factor) };
-            T low{ 0 };
-            if (std::is_signed<T>::value) {
-                low = T(0 - partial_range);
-            }
-            T high{ partial_range };
-            random.fill(low, high, input);
+template<typename T>
+using matrix_tuple = std::tuple<std::vector<T>, sensor_count, measurement_count>;
 
-            const auto row_lengths = divisors(input_size);
 
-            for (auto length : row_lengths) {
-                const auto height = input_size / length;
-                REQUIRE(encode.Sensors(height));
-                REQUIRE(decode.Sensors(height));
+template<typename T, typename Format>
+auto print_class(const matrix_tuple<uint8_t>& args, T, Format) -> std::string {
+    const auto& bytes{ std::get<0>(args) };
+    const auto& electrodes{ std::get<1>(args) };
+    const auto& samples{ std::get<2>(args) };
 
-                bytes = encode.ColumnMajor(input, length);
-                REQUIRE(!bytes.empty());
-                output = decode.ColumnMajor(bytes, length);
-                REQUIRE(!output.empty());
-                REQUIRE(input == output);
+    std::array<bool, static_cast<unsigned>(encoding_method::length)> seen;
+    std::fill(begin(seen), end(seen), false);
 
-                bytes = encode.RowMajor(input, length);
-                REQUIRE(!bytes.empty());
-                output = decode.RowMajor(bytes, length);
-                REQUIRE(!output.empty());
-                REQUIRE(input == output);
-            }
-        }
-    }
-    catch (const std::bad_alloc& e) {
-        std::cerr << ": " << e.what();
-    }
-    catch (const std::length_error& e) {
-        std::cerr << ": " << e.what();
-    }
-    catch (const ctk::api::v1::CtkLimit& e) {
-        std::cerr << ": " << e.what();
+    bit_reader reader{ begin(bytes), end(bytes) };
+    std::vector<T> xs(static_cast<size_t>(static_cast<measurement_count::value_type>(samples)));
+    for (sensor_count i{ 0 }; i < electrodes; ++i) {
+        const auto [next, method]{ decode_block(reader, begin(xs), end(xs), Format{}) };
+        seen[static_cast<unsigned>(method)] = true;
     }
 
-    std::cerr << "\n";
+    std::ostringstream oss;
+    if (seen[0]) { oss << encoding_method::copy << " "; };
+    if (seen[1]) { oss << encoding_method::time << " "; };
+    if (seen[2]) { oss << encoding_method::time2 << " "; };
+    if (seen[3]) { oss << encoding_method::chan << " "; };
+
+    return oss.str();
 }
 
-TEST_CASE("oo interface encode/decode", "[consistency]") {
-    using namespace ctk::api::v1;
 
-	random_values random;
+template<typename T>
+struct make_uncompressed
+{
+    random_source* _random;
 
-	for (ptrdiff_t input_size : { 1, 256, 512 }) {
-        std::cout << "input size " << input_size << "\n";
+    make_uncompressed(random_source& r, T)
+        : _random{ &r } {
+    }
 
-        // reference library format: 4 byte wide signed words
-		std::cout << "reflib : int32_t";
-		encode_decode(int32_t{}, CompressReflib{}, DecompressReflib{}, input_size, random);
 
-        // extended format: 2, 4 or 8 byte wide signed/unsigned words
-		std::cout << "extended: int16_t";
-		encode_decode(int16_t{}, CompressInt16{}, DecompressInt16{}, input_size, random);
+    auto operator()(size_t size) const -> matrix_tuple<T> {
+        constexpr const size_t min_x{ 0 };
+        const auto elc{ choose(min_x, size, *_random) };
+        const auto smpl{ choose(min_x, size, *_random) };
 
-		std::cout << "extended: int32_t";
-		encode_decode(int32_t{}, CompressInt32{}, DecompressInt32{}, input_size, random);
+        const auto area{ static_cast<size_t>(elc * smpl) };
+        const auto xs{ gen(area, *_random, std::vector<T>{}) };
 
-		std::cout << "extended: int64_t";
-		encode_decode(int64_t{}, CompressInt64{}, DecompressInt64{}, input_size, random);
+        const auto electrodes{ cast(elc, sensor_count::value_type{}, ok{}) };
+        const auto samples{ cast(smpl, measurement_count::value_type{}, ok{}) };
+        return std::make_tuple(xs, sensor_count{ electrodes }, measurement_count{ samples });
+    }
+};
 
-		std::cout << "extended: uint16_t";
-		encode_decode(uint16_t{}, CompressUInt16{}, DecompressUInt16{}, input_size, random);
+template<typename T, typename Format>
+struct make_compressed
+{
+    random_source* _random;
 
-		std::cout << "extended: uint32_t";
-		encode_decode(uint32_t{}, CompressUInt32{}, DecompressUInt32{}, input_size, random);
+    make_compressed(random_source& r, T, Format)
+        : _random{ &r } {
+    }
 
-		std::cout << "extended: uint64_t";
-		encode_decode(uint64_t{}, CompressUInt64{}, DecompressUInt64{}, input_size, random);
-	}
+    auto operator()(size_t size) -> matrix_tuple<uint8_t> {
+        std::vector<uint8_t> xs;
+        constexpr const size_t min_x{ 0 };
+        const auto elc{ choose(min_x, size, *_random) };
+        const auto smpl{ choose(min_x, size, *_random) };
+
+        for (size_t i{ 0 }; i < elc; ++i) {
+            auto [bytes, usize]{ generate_block(smpl, *_random, T{}, Format{}) };
+            xs.insert(end(xs), begin(bytes), end(bytes));
+        }
+
+        const auto electrodes{ cast(elc, sensor_count::value_type{}, ok{}) };
+        const auto samples{ cast(smpl, measurement_count::value_type{}, ok{}) };
+        return std::make_tuple(xs, sensor_count{ electrodes }, measurement_count{ samples });
+    }
+};
+
+
+template<typename T, typename Format>
+struct encode_decode_matrix : arguments<matrix_tuple<T>>
+{
+    virtual auto accepts(const matrix_tuple<T>& args) const -> bool override final {
+        const auto& xs{ std::get<0>(args) };
+        const auto electrodes{ std::get<1>(args) };
+        const auto samples{ std::get<2>(args) };
+
+        return !xs.empty() && 0 < electrodes && 0 < samples;
+    }
+
+    virtual auto holds(const matrix_tuple<T>& args) const -> bool override final {
+        using enc_type = matrix_encoder_general<T, Format>;
+        using dec_type = matrix_decoder_general<T, Format>;
+
+        const auto& xs{ std::get<0>(args) };
+        const auto electrodes{ std::get<1>(args) };
+        const auto samples{ std::get<2>(args) };
+
+        enc_type encode;
+        dec_type decode;
+        encode.row_count(electrodes);
+        decode.row_count(electrodes);
+
+        constexpr const row_major2row_major copy;
+        const auto bytes{ encode(xs, samples, copy) };
+        auto ys{ decode(bytes, samples, copy) };
+
+        return xs == ys;
+    }
+
+    auto classify(const matrix_tuple<T>& args) const -> std::string override final {
+        using enc_type = matrix_encoder_general<T, Format>;
+
+        const auto& xs{ std::get<0>(args) };
+        const auto electrodes{ std::get<1>(args) };
+        const auto samples{ std::get<2>(args) };
+
+        enc_type encode;
+        encode.row_count(electrodes);
+
+        constexpr const row_major2row_major copy;
+        const auto bytes{ encode(xs, samples, copy) };
+
+        return print_class(std::make_tuple(bytes, electrodes, samples), T{}, Format{});
+    }
+};
+
+
+template<typename T, typename Format>
+struct decode_encode_matrix : arguments<matrix_tuple<uint8_t>>
+{
+    virtual auto accepts(const matrix_tuple<uint8_t>& args) const -> bool override final {
+        const auto& bytes{ std::get<0>(args) };
+        const auto electrodes{ std::get<1>(args) };
+        const auto samples{ std::get<2>(args) };
+
+        return !bytes.empty() && 0 < electrodes && 0 < samples;
+    }
+
+    virtual auto holds(const matrix_tuple<uint8_t>& args) const -> bool override final {
+        using enc_type = matrix_encoder_general<T, Format>;
+        using dec_type = matrix_decoder_general<T, Format>;
+
+        const auto& bytes_x{ std::get<0>(args) };
+        const auto electrodes{ std::get<1>(args) };
+        const auto samples{ std::get<2>(args) };
+
+        dec_type decode;
+        enc_type encode;
+
+        decode.row_count(electrodes);
+        encode.row_count(electrodes);
+
+        // decodes the compressed byte stream
+        constexpr const column_major2row_major transpose;
+        auto decoded_x{ decode(bytes_x, samples, transpose) };
+
+        // encodes the decoded sequence
+        const auto bytes_y{ encode(decoded_x, samples, transpose) };
+
+        // the encoder almost certainly picked different parameters meaning
+        // that the compressed streams (bytes_x and bytes_y) can not be compared verbatim.
+        // for this reason another decoding step is performed and the decoded sequences are compared instead.
+        auto decoded_y{ decode(bytes_y, samples, transpose) };
+
+        return decoded_x == decoded_y;
+    }
+
+    virtual auto classify(const matrix_tuple<uint8_t>& args) const -> std::string override final {
+        return print_class(args, T{}, Format{});
+    }
+};
+
+
+TEST_CASE("qcheck", "[correct]") {
+    using enc_dec_32ref = encode_decode_matrix<uint32_t, reflib>;
+    using enc_dec_8ext = encode_decode_matrix<uint8_t, extended>;
+    using enc_dec_16ext = encode_decode_matrix<uint16_t, extended>;
+    using enc_dec_32ext = encode_decode_matrix<uint32_t, extended>;
+    using enc_dec_64ext = encode_decode_matrix<uint64_t, extended>;
+
+    using dec_enc_32ref = decode_encode_matrix<uint32_t, reflib>;
+    using dec_enc_8ext = decode_encode_matrix<uint8_t, extended>;
+    using dec_enc_16ext = decode_encode_matrix<uint16_t, extended>;
+    using dec_enc_32ext = decode_encode_matrix<uint32_t, extended>;
+    using dec_enc_64ext = decode_encode_matrix<uint64_t, extended>;
+
+
+    random_source r;
+    //random_source r{ 3946883574 };
+
+    REQUIRE(check("enc/dec reflib 32 bit",   enc_dec_32ref{}, make_uncompressed{ r, uint32_t{} }));
+    REQUIRE(check("enc/dec extended 8 bit",  enc_dec_8ext{},  make_uncompressed{ r, uint8_t{} }));
+    REQUIRE(check("enc/dec extended 16 bit", enc_dec_16ext{}, make_uncompressed{ r, uint16_t{} }));
+    REQUIRE(check("enc/dec extended 32 bit", enc_dec_32ext{}, make_uncompressed{ r, uint32_t{} }));
+    REQUIRE(check("enc/dec extended 64 bit", enc_dec_64ext{}, make_uncompressed{ r, uint64_t{} }));
+
+    REQUIRE(check("dec/enc reflib 32 bit",   dec_enc_32ref{}, make_compressed{ r, uint32_t{}, reflib{} }));
+    REQUIRE(check("dec/enc extended 8 bit",  dec_enc_8ext{},  make_compressed{ r, uint8_t{},  extended{} }));
+    REQUIRE(check("dec/enc extended 16 bit", dec_enc_16ext{}, make_compressed{ r, uint16_t{}, extended{} }));
+    REQUIRE(check("dec/enc extended 32 bit", dec_enc_32ext{}, make_compressed{ r, uint32_t{}, extended{} }));
+    REQUIRE(check("dec/enc extended 64 bit", dec_enc_64ext{}, make_compressed{ r, uint64_t{}, extended{} }));
 }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */

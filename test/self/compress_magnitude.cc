@@ -17,558 +17,302 @@ You should have received a copy of the GNU Lesser General Public License
 along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#define CATCH_CONFIG_MAIN  // This tells Catch to provide a main() - only do this in one cpp file
-#include "../catch.hpp"
+#include <algorithm>
 
-#include <vector>
-#include <numeric>
-#include <memory>
-#include <iostream>
-#include <chrono>
-
-#include "test/util.h"
-#include "ctk.h"
-#include "file/cnt_reflib.h"
+#include "compress/magnitude.h"
+#include "qcheck.h"
 
 
-namespace ctk { namespace impl { namespace test {
+using namespace ctk::impl;
+using namespace qcheck;
 
-TEST_CASE("reduce/restore magnitude", "[concistency]") {
-    using T = uint32_t; // arbitrary
 
-    std::vector<T> input(4096);
-    std::vector<T> buffer(input.size());
+// convenience wrappers: vector -> vector
 
-	random_values random;
-    random.fill(0U, 4096U, input);
-    const auto first{ begin(input) };
-    const auto last{ end(input) };
+template<typename T>
+auto reduce_time_v1(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
 
-    std::vector<T> previous(input.size());
-    std::copy(rbegin(input), rend(input), begin(previous)); // arbitrary
-
-    std::vector<T> v_time(input.size());
-    std::vector<T> v_time2_v1(input.size());
-    std::vector<T> v_time2_v2(input.size());
-    std::vector<T> v_time2_v3(input.size());
-    std::vector<T> v_chan_v1(input.size());
-    std::vector<T> v_chan_v2(input.size());
-
-    for(int i{0}; i < 10; ++i) {
-        // reduce time
-        const auto ftime{ begin(v_time) };
-        const auto ltime{ reduce_row_time(first, last, ftime) };
-        REQUIRE(ltime == end(v_time));
-
-        // reduce time2
-        const auto ftime2_v1{ begin(v_time2_v1) };
-        const auto ltime2_v1{ reduce_row_time2_from_input(first, last, begin(buffer), ftime2_v1) };
-        REQUIRE(ltime2_v1 == end(v_time2_v1));
-
-        // reduce time2
-        const auto ftime2_v2{ begin(v_time2_v2) };
-        const auto ltime2_v2{ reduce_row_time2_from_time(ftime, ltime, ftime2_v2) };
-        REQUIRE(ltime2_v2 == end(v_time2_v2));
-        REQUIRE(v_time2_v1 == v_time2_v2);
-
-        // reduce time2
-        const auto ftime2_v3{ begin(v_time2_v3) };
-        const auto ltime2_v3{ reduce_row_time2_from_input_one_pass(first, last, ftime2_v3) };
-        REQUIRE(ltime2_v3 == end(v_time2_v3));
-        REQUIRE(v_time2_v1 == v_time2_v3);
-
-        // reduce chan
-        const auto fchan_v1{ begin(v_chan_v1) };
-        const auto lchan_v1{ reduce_row_chan_from_input(begin(previous), first, last, begin(buffer), fchan_v1) };
-        REQUIRE(lchan_v1 == end(v_chan_v1));
-
-        // reduce chan
-        const auto fchan_v2{ begin(v_chan_v2) };
-        const auto lchan_v2{ reduce_row_chan_from_time(begin(previous), first, ftime, ltime, fchan_v2) };
-        REQUIRE(lchan_v2 == end(v_chan_v2));
-        REQUIRE(v_chan_v1 == v_chan_v2);
-
-        // restore time
-        REQUIRE(restore_row_time(ftime, ltime) == ltime);
-        REQUIRE(v_time == input);
-
-        // restore time2
-        REQUIRE(restore_row_time2(ftime2_v1, ltime2_v1) == ltime2_v1);
-        REQUIRE(v_time2_v1 == input);
-
-        // restore time2
-        std::copy(ftime2_v2, ltime2_v2, begin(buffer));
-        REQUIRE(restore_row_time2_from_buffer(begin(buffer), end(buffer), ftime2_v2) == ltime2_v2);
-        REQUIRE(v_time2_v2 == input);
-
-        // restore chan
-        REQUIRE(restore_row_chan(begin(previous), fchan_v1, lchan_v1, begin(buffer)) == lchan_v1);
-        REQUIRE(v_chan_v1 == input);
-
-        // restore chan
-        std::copy(fchan_v2, lchan_v2, begin(buffer));
-        REQUIRE(restore_row_chan_from_buffer(begin(buffer), end(buffer), begin(previous), fchan_v2) == lchan_v2);
-        REQUIRE(v_chan_v2 == input);
-
-        random.fill(0U, 4096U, input);
+    if (reduce_row_time(begin(xs), end(xs), begin(ys)) != end(ys)) {
+        return {};
     }
+
+    return ys;
 }
 
+template<typename T>
+auto reduce_time2_v1(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
+    std::vector<T> buf(xs.size());
 
-struct reduction_stat
-{
-    std::chrono::microseconds time;
-    std::chrono::microseconds time2_from_time;
-    std::chrono::microseconds time2_from_input_one_pass;
-    std::chrono::microseconds time2_from_input_two_pass;
-    std::chrono::microseconds chan_from_time;
-    std::chrono::microseconds chan_from_input;
-    std::chrono::microseconds chan_from_input_alt;
-
-    reduction_stat()
-    : time{0}
-    , time2_from_time{0}
-    , time2_from_input_one_pass{0}
-    , time2_from_input_two_pass{0}
-    , chan_from_time{0}
-    , chan_from_input{0}
-    , chan_from_input_alt{0} {
+    if (reduce_row_time2_from_input(begin(xs), end(xs), begin(buf), begin(ys)) != end(ys)) {
+        return {};
     }
 
-    auto operator+=(const reduction_stat& x) -> reduction_stat& {
-        time += x.time;
-        time2_from_time += x.time2_from_time;
-        time2_from_input_one_pass += x.time2_from_input_one_pass;
-        time2_from_input_two_pass += x.time2_from_input_two_pass;
-        chan_from_time += x.chan_from_time;
-        chan_from_input += x.chan_from_input;
-        chan_from_input_alt += x.chan_from_input_alt;
-        return *this;
-    }
-};
-
-struct restore_stat
-{
-    std::chrono::microseconds time;
-    std::chrono::microseconds time_buffer;
-    std::chrono::microseconds time2_inplace;
-    std::chrono::microseconds time2_buffer;
-    std::chrono::microseconds chan_plus;
-    std::chrono::microseconds chan_buffer;
-
-    restore_stat()
-    : time{0}
-    , time_buffer{0}
-    , time2_inplace{0}
-    , time2_buffer{0}
-    , chan_plus{0}
-    , chan_buffer{0} {
-    }
-
-    auto operator+=(const restore_stat& x) -> restore_stat& {
-        time += x.time;
-        time_buffer += x.time_buffer;
-        time2_inplace += x.time2_inplace;
-        time2_buffer += x.time2_buffer;
-        chan_plus += x.chan_plus;
-        chan_buffer += x.chan_buffer;
-        return *this;
-    }
-};
-
-
-
-struct reduce_time
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I last, I /* buffer */, I output, I /* first_time */, I /* last_time */) const -> I {
-        return reduce_row_time(first, last, output);
-    }
-};
-
-
-struct reduce_time2_input_one_pass
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I last, I /* buffer */, I output, I /* first_time */, I /* last_time */) const -> I {
-        return reduce_row_time2_from_input_one_pass(first, last, output);
-    }
-};
-
-
-struct reduce_time2_input_two_pass
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I last, I buffer, I output, I /* first_time */, I /* last_time */) const -> I {
-        return reduce_row_time2_from_input(first, last, buffer, output);
-    }
-};
-
-
-struct reduce_time2_time
-{
-    template<typename I>
-    auto operator()(I /* previous */, I /* first */, I /* last */, I /* buffer */, I output, I first_time, I last_time) const -> I {
-        return reduce_row_time2_from_time(first_time, last_time, output);
-    }
-};
-
-struct reduce_chan_input
-{
-    template<typename I>
-    auto operator()(I previous, I first, I last, I /* buffer */, I output, I /* first_time */, I /* last_time */) const -> I {
-        return reduce_row_chan_from_input(previous, first, last, output);
-    }
-};
-
-struct reduce_chan_time
-{
-    template<typename I>
-    auto operator()(I previous, I first, I /* last */, I /* buffer */, I output, I first_time, I last_time) const -> I {
-        return reduce_row_chan_from_time(previous, first, first_time, last_time, output);
-    }
-};
-
-
-struct reduce_chan_input_alt
-{
-    template<typename I>
-    auto operator()(I previous, I first, I last, I buffer, I output, I /* first_time */, I /* last_time */) const -> I {
-        return reduce_row_chan_from_input(previous, first, last, buffer, output);
-    }
-};
-
-struct restore_time_inplace
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I last, I /* first_buffer */, I /* last_buffer */) const -> I {
-        return restore_row_time(first, last);
-    }
-};
-
-struct restore_time_from_buffer
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I /* last */, I first_buffer, I last_buffer) const -> I {
-        return std::partial_sum(first_buffer, last_buffer, first);
-    }
-};
-
-
-struct restore_time2_inplace
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I last, I /* first_buffer */, I /* last_buffer */) const -> I {
-        return restore_row_time2(first, last);
-    }
-};
-
-
-struct restore_time2_from_buffer
-{
-    template<typename I>
-    auto operator()(I /* previous */, I first, I /* last */, I first_buffer, I last_buffer) const -> I {
-        return restore_row_time2_from_buffer(first_buffer, last_buffer, first);
-    }
-};
-
-
-struct restore_chan_plus
-{
-    template<typename I>
-    auto operator()(I previous, I first, I last, I first_buffer, I /* last_buffer */) const -> I {
-        return restore_row_chan(previous, first, last, first_buffer);
-    }
-};
-
-
-struct restore_chan_buffer
-{
-    template<typename I>
-    auto operator()(I previous, I first, I /* last */, I first_buffer, I last_buffer) const -> I {
-        return restore_row_chan_from_buffer(first_buffer, last_buffer, previous, first);
-    }
-};
-
-
-
-
-
-template<typename I, typename Op>
-auto time_reduction(Op op, I previous, I first, I last, I buffer, I first_time, I last_time, int repetitions = 1) -> std::pair<std::vector<typename std::iterator_traits<I>::value_type>, std::chrono::microseconds> {
-    using T = typename std::iterator_traits<I>::value_type;
-
-    std::vector<T> output(size_t(std::distance(first, last)));
-    const auto fout{ begin(output) };
-    std::chrono::microseconds sum{0};
-
-    for (int i{0}; i < repetitions; ++i) {
-        const auto start{ std::chrono::steady_clock::now() };
-        const auto lout{ op(previous, first, last, buffer, fout, first_time, last_time) };
-        const auto stop{ std::chrono::steady_clock::now() };
-        sum += std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-
-        REQUIRE(lout == end(output));
-    }
-
-    return { output, sum };
+    return ys;
 }
 
-template<typename I, typename Op>
-auto time_restore(Op op, I previous, I first, I last, I first_buffer, I last_buffer, int repetitions = 1) -> std::chrono::microseconds {
-    using T = typename std::iterator_traits<I>::value_type;
+template<typename T>
+auto reduce_time2_v2(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
 
-    const std::vector<T> input(first, last);
-    const std::vector<T> buffer(first_buffer, last_buffer);
-    std::chrono::microseconds sum{0};
-
-    for (int i{0}; i < repetitions; ++i) {
-        std::copy(begin(input), end(input), first);
-        std::copy(begin(buffer), end(buffer), first_buffer);
-
-        const auto start{ std::chrono::steady_clock::now() };
-        const auto lout{ op(previous, first, last, first_buffer, last_buffer) };
-        const auto stop{ std::chrono::steady_clock::now() };
-        sum += std::chrono::duration_cast<std::chrono::microseconds>(stop - start);
-
-        REQUIRE(lout == last);
+    if (reduce_row_time2_from_input_one_pass(begin(xs), end(xs), begin(ys)) != end(ys)) {
+        return {};
     }
 
-    return sum;
+    return ys;
+}
+
+template<typename T>
+auto reduce_time2_v3(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys{ xs };
+    std::adjacent_difference(begin(ys), end(ys), begin(xs));
+
+    if (reduce_row_time2_from_time(begin(xs), end(xs), begin(ys)) != end(ys)) {
+        return {};
+    }
+
+    return ys;
+}
+
+template<typename T>
+auto reduce_chan_v1(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
+    std::vector<T> prev(xs.size());
+    std::fill(begin(prev), end(prev), T{ 0 });
+
+    if (reduce_row_chan_from_input(begin(prev), begin(xs), end(xs), begin(ys)) != end(ys)) {
+        return {};
+    }
+
+    return ys;
+}
+
+template<typename T>
+auto reduce_chan_v2(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
+    std::vector<T> buf(xs.size());
+    std::vector<T> prev(xs.size());
+    std::fill(begin(prev), end(prev), T{ 0 });
+
+    if (reduce_row_chan_from_input(begin(prev), begin(xs), end(xs), begin(buf), begin(ys)) != end(ys)) {
+        return {};
+    }
+
+    return ys;
+}
+
+template<typename T>
+auto reduce_chan_v3(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> prev(xs.size());
+    std::fill(begin(prev), end(prev), T{ 0 });
+
+    std::vector<T> ys{ xs };
+    std::adjacent_difference(begin(ys), end(ys), begin(xs));
+
+    if (reduce_row_chan_from_time(begin(prev), begin(xs), begin(xs), end(xs), begin(ys)) != end(ys)) {
+        return {};
+    }
+
+    return ys;
 }
 
 
 
-auto reduction_time(const compressed_epoch& e, const std::vector<int16_t>& order, int repetitions) -> reduction_stat {
-    const auto height{ sensor_count{ vsize(order) } };
 
-    using T = typename std::make_unsigned<int32_t>::type;
-    matrix_buffer<T> data;
-    data.resize(height, e.length);
-
-    api::v1::DecompressReflib reader;
-    reader.Sensors(order);
-    const int64_t epoch_length{ static_cast<measurement_count::value_type>(e.length) };
-    const auto input{ reader.ColumnMajor(e.data, epoch_length) };
-    assert(input.size() == size_t(std::distance(data.matrix(), data.buffer())));
-    std::copy(begin(input), end(input), data.matrix());
-
-    const ptrdiff_t i_length{ cast(static_cast<sint>(e.length), ptrdiff_t{}, ok{}) };
-    auto previous{ data.previous() };
-    auto first{ data.matrix() };
-    auto buffer{ first + i_length };
-    reduction_stat t_reduction;
-
-    for (sensor_count row{0}; row < height; ++row) {
-        const auto next{ first + i_length };
-        const auto next_buffer{ buffer + i_length };
-
-        auto[v_time, t_time]{ time_reduction(reduce_time{}, previous, first, next, buffer, first, next, repetitions) };
-        const auto ftime{ begin(v_time) };
-        const auto ltime{ end(v_time) };
-
-        auto[v_time2_time, t_time2_time]{ time_reduction(reduce_time2_time{}, previous, first, next, buffer, ftime, ltime, repetitions) };
-        auto[v_time2_input_1pass, t_time2_input_1pass]{ time_reduction(reduce_time2_input_one_pass{}, previous, first, next, buffer, ftime, ltime, repetitions) };
-        auto[v_time2_input_2pass, t_time2_input_2pass]{ time_reduction(reduce_time2_input_two_pass{}, previous, first, next, buffer, ftime, ltime, repetitions) };
-        REQUIRE(v_time2_time == v_time2_input_1pass);
-        REQUIRE(v_time2_time == v_time2_input_2pass);
-
-        auto[v_chan_time, t_chan_time]{ time_reduction(reduce_chan_time{}, previous, first, next, buffer, ftime, ltime, repetitions) };
-        auto[v_chan_input, t_chan_input]{ time_reduction(reduce_chan_input{}, previous, first, next, buffer, ftime, ltime, repetitions) };
-        auto[v_chan_input_alt, t_chan_input_alt]{ time_reduction(reduce_chan_input_alt{}, previous, first, next, buffer, ftime, ltime, repetitions) };
-        REQUIRE(v_chan_input == v_chan_time);
-        REQUIRE(v_chan_input == v_chan_input_alt);
-
-        t_reduction.time += t_time;
-        t_reduction.time2_from_time += t_time2_time;
-        t_reduction.time2_from_input_one_pass += t_time2_input_1pass;
-        t_reduction.time2_from_input_two_pass += t_time2_input_2pass;
-        t_reduction.chan_from_time += t_chan_time;
-        t_reduction.chan_from_input += t_chan_input;
-        t_reduction.chan_from_input_alt += t_chan_input_alt;
-
-        previous = first;
-        first = next;
-        buffer = next_buffer;
+template<typename T>
+auto restore_time_v1(std::vector<T> xs) -> std::vector<T> {
+    if (restore_row_time(begin(xs), end(xs)) != end(xs)) {
+        return {};
     }
 
-    return t_reduction;
+    return xs;
 }
 
-auto restore_time(const compressed_epoch& e, const std::vector<int16_t>& order, int repetitions) -> restore_stat {
-    const auto height{ sensor_count{ vsize(order) } };
+template<typename T>
+auto restore_time2_v1(std::vector<T> xs) -> std::vector<T> {
+    if (restore_row_time2(begin(xs), end(xs)) != end(xs)) {
+        return {};
+    }
+    return xs;
+}
 
-    using T = typename std::make_unsigned<int32_t>::type;
-    matrix_buffer<T> data;
-    data.resize(height, e.length);
-
-    api::v1::DecompressReflib reader;
-    reader.Sensors(order);
-    const int64_t epoch_length{ static_cast<measurement_count::value_type>(e.length) };
-    const auto input{ reader.ColumnMajor(e.data, epoch_length) };
-    assert(input.size() == size_t(std::distance(data.matrix(), data.buffer())));
-    std::copy(begin(input), end(input), data.matrix());
-
-    const ptrdiff_t i_length{ cast(static_cast<sint>(e.length), ptrdiff_t{}, ok{}) };
-    auto previous{ data.previous() };
-    auto first{ data.matrix() };
-    auto first_buffer{ first + i_length };
-    restore_stat t_restore;
-
-    for (sensor_count row{0}; row < height; ++row) {
-        const auto next{ first_buffer };
-        const auto next_buffer{ next + i_length };
-
-        auto[v_time, u1]{ time_reduction(reduce_time{}, previous, first, next, first_buffer, first, next) };
-        auto[v_time2, u2]{ time_reduction(reduce_time2_time{}, previous, first, next, first_buffer, begin(v_time), end(v_time)) };
-        auto[v_chan, u3]{ time_reduction(reduce_chan_time{}, previous, first, next, first_buffer, begin(v_time), end(v_time)) };
-
-        std::copy(begin(v_time), end(v_time), first);
-        const auto t_time{ time_restore(restore_time_inplace{}, previous, first, next, first_buffer, next_buffer, repetitions) };
-
-        std::copy(begin(v_time), end(v_time), first_buffer);
-        const auto t_time_buf{ time_restore(restore_time_from_buffer{}, previous, first, next, first_buffer, next_buffer, repetitions) };
-
-        std::copy(begin(v_time2), end(v_time2), first);
-        const auto t_time2_inplace{ time_restore(restore_time2_inplace{}, previous, first, next, first_buffer, next_buffer, repetitions) };
-
-        std::copy(begin(v_time2), end(v_time2), first_buffer);
-        const auto t_time2_buffer{ time_restore(restore_time2_from_buffer{}, previous, first, next, first_buffer, next_buffer, repetitions) };
-
-        std::copy(begin(v_chan), end(v_chan), first);
-        const auto t_chan_plus{ time_restore(restore_chan_plus{}, previous, first, next, first_buffer, next_buffer, repetitions) };
-
-        std::copy(begin(v_chan), end(v_chan), first_buffer);
-        const auto t_chan_buffer{ time_restore(restore_chan_buffer{}, previous, first, next, first_buffer, next_buffer, repetitions) };
-
-        t_restore.time += t_time;
-        t_restore.time_buffer += t_time_buf;
-        t_restore.time2_inplace += t_time2_inplace;
-        t_restore.time2_buffer += t_time2_buffer;
-        t_restore.chan_plus += t_chan_plus;
-        t_restore.chan_buffer += t_chan_buffer;
-
-        previous = first;
-        first = next;
-        first_buffer = next_buffer;
+template<typename T>
+auto restore_time2_v2(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
+    if (restore_row_time2_from_buffer(begin(xs), end(xs), begin(ys)) != end(ys)) {
+        return {};
     }
 
-    return t_restore;
+    return ys;
+}
+
+template<typename T>
+auto restore_chan_v1(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> buf(xs.size());
+    std::vector<T> prev(xs.size());
+    std::fill(begin(prev), end(prev), T{ 0 });
+
+    if (restore_row_chan(begin(prev), begin(xs), end(xs), begin(buf)) != end(xs)) {
+        return {};
+    }
+
+    return xs;
+}
+
+template<typename T>
+auto restore_chan_v2(std::vector<T> xs) -> std::vector<T> {
+    std::vector<T> ys(xs.size());
+    std::vector<T> prev(xs.size());
+    std::fill(begin(prev), end(prev), T{ 0 });
+
+    if (restore_row_chan_from_buffer(begin(xs), end(xs), begin(prev), begin(ys)) != end(ys)) {
+        return {};
+    }
+
+    return ys;
 }
 
 
+// checks
 
-auto print(const reduction_stat& enc, const restore_stat& dec, std::string msg = std::string{}) -> void {
-    std::cerr << msg << " reduce:";
-    if (enc.time2_from_input_one_pass.count() > 0) {
-        const double time_input{ 100.0 * static_cast<double>(enc.time2_from_time.count()) / static_cast<double>(enc.time2_from_input_one_pass.count()) };
-        const double two_one{ 100.0 * static_cast<double>(enc.time2_from_input_two_pass.count()) / static_cast<double>(enc.time2_from_input_one_pass.count()) };
-
-        std::cerr << " t2 i1[t" << d2s(time_input) << "%,";
-        std::cerr << " i2" << d2s(two_one) << "%],";
-    }
-    else {
-        std::cerr << " t2 i1[t" << s2s("n/a", 7) << "%,";
-        std::cerr << " i2" << s2s("n/a", 7) << "%],";
+template<typename T>
+struct time_roundtrip : arguments<std::vector<T>>
+{
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        const bool reduce_restore{ xs == restore_time_v1(reduce_time_v1(xs)) };
+        const bool restore_reduce{ xs == reduce_time_v1(restore_time_v1(xs)) };
+        return reduce_restore && restore_reduce;
     }
 
-    if (enc.chan_from_input.count() > 0 ) {
-        const double time_input{ 100.0 * static_cast<double>(enc.chan_from_time.count()) / static_cast<double>(enc.chan_from_input.count()) };
-        const double alt_input{ 100.0 * static_cast<double>(enc.chan_from_input_alt.count()) / static_cast<double>(enc.chan_from_input.count()) };
-
-        std::cerr << " ch i[t" << d2s(time_input) << "%, a" << d2s(alt_input) << "%]";
+    virtual auto trivial(const std::vector<T>& xs) const -> bool override final {
+        return xs.empty();
     }
-    else {
-        std::cerr << " ch i[t" << s2s("n/a", 7) << " , a" << s2s("n/a", 7) << " ]";
-    }
+};
 
-
-    std::cerr << " | restore:";
-    if (dec.time.count() > 0) {
-        const double buffer_inplace{ 100.0 * static_cast<double>(dec.time_buffer.count()) / static_cast<double>(dec.time.count()) };
-
-        std::cerr << " t i[b" << d2s(buffer_inplace) << "%],";
-    }
-    else {
-        std::cerr << " t2 i[b" << s2s("n/a", 7) << " ],";
+template<typename T>
+struct time2_roundtrip : arguments<std::vector<T>>
+{
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        const bool reduce_restore{ xs == restore_time2_v1(reduce_time2_v1(xs)) };
+        const bool restore_reduce{ xs == reduce_time2_v1(restore_time2_v1(xs)) };
+        return reduce_restore && restore_reduce;
     }
 
-    if (dec.time2_inplace.count() > 0) {
-        const double buffer_inplace{ 100.0 * static_cast<double>(dec.time2_buffer.count()) / static_cast<double>(dec.time2_inplace.count()) };
-
-        std::cerr << " t2 i[b" << d2s(buffer_inplace) << "%],";
+    virtual auto trivial(const std::vector<T>& xs) const -> bool override final {
+        return xs.empty();
     }
-    else {
-        std::cerr << " t2 i[b" << s2s("n/a", 7) << " ],";
-    }
+};
 
-    if (dec.chan_plus.count() > 0) {
-        const double buffer_plus{ 100.0 * static_cast<double>(dec.chan_buffer.count()) / static_cast<double>(dec.chan_plus.count()) };
-
-        std::cerr << " ch a[b" << d2s(buffer_plus) << "%]";
-    }
-    else {
-        std::cerr << " ch a[b" << s2s("n/a", 7) << " ]";
+template<typename T>
+struct chan_roundtrip : arguments<std::vector<T>>
+{
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        const bool reduce_restore{ xs == restore_chan_v1(reduce_chan_v1(xs)) };
+        const bool restore_reduce{ xs == reduce_chan_v1(restore_chan_v1(xs)) };
+        return reduce_restore && restore_reduce;
     }
 
-    std::cerr << std::endl;
+    virtual auto trivial(const std::vector<T>& xs) const -> bool override final {
+        return xs.empty();
+    }
+};
+
+
+template<typename T>
+struct time2_versions : arguments<std::vector<T>>
+{
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        const auto encoded_v1{ reduce_time2_v1(xs) };
+        const auto encoded_v2{ reduce_time2_v2(xs) };
+        const auto encoded_v3{ reduce_time2_v3(xs) };
+        const auto decoded_v1{ restore_time2_v1(xs) };
+        const auto decoded_v2{ restore_time2_v2(xs) };
+
+        const bool encoded_equal{ encoded_v1 == encoded_v2 && encoded_v2 == encoded_v3 };
+        const bool decoded_equal{ decoded_v1 == decoded_v2 };
+        return encoded_equal && decoded_equal;
+    }
+
+    virtual auto trivial(const std::vector<T>& xs) const -> bool override final {
+        return xs.empty();
+    }
+};
+
+template<typename T>
+struct chan_versions : arguments<std::vector<T>>
+{
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        const auto encoded_v1{ reduce_chan_v1(xs) };
+        const auto encoded_v2{ reduce_chan_v2(xs) };
+        const auto encoded_v3{ reduce_chan_v3(xs) };
+        const auto decoded_v1{ restore_chan_v1(xs) };
+        const auto decoded_v2{ restore_chan_v2(xs) };
+
+        const bool encoded_equal{ encoded_v1 == encoded_v2 && encoded_v2 == encoded_v3 };
+        const bool decoded_equal{ decoded_v1 == decoded_v2 };
+        return encoded_equal && decoded_equal;
+    }
+
+    virtual auto trivial(const std::vector<T>& xs) const -> bool override final {
+        return xs.empty();
+    }
+};
+
+
+
+auto main(int, char*[]) -> int {
+    using round_time_8 = time_roundtrip<uint8_t>;
+    using round_time2_8 = time2_roundtrip<uint8_t>;
+    using round_chan_8 = chan_roundtrip<uint8_t>;
+    using versions_time2_8 = time2_versions<uint8_t>;
+    using versions_chan_8 = chan_versions<uint8_t>;
+
+    using round_time_16 = time_roundtrip<uint16_t>;
+    using round_time2_16 = time2_roundtrip<uint16_t>;
+    using round_chan_16 = chan_roundtrip<uint16_t>;
+    using versions_time2_16 = time2_versions<uint16_t>;
+    using versions_chan_16 = chan_versions<uint16_t>;
+
+    using round_time_32 = time_roundtrip<uint32_t>;
+    using round_time2_32 = time2_roundtrip<uint32_t>;
+    using round_chan_32 = chan_roundtrip<uint32_t>;
+    using versions_time2_32 = time2_versions<uint32_t>;
+    using versions_chan_32 = chan_versions<uint32_t>;
+
+    using round_time_64 = time_roundtrip<uint64_t>;
+    using round_time2_64 = time2_roundtrip<uint64_t>;
+    using round_chan_64 = chan_roundtrip<uint64_t>;
+    using versions_time2_64 = time2_versions<uint64_t>;
+    using versions_chan_64 = chan_versions<uint64_t>;
+
+    random_source r;
+    bool ok{ true };
+
+    ok &= check("time round trip, 8 bit", round_time_8{}, make_vectors{ r, uint8_t{} });
+    ok &= check("time2 round trip, 8 bit", round_time2_8{}, make_vectors{ r, uint8_t{} });
+    ok &= check("chan round trip, 8 bit", round_chan_8{}, make_vectors{ r, uint8_t{} });
+    ok &= check("time2 implementations, 8 bit", versions_time2_8{}, make_vectors{ r, uint8_t{} });
+    ok &= check("chan implementations, 8 bit", versions_chan_8{}, make_vectors{ r, uint8_t{} });
+
+    ok &= check("time round trip, 16 bit", round_time_16{}, make_vectors{ r, uint16_t{} });
+    ok &= check("time2 round trip, 16 bit", round_time2_16{}, make_vectors{ r, uint16_t{} });
+    ok &= check("chan round trip, 16 bit", round_chan_16{}, make_vectors{ r, uint16_t{} });
+    ok &= check("time2 implementations, 16 bit", versions_time2_16{}, make_vectors{ r, uint16_t{} });
+    ok &= check("chan implementations, 16 bit", versions_chan_16{}, make_vectors{ r, uint16_t{} });
+
+    ok &= check("time round trip, 32 bit", round_time_32{}, make_vectors{ r, uint32_t{} });
+    ok &= check("time2 round trip, 32 bit", round_time2_32{}, make_vectors{ r, uint32_t{} });
+    ok &= check("chan round trip, 32 bit", round_chan_32{}, make_vectors{ r, uint32_t{} });
+    ok &= check("time2 implementations, 32 bit", versions_time2_32{}, make_vectors{ r, uint32_t{} });
+    ok &= check("chan implementations, 32 bit", versions_chan_32{}, make_vectors{ r, uint32_t{} });
+
+    ok &= check("time round trip, 64 bit", round_time_64{}, make_vectors{ r, uint64_t{} });
+    ok &= check("time2 round trip, 64 bit", round_time2_64{}, make_vectors{ r, uint64_t{} });
+    ok &= check("chan round trip, 64 bit", round_chan_64{}, make_vectors{ r, uint64_t{} });
+    ok &= check("time2 implementations, 64 bit", versions_time2_64{}, make_vectors{ r, uint64_t{} });
+    ok &= check("chan implementations, 64 bit", versions_chan_64{}, make_vectors{ r, uint64_t{} });
+
+    return ok ? EXIT_SUCCESS : EXIT_FAILURE;
 }
-
-
-auto run(epoch_reader_riff& reader, int repetitions) -> std::pair<reduction_stat, restore_stat> {
-    reduction_stat t_reduction;
-    restore_stat t_restore;
-    const auto& order{ reader.common_epoch_reader().order() };
-
-    const epoch_count epochs{ reader.common_epoch_reader().count() };
-    for (epoch_count i{ 0 }; i < epochs; ++i) {
-        const compressed_epoch ce{ reader.common_epoch_reader().epoch(i) };
-        if (ce.data.empty()) {
-            std::cerr << "cnt: cannot read epoch " << (i + epoch_count{ 1 }) << "/" << epochs << "\n";
-            continue;
-        }
-
-        t_reduction += reduction_time(ce, order, repetitions);
-        t_restore += restore_time(ce, order, repetitions);
-    }
-
-    print(t_reduction, t_restore);
-    return { t_reduction, t_restore };
-}
-
-
-TEST_CASE("magnitude", "[performance]") {
-    constexpr const size_t fname_width{ 20 };
-    constexpr const int repetitions{ 3 };
-    std::cerr << repetitions << " repetitions per epoch\n";
-    reduction_stat t_reduction;
-    restore_stat t_restore;
-    size_t i{0};
-
-    input_txt input;
-	std::string fname{ input.next() };
-	while (!fname.empty()) {
-		try {
-			std::cerr << s2s(fname, fname_width);
-            epoch_reader_riff reader{ fname };
-            const auto[t_enc, t_dec]{ run(reader, repetitions) };
-            t_reduction += t_enc;
-            t_restore += t_dec;
-            if (i % 10 == 0) {
-                print(t_reduction, t_restore, s2s("AVG", fname_width));
-                std::cerr << "\n";
-            }
-            ++i;
-		}
-        catch (const std::exception&) {
-            ignore_expected();
-        }
-
-        fname = input.next();
-    }
-
-    print(t_reduction, t_restore, s2s("TOTAL", fname_width));
-}
-
-} /* namespace test */ } /* namespace impl */ } /* namespace ctk */
 

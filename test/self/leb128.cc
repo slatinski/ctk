@@ -24,6 +24,9 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <numeric>
 
 #include "file/leb128.h"
+#include "qcheck.h"
+#include "make_block.h" // print_vector
+
 
 namespace ctk { namespace impl { namespace test {
 
@@ -161,35 +164,6 @@ namespace ctk { namespace impl { namespace test {
         }
     }
 
-
-    template<typename T>
-    auto roundtrip_multiple(const std::vector<T>& xs) -> void {
-        std::vector<uint8_t> bytes(xs.size() * leb128::max_bytes(T{}));
-        auto first{ begin(bytes) };
-        auto last{ end(bytes) };
-
-        for (T x : xs) {
-            first = encode_leb128(x, first, last);
-        }
-        last = first;
-        first = begin(bytes);
-
-        T y;
-        for (T x : xs) {
-            std::tie(y, first) = decode_leb128(first, last, T{});
-            REQUIRE(y == x);
-        }
-
-        REQUIRE(first == last);
-    }
-
-    TEST_CASE("multiple numbers", "[consistency]") {
-        roundtrip_multiple(around_zero());
-        roundtrip_multiple(input_consecutive_backward());
-        roundtrip_multiple(well_known_ints());
-        roundtrip_multiple(well_known_unsigned_ints());
-    }
-
     TEST_CASE("invalid input", "[correct]") {
         const std::vector<uint8_t> only_continuation{ 0x80 };
         REQUIRE_THROWS(decode_leb128(begin(only_continuation), end(only_continuation), int16_t{}));
@@ -202,33 +176,246 @@ namespace ctk { namespace impl { namespace test {
     }
 
 
-    template<typename T>
-    auto roundtrip_file(const std::vector<T>& xs) -> void {
-        const std::filesystem::path temporary{ "leb128.bin" };
-        {
-            file_ptr f{ open_w(temporary) };
-            for (T x : xs) {
-                write_leb128(f.get(), x);
-            }
-        }
-        {
-            file_ptr f{ open_r(temporary) };
-            for (T x : xs) {
-                const T y{ read_leb128(f.get(), T{}) };
-                REQUIRE(y == x);
-            }
-        }
+    // example:
+    // the byte sequence { 142, 123 } encodes the signed number -626 (0b10110001110).
+    // decoding the sequence into a 8-bit word would yield the signed number -114 (0b10001110) due to truncation.
+    // decoding the sequence into a 16-bit or wider signed word would yield the signed number -626.
+    // this function takes the simplistic approach to decode the sequence into a wider word and compare the results.
+    // this simplistic approach precludes using it for 64-bit wide words.
+    template<typename IByte, typename T>
+    auto representable_as_t(IByte first, IByte last, T) -> bool {
+        static_assert(sizeof(T) < sizeof(int64_t));
 
-        std::filesystem::remove(temporary);
+        const auto[x, u0]{ decode_leb128(first, last, T{}) };
+        const auto[y, u1]{ decode_leb128(first, last, int64_t{}) };
+        return x == y;
+    }
+
+    // the following one and two byte wide words encode the same value:
+    //          01100100
+    //  0000000001100100
+    // if the byte sequence specifies leading zeroes or ones then it is not the shortest representation for this value.
+    template<typename IByte, typename T>
+    auto shortest_representation(IByte first, IByte last, T) -> bool {
+        if (first == last) {
+            return true;
+        }
+        assert((*(last - 1) & 0x80) == 0);
+
+        const auto[x, u]{ decode_leb128(first, last, T{}) };
+        if (x < 0) {
+            return *(last - 1) != 127; // leading 1s: not the shortest representation
+        }
+        else {
+            return *(last - 1) != 0; // leading 0s: not the shortest representation
+        }
     }
 
 
-    TEST_CASE("file io", "[consistency]") {
-        roundtrip_file(well_known_ints());
-        roundtrip_file(well_known_unsigned_ints());
-        roundtrip_file(input_consecutive_backward());
-        roundtrip_file(all_int16s());
-        roundtrip_file(all_uint16s());
+    using namespace qcheck;
+
+    template<typename T>
+    struct encode_decode_single : arguments<T>
+    {
+        explicit encode_decode_single(T/* type tag */) {};
+
+        virtual auto holds(const T& x) const -> bool override final {
+            std::vector<uint8_t> bytes(leb128::max_bytes(T{}));
+            const auto last{ encode_leb128(x, begin(bytes), end(bytes)) };
+
+            const auto[y, next]{ decode_leb128(begin(bytes), last, T{}) };
+            return next == last && x == y;
+        }
+    };
+
+
+    template<typename T>
+    struct decode_encode_single : arguments<std::vector<uint8_t>>
+    {
+        explicit decode_encode_single(T/* type tag */) {};
+
+        virtual auto accepts(const std::vector<uint8_t>& xs) const -> bool override final {
+            using namespace ctk::impl::leb128;
+
+            const size_t size_max{ max_bytes(T{}) };
+            const size_t size_x{ xs.size() };
+            const size_t size{ std::min(size_x, size_max) };
+            for (size_t i{ 0 }; i < size; ++i) {
+                if ((xs[i] & 0x80) == 0x0) { // last byte in the sequence, the continuation bit is not set
+                    const auto first{ begin(xs) };
+                    const auto last{ first + static_cast<ptrdiff_t>(i) + 1 };
+                    const bool representable{ representable_as_t(first, last, T{}) };
+                    const bool shortest{ shortest_representation(first, last, T{}) }; // the encoder does not produce leading 0s/1s
+                    return representable && shortest;
+                }
+            }
+
+            return false;
+        }
+
+        virtual auto holds(const std::vector<uint8_t>& xs) const -> bool override final {
+            const auto[word, last_x]{ decode_leb128(begin(xs), end(xs), T{}) };
+            const auto length{ std::distance(begin(xs), last_x) };
+
+            std::vector<uint8_t> ys(static_cast<size_t>(length));
+            const auto last_y{ encode_leb128(word, begin(ys), end(ys)) };
+
+            const bool equal_size{ std::distance(begin(xs), last_x) == std::distance(begin(ys), last_y) };
+            const bool equal_content{ std::equal(begin(xs), last_x, begin(ys), last_y) };
+            return equal_size && equal_content;
+        }
+
+        virtual auto print(std::ostream& os, const std::vector<uint8_t>& xs) const -> std::ostream& override final {
+            return print_vector(os, xs);
+        }
+
+        virtual auto shrink(const std::vector<uint8_t>& xs) const -> std::vector<std::vector<uint8_t>> override final {
+            return shrink_vector(xs);
+        }
+    };
+
+
+    template<typename T>
+    struct encode_decode_multiple : arguments<std::vector<T>>
+    {
+        explicit encode_decode_multiple(T/* type tag */) {};
+
+        virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+            std::vector<uint8_t> bytes(xs.size() * leb128::max_bytes(T{}));
+            auto first{ begin(bytes) };
+            auto last{ end(bytes) };
+
+            for (T x : xs) {
+                first = encode_leb128(x, first, last);
+            }
+            last = first;
+            first = begin(bytes);
+
+            T y;
+            std::vector<T> ys;
+            ys.reserve(xs.size());
+            for (size_t i{ 0 }; i < xs.size(); ++i) {
+                std::tie(y, first) = decode_leb128(first, last, T{});
+                ys.push_back(y);
+            }
+
+            return first == last && xs == ys;
+        }
+    };
+
+
+    template<typename T>
+    struct encode_decode_multiple_file : arguments<std::vector<T>>
+    {
+        explicit encode_decode_multiple_file(T/* type tag */) {};
+
+        virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+            const std::filesystem::path temporary{ "encode_decode_multiple_file.bin" };
+            // writer scope
+            {
+                file_ptr f{ open_w(temporary) };
+                for (T x : xs) {
+                    write_leb128(f.get(), x);
+                }
+            }
+
+            bool success{ true };
+            // reader scope
+            {
+                file_ptr f{ open_r(temporary) };
+                for (T x : xs) {
+                    const T y{ read_leb128(f.get(), T{}) };
+                    if (y != x) {
+                        success = false;
+                        break;
+                    }
+                }
+            }
+
+            std::filesystem::remove(temporary);
+            return success;
+        }
+    };
+
+
+    TEST_CASE("qcheck", "[consistency]") {
+        //random_source r{ 926816044 };
+        random_source r;
+
+        REQUIRE(check("enc/dec, single, signed 8 bit", encode_decode_single{ int8_t{} }, make_numbers{ r, int8_t{} }));
+        REQUIRE(check("enc/dec, single, signed 16 bit", encode_decode_single{ int16_t{} }, make_numbers{ r, int16_t{} }));
+        REQUIRE(check("enc/dec, single, signed 32 bit", encode_decode_single{ int32_t{} }, make_numbers{ r, int32_t{} }));
+        REQUIRE(check("enc/dec, single, signed 64 bit", encode_decode_single{ int64_t{} }, make_numbers{ r, int64_t{} }));
+        REQUIRE(check("enc/dec, single, unsigned 8 bit", encode_decode_single{ uint8_t{} }, make_numbers{ r, uint8_t{} }));
+        REQUIRE(check("enc/dec, single, unsigned 16 bit", encode_decode_single{ uint16_t{} }, make_numbers{ r, uint16_t{} }));
+        REQUIRE(check("enc/dec, single, unsigned 32 bit", encode_decode_single{ uint32_t{} }, make_numbers{ r, uint32_t{} }));
+        REQUIRE(check("enc/dec, single, unsigned 64 bit", encode_decode_single{ uint64_t{} }, make_numbers{ r, uint64_t{} }));
+
+        REQUIRE(check("dec/end, single, signed 8 bit", decode_encode_single{ int8_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+        REQUIRE(check("dec/end, single, signed 16 bit", decode_encode_single{ int16_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+        REQUIRE(check("dec/end, single, signed 32 bit", decode_encode_single{ int32_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+        REQUIRE(check("dec/end, single, unsigned 8 bit", decode_encode_single{ uint8_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+        REQUIRE(check("dec/end, single, unsigned 16 bit", decode_encode_single{ uint16_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+        REQUIRE(check("dec/end, single, unsigned 32 bit", decode_encode_single{ uint32_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+
+        REQUIRE(check("enc/dec, multiple, signed 8 bit", encode_decode_multiple{ int8_t{} }, make_vectors{ r, int8_t{} }));
+        REQUIRE(check("enc/dec, multiple, signed 16 bit", encode_decode_multiple{ int16_t{} }, make_vectors{ r, int16_t{} }));
+        REQUIRE(check("enc/dec, multiple, signed 32 bit", encode_decode_multiple{ int32_t{} }, make_vectors{ r, int32_t{} }));
+        REQUIRE(check("enc/dec, multiple, signed 64 bit", encode_decode_multiple{ int64_t{} }, make_vectors{ r, int64_t{} }));
+        REQUIRE(check("enc/dec, multiple, unsigned 8 bit", encode_decode_multiple{ uint8_t{} }, make_vectors{ r, uint8_t{} }));
+        REQUIRE(check("enc/dec, multiple, unsigned 16 bit", encode_decode_multiple{ uint16_t{} }, make_vectors{ r, uint16_t{} }));
+        REQUIRE(check("enc/dec, multiple, unsigned 32 bit", encode_decode_multiple{ uint32_t{} }, make_vectors{ r, uint32_t{} }));
+        REQUIRE(check("enc/dec, multiple, unsigned 64 bit", encode_decode_multiple{ uint64_t{} }, make_vectors{ r, uint64_t{} }));
+
+        // missing decode_encode_multiple signed/unsigned
+        // missing decode_encode_single_file signed/unsigned
+        // missing decode_encode_multiple_file signed/unsigned
+
+        REQUIRE(check("enc/dec file, multiple, signed 8 bit", encode_decode_multiple_file{ int8_t{} }, make_vectors{ r, int8_t{} }));
+        REQUIRE(check("enc/dec file, multiple, signed 16 bit", encode_decode_multiple_file{ int16_t{} }, make_vectors{ r, int16_t{} }));
+        REQUIRE(check("enc/dec file, multiple, signed 32 bit", encode_decode_multiple_file{ int32_t{} }, make_vectors{ r, int32_t{} }));
+        REQUIRE(check("enc/dec file, multiple, signed 64 bit", encode_decode_multiple_file{ int64_t{} }, make_vectors{ r, int64_t{} }));
+        REQUIRE(check("enc/dec file, multiple, unsigned 8 bit", encode_decode_multiple_file{ uint8_t{} }, make_vectors{ r, uint8_t{} }));
+        REQUIRE(check("enc/dec file, multiple, unsigned 16 bit", encode_decode_multiple_file{ uint16_t{} }, make_vectors{ r, uint16_t{} }));
+        REQUIRE(check("enc/dec file, multiple, unsigned 32 bit", encode_decode_multiple_file{ uint32_t{} }, make_vectors{ r, uint32_t{} }));
+        REQUIRE(check("enc/dec file, multiple, unsigned 64 bit", encode_decode_multiple_file{ uint64_t{} }, make_vectors{ r, uint64_t{} }));
+
+        // fixed inputs
+        encode_decode_multiple encdec_i32{ int32_t{} };
+        REQUIRE(encdec_i32.holds(around_zero()));
+
+        encode_decode_multiple encdec_i64{ int64_t{} };
+        REQUIRE(encdec_i64.holds(input_consecutive_backward()));
+
+        encode_decode_multiple encdec_i{ int{} };
+        REQUIRE(encdec_i.holds(well_known_ints()));
+
+        encode_decode_multiple encdec_u{ unsigned{} };
+        REQUIRE(encdec_u.holds(well_known_unsigned_ints()));
+
+        encode_decode_multiple encdec_all_i16{ int16_t{} };
+        REQUIRE(encdec_all_i16.holds(all_int16s()));
+
+        encode_decode_multiple encdec_all_u16{ uint16_t{} };
+        REQUIRE(encdec_all_u16.holds(all_uint16s()));
+
+        encode_decode_multiple_file encdec_i32_file{ int32_t{} };
+        REQUIRE(encdec_i32_file.holds(around_zero()));
+
+        encode_decode_multiple_file encdec_i64_file{ int64_t{} };
+        REQUIRE(encdec_i64_file.holds(input_consecutive_backward()));
+
+        encode_decode_multiple_file encdec_i_file{ int{} };
+        REQUIRE(encdec_i_file.holds(well_known_ints()));
+
+        encode_decode_multiple_file encdec_u_file{ unsigned{} };
+        REQUIRE(encdec_u_file.holds(well_known_unsigned_ints()));
+
+        encode_decode_multiple_file encdec_all_i16_file{ int16_t{} };
+        REQUIRE(encdec_all_i16_file.holds(all_int16s()));
+
+        encode_decode_multiple_file encdec_all_u16_file{ uint16_t{} };
+        REQUIRE(encdec_all_u16_file.holds(all_uint16s()));
     }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */

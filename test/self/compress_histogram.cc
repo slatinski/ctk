@@ -2,7 +2,8 @@
 #include "../catch.hpp"
 
 #include "compress/matrix.h"
-#include "test/util.h"
+#include "qcheck.h"
+#include "make_block.h" // print_vector
 
 namespace ctk { namespace impl { namespace test {
 
@@ -27,7 +28,7 @@ struct encoded_pattern_size
 
 auto calculate_compressed_block_size(std::vector<bool>::const_iterator first, std::vector<bool>::const_iterator last, bit_count n, bit_count nexc, bit_count header) -> bit_count {
 
-    const bit_count acc{0};
+    const bit_count acc{ 0 };
     const bit_count data{ std::accumulate(first, last, acc, encoded_pattern_size{ n, nexc }) };
 
     return header + data;
@@ -84,42 +85,44 @@ auto exhaustive_n(const std::vector<T>& residuals, Format) -> bit_count {
 }
 
 
-TEST_CASE("histogram", "[correct]") {
-    using S = sint;
-    using T = typename std::make_unsigned<S>::type;
-    using Format = extended;
+using namespace qcheck;
 
-	random_values random;
-    const Format format;
+template<typename T, typename Format>
+struct histogram_vs_exhaustive : arguments<std::vector<T>>
+{
+    virtual auto accepts(const std::vector<T>& xs) const -> bool override final {
+        // size == 1: encoded as master value in the header, no histogram computation
+        return 1 < xs.size();
+    }
 
-    for (S length{ 2 }; length < 512; length += 1) {
+    virtual auto holds(const std::vector<T>& xs) const -> bool override final {
+        const auto size{ static_cast<measurement_count::value_type>(xs.size()) };
+        const measurement_count n{ size };
+
         reduction<T> dut;
         estimation<T> e;
-        dut.resize(measurement_count{ length });
-        e.resize(measurement_count{ length }, format);
+        dut.resize(n);
+        e.resize(n, Format{});
 
-        for(T i{ 0 }; i < 10; ++i) {
-            std::vector<T> residuals(static_cast<size_t>(length));
-            random.fill(T{ 0 }, T{ static_cast<T>(i + 10) }, residuals);
-
-            std::copy(begin(residuals), end(residuals), begin(dut.residuals));
-            bit_count x{ histogram_n(dut, e, format) };
-            bit_count y{ exhaustive_n(residuals, format) };
-            REQUIRE(x == y);
-
-            std::adjacent_difference(begin(residuals), end(residuals), begin(residuals));
-            std::copy(begin(residuals), end(residuals), begin(dut.residuals));
-            x = histogram_n(dut, e, format);
-            y = exhaustive_n(residuals, format);
-            REQUIRE(x == y);
-
-            std::adjacent_difference(std::next(begin(residuals)), end(residuals), std::next(begin(residuals)));
-            std::copy(begin(residuals), end(residuals), begin(dut.residuals));
-            x = histogram_n(dut, e, format);
-            y = exhaustive_n(residuals, format);
-            REQUIRE(x == y);
-        }
+        std::copy(begin(xs), end(xs), begin(dut.residuals));
+        const bit_count x{ histogram_n(dut, e, Format{}) };
+        const bit_count y{ exhaustive_n(xs, Format{}) };
+        return x == y;
     }
+
+    virtual auto print(std::ostream& os, const std::vector<T>& xs) const -> std::ostream& override final {
+        return print_vector(os, xs);
+    }
+};
+
+TEST_CASE("qcheck", "[correct]") {
+    random_source r;
+
+    REQUIRE(check("reflib 32 bit",  histogram_vs_exhaustive<uint32_t, reflib>{},  make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("extended 8 bit",  histogram_vs_exhaustive<uint8_t, extended>{},  make_vectors{ r, uint8_t{} }));
+    REQUIRE(check("extended 16 bit",  histogram_vs_exhaustive<uint16_t, extended>{},  make_vectors{ r, uint16_t{} }));
+    REQUIRE(check("extended 32 bit",  histogram_vs_exhaustive<uint32_t, extended>{},  make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("extended 64 bit",  histogram_vs_exhaustive<uint64_t, extended>{},  make_vectors{ r, uint64_t{} }));
 }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */

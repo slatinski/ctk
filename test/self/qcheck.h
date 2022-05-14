@@ -173,6 +173,34 @@ auto gen(size_t n, random_source& rnd, std::string) -> std::string {
 }
 
 
+template<typename T>
+auto shrink_vector(const std::vector<T>& xs) -> std::vector<std::vector<T>> {
+    if (xs.size() < 2) {
+        return {};
+    }
+
+    const std::vector<T> a{ begin(xs) + 1, end(xs) };
+    const std::vector<T> b{ begin(xs), end(xs) - 1 };
+    return { a, b };
+}
+
+
+
+template<typename T>
+class make_numbers
+{
+    random_source* _random;
+
+public:
+
+    make_numbers(random_source& rnd, T)
+    : _random{ &rnd } {
+    }
+
+    auto operator()(size_t n) -> T {
+        return gen(n, *_random, T{});
+    }
+};
 
 template<typename T>
 class make_vectors
@@ -297,6 +325,35 @@ auto cerr_exception(const P& property, const std::vector<T>& xs, const std::stri
 }
 
 
+template<typename P, typename T>
+auto smaller_still_failing(const P& property, const T& x) -> std::vector<T> {
+    std::vector<T> xs;
+    std::queue<T> q;
+
+    auto smaller{ property.shrink(x) };
+    for (const auto& s : smaller) {
+        q.push(s);
+    }
+
+    while (!q.empty()) {
+        const auto y{ q.front() };
+        q.pop();
+
+        if (!property.accepts(y) || property.trivial(y) || property.holds(y)) {
+            continue;
+        }
+        xs.push_back(y);
+
+        smaller = property.shrink(y);
+        for (const auto& s : smaller) {
+            q.push(s);
+        }
+    }
+
+    return xs;
+}
+
+
 template<typename T>
 struct result
 {
@@ -338,7 +395,13 @@ auto check(const std::string& name, P property, G generate, size_t n = 100) -> r
             }
 
             if (!property.holds(x)) {
-                cerr_falsified(property, xs, i);
+                const auto shrunk{ smaller_still_failing(property, x) };
+                if (!shrunk.empty()) {
+                    cerr_falsified(property, shrunk, i);
+                }
+                else {
+                    cerr_falsified(property, xs, i);
+                }
                 return { false, xs };
             }
             ++data.successfull;
@@ -389,6 +452,10 @@ struct arguments
     virtual auto print(std::ostream& os, const T&) const -> std::ostream& {
         os << "*** print is not implemented for this property\n";
         return os;
+    }
+
+    virtual auto shrink(const T&) const -> std::vector<T> {
+        return {};
     }
 };
 

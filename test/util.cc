@@ -1,9 +1,11 @@
+#include <iostream>
+#include <fstream>
 #include <sstream>
 #include <iomanip>
-#include <cassert>
 
 #include "test/util.h"
 #include "exception.h"
+
 namespace ctk { namespace impl {
     using namespace ctk::api::v1;
     
@@ -29,70 +31,61 @@ namespace ctk { namespace impl {
         
     namespace test {
 
-std::vector<ptrdiff_t> divisors(ptrdiff_t n) {
-    assert(n >= 0);
+        auto trim(const std::string& str) -> std::string {
+            static const std::string whitespace{ " \t\n\r" };
 
-	const ptrdiff_t range{ static_cast<ptrdiff_t>(sqrt(double(n))) + 1 };
+            typedef std::string::size_type size_type;
 
-	std::vector<ptrdiff_t> result;
-	result.reserve(static_cast<size_t>(range));
+            const size_type first{ str.find_first_not_of(whitespace) };
+            if (first == std::string::npos)
+                return std::string{}; // no content
 
-	for (ptrdiff_t i{1}; i < range; ++i) {
-		const auto x{ std::div(n, i) };
-		if (x.rem == 0) {
-			result.push_back(i);
-			result.push_back(x.quot);
-		}
-	}
+            const size_type last_pos{ str.find_last_not_of(whitespace) };
+            if (last_pos < first + 1) {
+                return std::string{};
+            }
 
-	std::sort(std::begin(result), std::end(result));
-	const auto last{ std::unique(std::begin(result), std::end(result)) };
-	result.resize(size_t(std::distance(std::begin(result), last)));
-
-	std::reverse(std::begin(result), std::end(result));
-
-	return result;
-}
+            const size_type length{ last_pos - first + 1 };
+            return str.substr(first, length);
+        }
 
 
-auto trim(const std::string& str) -> std::string {
-    static const std::string whitespace{ " \t\n\r" };
+        auto s2s(const std::string& str, size_t n) -> std::string {
+            if (str.size() < n) {
+                const size_t missing{ n - str.size() };
+                std::string spaces(missing, ' ');
+                return spaces + str;
+            }
 
-    typedef std::string::size_type size_type;
+            return str.substr(str.size() - n, n);
+        }
 
-    const size_type first{ str.find_first_not_of(whitespace) };
-    if (first == std::string::npos)
-        return std::string{}; // no content
+        auto d2s(double x) -> std::string {
+            std::ostringstream os0;
+            os0 << std::fixed << std::setprecision(2) << x;
 
-    const size_type last_pos{ str.find_last_not_of(whitespace) };
-    if (last_pos < first + 1) {
-        return std::string{};
-    }
-
-    const size_type length{ last_pos - first + 1 };
-    return str.substr(first, length);
-}
-
-
-auto s2s(const std::string& str, size_t n) -> std::string {
-    if (str.size() < n) {
-        const size_t missing{ n - str.size() };
-        std::string spaces(missing, ' ');
-        return spaces + str;
-    }
-
-    return str.substr(str.size() - n, n);
-}
-
-auto d2s(double x) -> std::string {
-    std::ostringstream os0;
-    os0 << std::fixed << std::setprecision(2) << x;
-
-    std::ostringstream os1;
-    os1 << std::setw(7) << os0.str();
-    return os1.str();
-}
+            std::ostringstream os1;
+            os1 << std::setw(7) << os0.str();
+            return os1.str();
+        }
 
 
+        input_txt::input_txt()
+        : ifs{ "input.txt" } {
+            if (!ifs.is_open()) {
+                std::cerr << "no input.txt in the current working directory\n";
+            }
+        }
 
-} /* namespace test */ } /* namespace impl */ } /* namespace ctk */
+        auto input_txt::next() -> std::string {
+            std::string fname;
+            if (std::getline(ifs, fname)) {
+                return trim(fname);
+            }
+
+            return std::string{};
+        }
+
+    } /* namespace test */
+} /* namespace impl */ } /* namespace ctk */
+
