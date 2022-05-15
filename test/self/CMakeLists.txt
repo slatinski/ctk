@@ -87,8 +87,3 @@ add_executable(file_evt container_evt.cc ../util.cc)
 target_link_libraries(file_evt PRIVATE ctk_static)
 target_include_directories(file_evt PRIVATE ${CMAKE_SOURCE_DIR})
 target_compile_options(file_evt PRIVATE  ${CTK_CXX_FLAGS})
-
-add_executable(roundtrip_cnt copy_cnt_using_epoch.cc)
-target_link_libraries(roundtrip_cnt PRIVATE ctk_static)
-target_include_directories(roundtrip_cnt PRIVATE ${CMAKE_SOURCE_DIR})
-target_compile_options(roundtrip_cnt PRIVATE  ${CTK_CXX_FLAGS})
