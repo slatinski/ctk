@@ -30,7 +30,6 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include "compress/bit_stream.h"
 #include "qcheck.h"
 #include "compress/matrix.h" // count_raw3
-#include "make_block.h" // print_vector
 
 namespace ctk { namespace impl { namespace test {
 

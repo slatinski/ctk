@@ -3,7 +3,6 @@
 
 #include "compress/matrix.h"
 #include "qcheck.h"
-#include "make_block.h" // print_vector
 
 namespace ctk { namespace impl { namespace test {
 

@@ -234,6 +234,28 @@ public:
 };
 
 
+template<typename T>
+auto print_vector(std::ostream& os, const std::vector<T>& xs) -> std::ostream& {
+    os << "[ ";
+    for (const T& x : xs) { os << x << " "; }
+    os << "]";
+    return os;
+}
+
+auto print_vector(std::ostream& os, const std::vector<int8_t>& xs) -> std::ostream& {
+    os << "[ ";
+    for (int8_t x : xs) { os << static_cast<int>(x) << " "; }
+    os << "]";
+    return os;
+}
+
+auto print_vector(std::ostream& os, const std::vector<uint8_t>& xs) -> std::ostream& {
+    os << "[ ";
+    for (uint8_t x : xs) { os << static_cast<unsigned>(x) << " "; }
+    os << "]";
+    return os;
+}
+
 
 struct stats
 {

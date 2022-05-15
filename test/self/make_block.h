@@ -31,29 +31,6 @@ using namespace qcheck;
 
 
 template<typename T>
-auto print_vector(std::ostream& os, const std::vector<T>& xs) -> std::ostream& {
-    os << "[ ";
-    for (const T& x : xs) {
-        os << x << " ";
-    }
-    os << "]";
-
-    return os;
-}
-
-auto print_vector(std::ostream& os, const std::vector<uint8_t>& xs) -> std::ostream& {
-    os << "[ ";
-    for (uint8_t x : xs) {
-        os << static_cast<unsigned>(x) << " ";
-    }
-    os << "]";
-
-    return os;
-}
-
-
-
-template<typename T>
 auto make_bytes(const std::vector<T>& xs) -> std::vector<uint8_t> {
     constexpr const size_t nexc{ sizeof(T) * 8 };
     const size_t bits{ 80 + (nexc + nexc) * xs.size() };
