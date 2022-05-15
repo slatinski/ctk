@@ -264,6 +264,21 @@ namespace ctk { namespace impl { namespace test {
             return equal_size && equal_content;
         }
 
+        virtual auto classify(const std::vector<uint8_t>& xs) const -> std::string override final {
+            const size_t size_max{ ctk::impl::leb128::max_bytes(T{}) };
+            const size_t size_x{ xs.size() };
+            size_t size{ std::min(size_x, size_max) };
+            for (size_t i{ 0 }; i < size; ++i) {
+                if ((xs[i] & 0x80) == 0x0) { // last byte in the sequence, the continuation bit is not set
+                    size = i + 1;
+                    break;
+                }
+            }
+            std::ostringstream oss;
+            oss << "length " << size << "/" << size_max << " bytes";
+            return oss.str();
+        }
+
         virtual auto print(std::ostream& os, const std::vector<uint8_t>& xs) const -> std::ostream& override final {
             return print_vector(os, xs);
         }
@@ -337,9 +352,38 @@ namespace ctk { namespace impl { namespace test {
     };
 
 
+    class make_short_vectors
+    {
+        random_source* _random;
+        size_t _size;
+
+    public:
+
+        make_short_vectors(random_source& rnd, size_t size)
+        : _random{ &rnd }
+        , _size{ size } {
+        }
+
+        auto operator()(size_t n) -> std::vector<uint8_t> {
+            const size_t size{ gen(_size, *_random, size_t{}) };
+
+            std::vector<uint8_t> xs;
+            xs.reserve(size);
+            for (size_t i{ 0 }; i < size; ++i) {
+                xs.push_back(gen(n, *_random, uint8_t{}));
+            }
+
+            return xs;
+        }
+    };
+
     TEST_CASE("qcheck", "[consistency]") {
         //random_source r{ 926816044 };
         random_source r;
+
+        const size_t size_i8{ ctk::impl::leb128::max_bytes(int8_t{}) * 8 };
+        const size_t size_i16{ ctk::impl::leb128::max_bytes(int16_t{}) * 8 };
+        const size_t size_i32{ ctk::impl::leb128::max_bytes(int32_t{}) * 8 };
 
         REQUIRE(check("enc/dec, single, signed 8 bit", encode_decode_single{ int8_t{} }, make_numbers{ r, int8_t{} }));
         REQUIRE(check("enc/dec, single, signed 16 bit", encode_decode_single{ int16_t{} }, make_numbers{ r, int16_t{} }));
@@ -350,12 +394,12 @@ namespace ctk { namespace impl { namespace test {
         REQUIRE(check("enc/dec, single, unsigned 32 bit", encode_decode_single{ uint32_t{} }, make_numbers{ r, uint32_t{} }));
         REQUIRE(check("enc/dec, single, unsigned 64 bit", encode_decode_single{ uint64_t{} }, make_numbers{ r, uint64_t{} }));
 
-        REQUIRE(check("dec/end, single, signed 8 bit", decode_encode_single{ int8_t{} }, make_vectors{ r, uint8_t{} }, 2000));
-        REQUIRE(check("dec/end, single, signed 16 bit", decode_encode_single{ int16_t{} }, make_vectors{ r, uint8_t{} }, 2000));
-        REQUIRE(check("dec/end, single, signed 32 bit", decode_encode_single{ int32_t{} }, make_vectors{ r, uint8_t{} }, 2000));
-        REQUIRE(check("dec/end, single, unsigned 8 bit", decode_encode_single{ uint8_t{} }, make_vectors{ r, uint8_t{} }, 2000));
-        REQUIRE(check("dec/end, single, unsigned 16 bit", decode_encode_single{ uint16_t{} }, make_vectors{ r, uint8_t{} }, 2000));
-        REQUIRE(check("dec/end, single, unsigned 32 bit", decode_encode_single{ uint32_t{} }, make_vectors{ r, uint8_t{} }, 2000));
+        REQUIRE(check("dec/end, single, signed 8 bit", decode_encode_single{ int8_t{} }, make_short_vectors{ r, size_i8 }, 800));
+        REQUIRE(check("dec/end, single, signed 16 bit", decode_encode_single{ int16_t{} }, make_short_vectors{ r, size_i16 }, 800));
+        REQUIRE(check("dec/end, single, signed 32 bit", decode_encode_single{ int32_t{} }, make_short_vectors{ r, size_i32 }, 800));
+        REQUIRE(check("dec/end, single, unsigned 8 bit", decode_encode_single{ uint8_t{} }, make_short_vectors{ r, size_i8 }, 800));
+        REQUIRE(check("dec/end, single, unsigned 16 bit", decode_encode_single{ uint16_t{} }, make_short_vectors{ r, size_i16 }, 800));
+        REQUIRE(check("dec/end, single, unsigned 32 bit", decode_encode_single{ uint32_t{} }, make_short_vectors{ r, size_i32 }, 800));
 
         REQUIRE(check("enc/dec, multiple, signed 8 bit", encode_decode_multiple{ int8_t{} }, make_vectors{ r, int8_t{} }));
         REQUIRE(check("enc/dec, multiple, signed 16 bit", encode_decode_multiple{ int16_t{} }, make_vectors{ r, int16_t{} }));
