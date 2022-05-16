@@ -490,6 +490,8 @@ struct make_encoded
 template<typename T>
 struct property_encoded_size : arguments<std::vector<T>>
 {
+    explicit property_encoded_size(T/* type tag */) {}
+
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
         std::vector<bit_count> sizes(xs.size());
         std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
@@ -518,27 +520,28 @@ struct property_encoded_size : arguments<std::vector<T>>
 template<typename T>
 struct encode_decode : arguments<std::vector<T>>
 {
+    explicit encode_decode(T/* type tag */) {}
+
     virtual auto accepts(const std::vector<T>& xs) const -> bool override final {
-        return !xs.empty();
+        return !xs.empty(); // the bit_reader constructor does not accept empty input
     }
 
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
-        std::vector<bit_count> sizes(xs.size());
-        std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
+        const bit_count size{ size_in_bits(T{}) };
 
-        std::vector<uint8_t> bytes(xs.size() * sizeof(T) * 2);
+        std::vector<uint8_t> bytes(xs.size() * sizeof(T));
         std::fill(begin(bytes), end(bytes), uint8_t{ 0 });
         bit_writer writer{ begin(bytes), end(bytes) };
-        for (size_t i{ 0 }; i < xs.size(); ++i) {
-            writer.write(sizes[i], xs[i]);
+        for (T x : xs) {
+            writer.write(size, x);
         }
         const auto next{ writer.flush() };
 
         std::vector<T> ys;
         ys.reserve(xs.size());
         bit_reader reader{ begin(bytes), next };
-        for (bit_count n : sizes) {
-            ys.push_back(reader.read(n, T{}));
+        for (size_t i{ 0 }; i < xs.size(); ++i) {
+            ys.push_back(reader.read(size, T{}));
         }
 
         return ys == xs;
@@ -547,11 +550,17 @@ struct encode_decode : arguments<std::vector<T>>
     virtual auto print(std::ostream& os, const std::vector<T>& xs) const -> std::ostream& override final {
         return print_vector(os, xs);
     }
+
+    virtual auto shrink(const std::vector<T>& xs) const -> std::vector<std::vector<T>> override final {
+        return shrink_vector(xs);
+    }
 };
 
 template<typename T>
 struct decode_encode : arguments<words_bytes<T>>
 {
+    explicit decode_encode(T/* type tag */) {}
+
     virtual auto accepts(const words_bytes<T>& args) const -> bool override final {
         const auto& bytes{ std::get<1>(args) };
         return !bytes.empty();
@@ -596,22 +605,23 @@ struct decode_encode : arguments<words_bytes<T>>
 
 
 TEST_CASE("qcheck", "[concistency]") {
+    //random_source r{ 1368344820 };
     random_source r;
 
-    REQUIRE(check("encoding size 8 bit",  property_encoded_size<uint8_t>{},  make_vectors{ r, uint8_t{} }));
-    REQUIRE(check("encoding size 16 bit", property_encoded_size<uint16_t>{}, make_vectors{ r, uint16_t{} }));
-    REQUIRE(check("encoding size 32 bit", property_encoded_size<uint32_t>{}, make_vectors{ r, uint32_t{} }));
-    REQUIRE(check("encoding size 64 bit", property_encoded_size<uint64_t>{}, make_vectors{ r, uint64_t{} }));
+    REQUIRE(check("encoding size 8 bit",  property_encoded_size{ uint8_t{} },  make_vectors{ r, uint8_t{} }));
+    REQUIRE(check("encoding size 16 bit", property_encoded_size{ uint16_t{} }, make_vectors{ r, uint16_t{} }));
+    REQUIRE(check("encoding size 32 bit", property_encoded_size{ uint32_t{} }, make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("encoding size 64 bit", property_encoded_size{ uint64_t{} }, make_vectors{ r, uint64_t{} }));
 
-    REQUIRE(check("enc/dec 8 bit",  encode_decode<uint8_t>{},  make_vectors{ r, uint8_t{} }));
-    REQUIRE(check("enc/dec 16 bit", encode_decode<uint16_t>{}, make_vectors{ r, uint16_t{} }));
-    REQUIRE(check("enc/dec 32 bit", encode_decode<uint32_t>{}, make_vectors{ r, uint32_t{} }));
-    REQUIRE(check("enc/dec 64 bit", encode_decode<uint64_t>{}, make_vectors{ r, uint64_t{} }));
+    REQUIRE(check("enc/dec 8 bit",  encode_decode{ uint8_t{} },  make_vectors{ r, uint8_t{} }));
+    REQUIRE(check("enc/dec 16 bit", encode_decode{ uint16_t{} }, make_vectors{ r, uint16_t{} }));
+    REQUIRE(check("enc/dec 32 bit", encode_decode{ uint32_t{} }, make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("enc/dec 64 bit", encode_decode{ uint64_t{} }, make_vectors{ r, uint64_t{} }));
 
-    REQUIRE(check("dec/enc 8 bit",  decode_encode<uint8_t>{},  make_encoded{ r, uint8_t{} }));
-    REQUIRE(check("dec/enc 16 bit", decode_encode<uint16_t>{}, make_encoded{ r, uint16_t{} }));
-    REQUIRE(check("dec/enc 32 bit", decode_encode<uint32_t>{}, make_encoded{ r, uint32_t{} }));
-    REQUIRE(check("dec/enc 64 bit", decode_encode<uint64_t>{}, make_encoded{ r, uint64_t{} }));
+    REQUIRE(check("dec/enc 8 bit",  decode_encode{ uint8_t{} },  make_encoded{ r, uint8_t{} }));
+    REQUIRE(check("dec/enc 16 bit", decode_encode{ uint16_t{} }, make_encoded{ r, uint16_t{} }));
+    REQUIRE(check("dec/enc 32 bit", decode_encode{ uint32_t{} }, make_encoded{ r, uint32_t{} }));
+    REQUIRE(check("dec/enc 64 bit", decode_encode{ uint64_t{} }, make_encoded{ r, uint64_t{} }));
 }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */
