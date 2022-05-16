@@ -175,12 +175,15 @@ auto gen(size_t n, random_source& rnd, std::string) -> std::string {
 
 template<typename T>
 auto shrink_vector(const std::vector<T>& xs) -> std::vector<std::vector<T>> {
-    if (xs.size() < 2) {
+    const auto size{ xs.size() };
+    if (size < 2) {
         return {};
     }
 
-    const std::vector<T> a{ begin(xs) + 1, end(xs) };
-    const std::vector<T> b{ begin(xs), end(xs) - 1 };
+    const ptrdiff_t half{ static_cast<ptrdiff_t>(size) / 2 };
+
+    const std::vector<T> a{ begin(xs) + half, end(xs) };
+    const std::vector<T> b{ begin(xs), end(xs) - half };
     return { a, b };
 }
 
