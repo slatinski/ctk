@@ -349,6 +349,13 @@ auto cerr_exception(const P& property, const std::vector<T>& xs, const std::stri
     std::cerr << "\n";
 }
 
+template<typename P, typename T>
+auto cerr_shrinking(const P& property, const T& x) -> void {
+    std::cerr << "*** Found counterexample:\n";
+    property.print(std::cerr, x);
+    std::cerr << "\n*** Attempting to shrink...\n";
+}
+
 
 template<typename P, typename T>
 auto smaller_still_failing(const P& property, const T& x) -> std::vector<T> {
@@ -420,6 +427,7 @@ auto check(const std::string& name, P property, G generate, size_t n = 100) -> r
             }
 
             if (!property.holds(x)) {
+                cerr_shrinking(property, x);
                 const auto shrunk{ smaller_still_failing(property, x) };
                 if (!shrunk.empty()) {
                     cerr_falsified(property, shrunk, i);
