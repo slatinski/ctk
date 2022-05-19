@@ -22,7 +22,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 #include <tuple>
 #include <algorithm>
 
-#include "compress/matrix.h" // count_raw3
+#include "compress/bit_stream.h"
 #include "qcheck.h"
 
 
@@ -31,14 +31,19 @@ using namespace qcheck;
 
 
 template<typename T>
-auto make_bytes(const std::vector<T>& xs) -> std::vector<uint8_t> {
+auto make_bytes(size_t uncompressed, T/* type tag */) -> std::vector<uint8_t> {
     constexpr const size_t nexc{ sizeof(T) * 8 };
-    const size_t bits{ 80 + (nexc + nexc) * xs.size() };
+    const size_t bits{ 80 + (nexc + nexc) * uncompressed };
     const size_t size{ bits / 8 + 1 };
 
-    std::vector<uint8_t> bytes(size);
-    std::fill(begin(bytes), end(bytes), 0);
-    return bytes;
+    std::vector<uint8_t> xs(size);
+    std::fill(begin(xs), end(xs), 0);
+    return xs;
+}
+
+template<typename T>
+auto make_bytes(const std::vector<T>& xs) -> std::vector<uint8_t> {
+    return make_bytes(xs.size(), T{});
 }
 
 
@@ -64,7 +69,7 @@ auto generate_block_parameters(random_source& rnd, T, Format) -> block_param {
     // interval [0, 3] - one of { copy, time, time2, chan }
     unsigned method{ gen(3, rnd, unsigned{}) };
 
-    // generates values for n and nexc bits, such as 2 <= n && n <= nexc && nexc <= sizeof(encoding data size) * 8.
+    // generates values for n and nexc bits, such that 2 <= n && n <= nexc && nexc <= sizeof(encoding data size) * 8.
     // interval [2, sizeof(encoding data size) * 8]
     unsigned n{ choose(2U, size_in_bits, rnd) };
     unsigned nexc{ choose(2U, size_in_bits, rnd) };
@@ -82,50 +87,86 @@ auto generate_block_parameters(random_source& rnd, T, Format) -> block_param {
 }
 
 template<typename T, typename Format>
-auto generate_encoded(size_t size, const block_param& param, random_source& rnd, T, Format) -> std::tuple<std::vector<uint8_t>, size_t> {
-    // interprets size to mean the number of words used to generte the compresed byte stream.
-    if (size == 0) {
-        return std::make_tuple(std::vector<uint8_t>{}, 0);
+auto encode_uncompressed(const block_param& param, const std::vector<T>& uncompressed, const std::vector<bool> encoding_map, Format) -> std::tuple<std::vector<uint8_t>, std::vector<bool>, encoding_size, bit_count, bit_count, size_t> {
+    if (uncompressed.empty()) {
+        return std::make_tuple(std::vector<uint8_t>{}, std::vector<bool>{}, encoding_size::two_bytes, bit_count{ 2 }, bit_count{ 2 }, 0);
     }
-    const size_t max_x{ static_cast<size_t>(std::pow(2, param.nexc - 1/* signum */) - 1) };
-    std::vector<T> xs;
-    xs.reserve(size);
-    for (size_t i{ 0 }; i < size; ++i) {
-        xs.push_back(gen(max_x, rnd, T{}));
-    }
-
-    // size of each input measured in bits
-    std::vector<bit_count> sizes(xs.size());
-    std::transform(begin(xs), end(xs), begin(sizes), count_raw3{});
-
-    const bit_count n{ static_cast<bit_count::value_type>(param.n) };
-    const bit_count nexc{ static_cast<bit_count::value_type>(param.nexc) };
-    assert(true == std::accumulate(begin(sizes), end(sizes), true, [nexc](bool a, bit_count s) -> bool { return a && s <= nexc; }));
-
-    // encoding map for variable width encoding
-    std::vector<bool> encoding_map(xs.size());
-    std::transform(begin(xs), end(xs), begin(sizes), begin(encoding_map), is_exception{ n });
-    auto emap{ begin(encoding_map) };
-
-    auto bytes{ make_bytes(xs) };
-    bit_writer writer{ begin(bytes), end(bytes) };
+    std::vector<uint8_t> xs{ make_bytes(uncompressed) };
+    bit_writer bits{ begin(xs), end(xs) };
 
     const auto data_size{ Format::decode_size(param.data_size) };
-    const encoding_method method{ static_cast<int>(param.method) };
-    const bit_count::value_type nbit{ param.n };
-    const bit_count::value_type nexcbit{ param.nexc };
+    const auto n_width{ Format::field_width_n(data_size) };
+    const bit_count nbit{ param.n };
+    const bit_count nexcbit{ param.nexc };
+    const T marker{ exception_marker<T>(nbit) };
 
-    const auto last{ encode_block(begin(xs), end(xs), emap, writer, data_size, method, bit_count{ nbit }, bit_count{ nexcbit }, Format{}) };
-    const auto first{ begin(bytes) };
-    bytes.resize(static_cast<size_t>(std::distance(first, last)));
+    bits.write(field_width_encoding(), Format::encode_size(data_size));
+    bits.write(field_width_encoding(), param.method);
+    if (param.method == static_cast<unsigned>(encoding_method::copy)) {
+        bits.write(bit_count{ 4 }, unsigned{ 0 });
 
-    return std::make_tuple(bytes, size);
+        for (T x : uncompressed) {
+            bits.write(field_width_master(data_size), x);
+        }
+    }
+    else {
+        bits.write(n_width, param.n);
+        bits.write(n_width, param.nexc);
+        bits.write(field_width_master(data_size), uncompressed[0]);
+
+        if (param.n == param.nexc) {
+            for (size_t i{ 1 }; i < uncompressed.size(); ++i) {
+                bits.write(nbit, uncompressed[i]);
+            }
+        }
+        else {
+            for (size_t i{ 1 }; i < uncompressed.size(); ++i) {
+                if (encoding_map[i]) {
+                    bits.write(nbit, marker);
+                    bits.write(nexcbit, uncompressed[i]);
+                }
+                else {
+                    bits.write(nbit, uncompressed[i]);
+                }
+            }
+        }
+    }
+    xs.resize(static_cast<size_t>(std::distance(begin(xs), bits.flush())));
+
+    return std::make_tuple(xs, encoding_map, data_size, nbit, nexcbit, uncompressed.size());
 }
 
-
 template<typename T, typename Format>
-auto generate_block(size_t size, random_source& rnd, T, Format) -> std::tuple<std::vector<uint8_t>, size_t> {
+auto generate_encoded_block(size_t size, random_source& rnd, T, Format) -> std::tuple<std::vector<uint8_t>, std::vector<bool>, encoding_size, bit_count, bit_count, size_t> {
     const auto param{ generate_block_parameters(rnd, T{}, Format{}) };
-    return generate_encoded(size, param, rnd, T{}, Format{});
+    const bit_count nbit{ param.n };
+
+    // interprets size to mean the number of words used to generte the compresed byte stream.
+    std::vector<bool> encoding_map; // true - exception (n + nexc bits), false - regular (n bits)
+    encoding_map.reserve(size);
+    for (size_t i{ 0 }; i < size; ++i) {
+        encoding_map.push_back(gen(size, rnd, bool{}));
+    }
+
+    std::vector<T> xs;
+    xs.reserve(size);
+    if (param.n == param.nexc) {
+        for (size_t i{ 0 }; i < size; ++i) {
+            xs.push_back(gen(size, rnd, T{}));
+        }
+    }
+    else {
+        for (size_t i{ 0 }; i < size; ++i) {
+            T x{ gen(size, rnd, T{}) };
+            if (!encoding_map[i]) {
+                while (is_exception_marker(x, nbit)) {
+                    x = gen(size, rnd, T{});
+                }
+            }
+            xs.push_back(x);
+        }
+    }
+
+    return encode_uncompressed(param, xs, encoding_map, Format{});
 }
 

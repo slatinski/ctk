@@ -177,8 +177,8 @@ namespace ctk { namespace impl { namespace test {
 
     // example:
     // the byte sequence { 142, 123 } encodes the signed number -626 (0b10110001110).
-    // decoding the sequence into a 8-bit word would yield the signed number -114 (0b10001110) due to truncation.
-    // decoding the sequence into a 16-bit or wider signed word would yield the signed number -626.
+    // decoding the sequence into a 8-bit signed word would yield the number -114 (0b10001110) due to truncation.
+    // decoding the sequence into a 16-bit or wider signed word would yield the number -626.
     // this function takes the simplistic approach to decode the sequence into a wider word and compare the results.
     // this simplistic approach precludes using it for 64-bit wide words.
     template<typename IByte, typename T>
@@ -193,7 +193,7 @@ namespace ctk { namespace impl { namespace test {
     // the following one and two byte wide words encode the same value:
     //          01100100
     //  0000000001100100
-    // if the byte sequence specifies leading zeroes or ones then it is not the shortest representation for this value.
+    // if the byte sequence contains leading zeroes or ones then it is not the shortest representation for this value.
     template<typename IByte, typename T>
     auto shortest_representation(IByte first, IByte last, T) -> bool {
         if (first == last) {
@@ -378,8 +378,8 @@ namespace ctk { namespace impl { namespace test {
     };
 
     TEST_CASE("qcheck", "[consistency]") {
-        //random_source r{ 926816044 };
         random_source r;
+        //random_source r{ 926816044 };
 
         const size_t size_i8{ ctk::impl::leb128::max_bytes(int8_t{}) * 8 };
         const size_t size_i16{ ctk::impl::leb128::max_bytes(int16_t{}) * 8 };
@@ -394,12 +394,12 @@ namespace ctk { namespace impl { namespace test {
         REQUIRE(check("enc/dec, single, unsigned 32 bit", encode_decode_single{ uint32_t{} }, make_numbers{ r, uint32_t{} }));
         REQUIRE(check("enc/dec, single, unsigned 64 bit", encode_decode_single{ uint64_t{} }, make_numbers{ r, uint64_t{} }));
 
-        REQUIRE(check("dec/end, single, signed 8 bit", decode_encode_single{ int8_t{} }, make_short_vectors{ r, size_i8 }, 800));
-        REQUIRE(check("dec/end, single, signed 16 bit", decode_encode_single{ int16_t{} }, make_short_vectors{ r, size_i16 }, 800));
-        REQUIRE(check("dec/end, single, signed 32 bit", decode_encode_single{ int32_t{} }, make_short_vectors{ r, size_i32 }, 800));
-        REQUIRE(check("dec/end, single, unsigned 8 bit", decode_encode_single{ uint8_t{} }, make_short_vectors{ r, size_i8 }, 800));
-        REQUIRE(check("dec/end, single, unsigned 16 bit", decode_encode_single{ uint16_t{} }, make_short_vectors{ r, size_i16 }, 800));
-        REQUIRE(check("dec/end, single, unsigned 32 bit", decode_encode_single{ uint32_t{} }, make_short_vectors{ r, size_i32 }, 800));
+        REQUIRE(check("dec/enc, single, signed 8 bit", decode_encode_single{ int8_t{} }, make_short_vectors{ r, size_i8 }, 800));
+        REQUIRE(check("dec/enc, single, signed 16 bit", decode_encode_single{ int16_t{} }, make_short_vectors{ r, size_i16 }, 800));
+        REQUIRE(check("dec/enc, single, signed 32 bit", decode_encode_single{ int32_t{} }, make_short_vectors{ r, size_i32 }, 800));
+        REQUIRE(check("dec/enc, single, unsigned 8 bit", decode_encode_single{ uint8_t{} }, make_short_vectors{ r, size_i8 }, 800));
+        REQUIRE(check("dec/enc, single, unsigned 16 bit", decode_encode_single{ uint16_t{} }, make_short_vectors{ r, size_i16 }, 800));
+        REQUIRE(check("dec/enc, single, unsigned 32 bit", decode_encode_single{ uint32_t{} }, make_short_vectors{ r, size_i32 }, 800));
 
         REQUIRE(check("enc/dec, multiple, signed 8 bit", encode_decode_multiple{ int8_t{} }, make_vectors{ r, int8_t{} }));
         REQUIRE(check("enc/dec, multiple, signed 16 bit", encode_decode_multiple{ int16_t{} }, make_vectors{ r, int16_t{} }));

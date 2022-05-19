@@ -292,60 +292,11 @@ auto print_class(const matrix_tuple<uint8_t>& args, T, Format) -> std::string {
 }
 
 
-template<typename T>
-struct make_uncompressed
-{
-    random_source* _random;
-
-    make_uncompressed(random_source& r, T)
-        : _random{ &r } {
-    }
-
-
-    auto operator()(size_t size) const -> matrix_tuple<T> {
-        constexpr const size_t min_x{ 0 };
-        const auto elc{ choose(min_x, size, *_random) };
-        const auto smpl{ choose(min_x, size, *_random) };
-
-        const auto area{ static_cast<size_t>(elc * smpl) };
-        const auto xs{ gen(area, *_random, std::vector<T>{}) };
-
-        const auto electrodes{ cast(elc, sensor_count::value_type{}, ok{}) };
-        const auto samples{ cast(smpl, measurement_count::value_type{}, ok{}) };
-        return std::make_tuple(xs, sensor_count{ electrodes }, measurement_count{ samples });
-    }
-};
-
-template<typename T, typename Format>
-struct make_compressed
-{
-    random_source* _random;
-
-    make_compressed(random_source& r, T, Format)
-        : _random{ &r } {
-    }
-
-    auto operator()(size_t size) -> matrix_tuple<uint8_t> {
-        std::vector<uint8_t> xs;
-        constexpr const size_t min_x{ 0 };
-        const auto elc{ choose(min_x, size, *_random) };
-        const auto smpl{ choose(min_x, size, *_random) };
-
-        for (size_t i{ 0 }; i < elc; ++i) {
-            auto [bytes, usize]{ generate_block(smpl, *_random, T{}, Format{}) };
-            xs.insert(end(xs), begin(bytes), end(bytes));
-        }
-
-        const auto electrodes{ cast(elc, sensor_count::value_type{}, ok{}) };
-        const auto samples{ cast(smpl, measurement_count::value_type{}, ok{}) };
-        return std::make_tuple(xs, sensor_count{ electrodes }, measurement_count{ samples });
-    }
-};
-
-
 template<typename T, typename Format>
 struct encode_decode_matrix : arguments<matrix_tuple<T>>
 {
+    explicit encode_decode_matrix(T/* type tag */, Format/* type tag */) {}
+
     virtual auto accepts(const matrix_tuple<T>& args) const -> bool override final {
         const auto& xs{ std::get<0>(args) };
         const auto electrodes{ std::get<1>(args) };
@@ -395,6 +346,8 @@ struct encode_decode_matrix : arguments<matrix_tuple<T>>
 template<typename T, typename Format>
 struct decode_encode_matrix : arguments<matrix_tuple<uint8_t>>
 {
+    explicit decode_encode_matrix(T/* type tag */, Format/* type tag */) {}
+
     virtual auto accepts(const matrix_tuple<uint8_t>& args) const -> bool override final {
         const auto& bytes{ std::get<0>(args) };
         const auto electrodes{ std::get<1>(args) };
@@ -438,34 +391,72 @@ struct decode_encode_matrix : arguments<matrix_tuple<uint8_t>>
 };
 
 
+template<typename T>
+struct make_uncompressed
+{
+    random_source* _random;
+
+    make_uncompressed(random_source& r, T)
+        : _random{ &r } {
+    }
+
+
+    auto operator()(size_t size) const -> matrix_tuple<T> {
+        constexpr const size_t min_x{ 0 };
+        const size_t elc{ choose(min_x, size, *_random) };
+        const size_t smpl{ choose(min_x, size, *_random) };
+
+        const size_t area{ elc * smpl };
+        const auto xs{ gen(area, *_random, std::vector<T>{}) };
+
+        const auto electrodes{ cast(elc, sensor_count::value_type{}, ok{}) };
+        const auto samples{ cast(smpl, measurement_count::value_type{}, ok{}) };
+        return std::make_tuple(xs, sensor_count{ electrodes }, measurement_count{ samples });
+    }
+};
+
+template<typename T, typename Format>
+struct make_compressed
+{
+    random_source* _random;
+
+    make_compressed(random_source& r, T, Format)
+        : _random{ &r } {
+    }
+
+    auto operator()(size_t size) -> matrix_tuple<uint8_t> {
+        std::vector<uint8_t> xs;
+        constexpr const size_t min_x{ 0 };
+        const size_t elc{ choose(min_x, size, *_random) };
+        const size_t smpl{ choose(min_x, size, *_random) };
+
+        for (size_t i{ 0 }; i < elc; ++i) {
+            auto [bytes, emap, dsize, n, nexc, usize]{ generate_encoded_block(smpl, *_random, T{}, Format{}) };
+            xs.insert(end(xs), begin(bytes), end(bytes));
+        }
+
+        const auto electrodes{ cast(elc, sensor_count::value_type{}, ok{}) };
+        const auto samples{ cast(smpl, measurement_count::value_type{}, ok{}) };
+        return std::make_tuple(xs, sensor_count{ electrodes }, measurement_count{ samples });
+    }
+};
+
+
 TEST_CASE("qcheck", "[correct]") {
-    using enc_dec_32ref = encode_decode_matrix<uint32_t, reflib>;
-    using enc_dec_8ext = encode_decode_matrix<uint8_t, extended>;
-    using enc_dec_16ext = encode_decode_matrix<uint16_t, extended>;
-    using enc_dec_32ext = encode_decode_matrix<uint32_t, extended>;
-    using enc_dec_64ext = encode_decode_matrix<uint64_t, extended>;
-
-    using dec_enc_32ref = decode_encode_matrix<uint32_t, reflib>;
-    using dec_enc_8ext = decode_encode_matrix<uint8_t, extended>;
-    using dec_enc_16ext = decode_encode_matrix<uint16_t, extended>;
-    using dec_enc_32ext = decode_encode_matrix<uint32_t, extended>;
-    using dec_enc_64ext = decode_encode_matrix<uint64_t, extended>;
-
-
     random_source r;
     //random_source r{ 3946883574 };
 
-    REQUIRE(check("enc/dec reflib 32 bit",   enc_dec_32ref{}, make_uncompressed{ r, uint32_t{} }));
-    REQUIRE(check("enc/dec extended 8 bit",  enc_dec_8ext{},  make_uncompressed{ r, uint8_t{} }));
-    REQUIRE(check("enc/dec extended 16 bit", enc_dec_16ext{}, make_uncompressed{ r, uint16_t{} }));
-    REQUIRE(check("enc/dec extended 32 bit", enc_dec_32ext{}, make_uncompressed{ r, uint32_t{} }));
-    REQUIRE(check("enc/dec extended 64 bit", enc_dec_64ext{}, make_uncompressed{ r, uint64_t{} }));
+    REQUIRE(check("enc/dec reflib 32 bit", encode_decode_matrix{ uint32_t{}, reflib{} }, make_uncompressed{ r, uint32_t{} }));
+    REQUIRE(check("enc/dec extended 8 bit", encode_decode_matrix{ uint8_t{}, extended{} }, make_uncompressed{ r, uint8_t{} }));
+    REQUIRE(check("enc/dec extended 16 bit", encode_decode_matrix{ uint16_t{}, extended{} }, make_uncompressed{ r, uint16_t{} }));
+    REQUIRE(check("enc/dec extended 32 bit", encode_decode_matrix{ uint32_t{}, extended{} }, make_uncompressed{ r, uint32_t{} }));
+    REQUIRE(check("enc/dec extended 64 bit", encode_decode_matrix{ uint64_t{}, extended{} }, make_uncompressed{ r, uint64_t{} }));
 
-    REQUIRE(check("dec/enc reflib 32 bit",   dec_enc_32ref{}, make_compressed{ r, uint32_t{}, reflib{} }));
-    REQUIRE(check("dec/enc extended 8 bit",  dec_enc_8ext{},  make_compressed{ r, uint8_t{},  extended{} }));
-    REQUIRE(check("dec/enc extended 16 bit", dec_enc_16ext{}, make_compressed{ r, uint16_t{}, extended{} }));
-    REQUIRE(check("dec/enc extended 32 bit", dec_enc_32ext{}, make_compressed{ r, uint32_t{}, extended{} }));
-    REQUIRE(check("dec/enc extended 64 bit", dec_enc_64ext{}, make_compressed{ r, uint64_t{}, extended{} }));
+    REQUIRE(check("dec/enc reflib 32 bit", decode_encode_matrix{ uint32_t{}, reflib{} }, make_compressed{ r, uint32_t{}, reflib{} }));
+    REQUIRE(check("dec/enc extended 8 bit", decode_encode_matrix{ uint8_t{}, extended{} }, make_compressed{ r, uint8_t{}, extended{} }));
+    REQUIRE(check("dec/enc extended 16 bit", decode_encode_matrix{ uint16_t{}, extended{} }, make_compressed{ r, uint16_t{}, extended{} }));
+    REQUIRE(check("dec/enc extended 32 bit", decode_encode_matrix{ uint32_t{}, extended{} }, make_compressed{ r, uint32_t{}, extended{} }));
+    REQUIRE(check("dec/enc extended 64 bit", decode_encode_matrix{ uint64_t{}, extended{} }, make_compressed{ r, uint64_t{}, extended{} }));
 }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */

@@ -45,7 +45,7 @@ auto histogram_n(reduction<T>& dut, estimation<T>& e, Format) -> bit_count {
 
 
 auto bit_count_max() -> bit_count {
-    return bit_count{ std::numeric_limits<sint>::max() };
+    return bit_count{ std::numeric_limits<bit_count::value_type>::max() };
 }
 
 
@@ -89,6 +89,8 @@ using namespace qcheck;
 template<typename T, typename Format>
 struct histogram_vs_exhaustive : arguments<std::vector<T>>
 {
+    explicit histogram_vs_exhaustive(T/* type tag */, Format/* type tag */) {}
+
     virtual auto accepts(const std::vector<T>& xs) const -> bool override final {
         // size == 1: encoded as master value in the header, no histogram computation
         return 1 < xs.size();
@@ -117,11 +119,11 @@ struct histogram_vs_exhaustive : arguments<std::vector<T>>
 TEST_CASE("qcheck", "[correct]") {
     random_source r;
 
-    REQUIRE(check("reflib 32 bit",  histogram_vs_exhaustive<uint32_t, reflib>{},  make_vectors{ r, uint32_t{} }));
-    REQUIRE(check("extended 8 bit",  histogram_vs_exhaustive<uint8_t, extended>{},  make_vectors{ r, uint8_t{} }));
-    REQUIRE(check("extended 16 bit",  histogram_vs_exhaustive<uint16_t, extended>{},  make_vectors{ r, uint16_t{} }));
-    REQUIRE(check("extended 32 bit",  histogram_vs_exhaustive<uint32_t, extended>{},  make_vectors{ r, uint32_t{} }));
-    REQUIRE(check("extended 64 bit",  histogram_vs_exhaustive<uint64_t, extended>{},  make_vectors{ r, uint64_t{} }));
+    REQUIRE(check("reflib 32 bit", histogram_vs_exhaustive{ uint32_t{}, reflib{} }, make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("extended 8 bit", histogram_vs_exhaustive{ uint8_t{}, extended{} }, make_vectors{ r, uint8_t{} }));
+    REQUIRE(check("extended 16 bit", histogram_vs_exhaustive{ uint16_t{}, extended{} }, make_vectors{ r, uint16_t{} }));
+    REQUIRE(check("extended 32 bit", histogram_vs_exhaustive{ uint32_t{}, extended{} }, make_vectors{ r, uint32_t{} }));
+    REQUIRE(check("extended 64 bit", histogram_vs_exhaustive{ uint64_t{}, extended{} }, make_vectors{ r, uint64_t{} }));
 }
 
 } /* namespace test */ } /* namespace impl */ } /* namespace ctk */

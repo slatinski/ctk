@@ -613,8 +613,8 @@ namespace ctk { namespace impl {
     //  - ValueType(IConst) is unsigned integral type with two-complement implementation
     auto write_header(IConst first, IBoolConst encoding_map, bit_writer<IByte>& bits, encoding_size data_size, encoding_method m, bit_count n, bit_count nexc, Format format) -> std::pair<IConst, IBoolConst> {
         if (m == encoding_method::copy) {
-            bits.write(field_width_encoding(), static_cast<unsigned>(data_size));
-            bits.write(field_width_encoding(), static_cast<unsigned>(encoding_method::copy));
+            bits.write(field_width_encoding(), Format::encode_size(data_size));
+            bits.write(field_width_encoding(), static_cast<unsigned>(m));
 
             constexpr const auto scheme{ field_width_encoding() + field_width_encoding() };
             static_assert(scheme <= one_byte());

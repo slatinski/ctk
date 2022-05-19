@@ -179,6 +179,8 @@ auto restore_chan_v2(std::vector<T> xs) -> std::vector<T> {
 template<typename T>
 struct time_roundtrip : arguments<std::vector<T>>
 {
+    explicit time_roundtrip(T/* type tag */) {}
+
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
         const bool reduce_restore{ xs == restore_time_v1(reduce_time_v1(xs)) };
         const bool restore_reduce{ xs == reduce_time_v1(restore_time_v1(xs)) };
@@ -193,6 +195,8 @@ struct time_roundtrip : arguments<std::vector<T>>
 template<typename T>
 struct time2_roundtrip : arguments<std::vector<T>>
 {
+    explicit time2_roundtrip(T/* type tag */) {}
+
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
         const bool reduce_restore{ xs == restore_time2_v1(reduce_time2_v1(xs)) };
         const bool restore_reduce{ xs == reduce_time2_v1(restore_time2_v1(xs)) };
@@ -207,6 +211,8 @@ struct time2_roundtrip : arguments<std::vector<T>>
 template<typename T>
 struct chan_roundtrip : arguments<std::vector<T>>
 {
+    explicit chan_roundtrip(T/* type tag */) {}
+
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
         const bool reduce_restore{ xs == restore_chan_v1(reduce_chan_v1(xs)) };
         const bool restore_reduce{ xs == reduce_chan_v1(restore_chan_v1(xs)) };
@@ -222,6 +228,8 @@ struct chan_roundtrip : arguments<std::vector<T>>
 template<typename T>
 struct time2_versions : arguments<std::vector<T>>
 {
+    explicit time2_versions(T/* type tag */) {}
+
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
         const auto encoded_v1{ reduce_time2_v1(xs) };
         const auto encoded_v2{ reduce_time2_v2(xs) };
@@ -242,6 +250,8 @@ struct time2_versions : arguments<std::vector<T>>
 template<typename T>
 struct chan_versions : arguments<std::vector<T>>
 {
+    explicit chan_versions(T/* type tag */) {}
+
     virtual auto holds(const std::vector<T>& xs) const -> bool override final {
         const auto encoded_v1{ reduce_chan_v1(xs) };
         const auto encoded_v2{ reduce_chan_v2(xs) };
@@ -262,57 +272,88 @@ struct chan_versions : arguments<std::vector<T>>
 
 
 auto main(int, char*[]) -> int {
-    using round_time_8 = time_roundtrip<uint8_t>;
-    using round_time2_8 = time2_roundtrip<uint8_t>;
-    using round_chan_8 = chan_roundtrip<uint8_t>;
-    using versions_time2_8 = time2_versions<uint8_t>;
-    using versions_chan_8 = chan_versions<uint8_t>;
-
-    using round_time_16 = time_roundtrip<uint16_t>;
-    using round_time2_16 = time2_roundtrip<uint16_t>;
-    using round_chan_16 = chan_roundtrip<uint16_t>;
-    using versions_time2_16 = time2_versions<uint16_t>;
-    using versions_chan_16 = chan_versions<uint16_t>;
-
-    using round_time_32 = time_roundtrip<uint32_t>;
-    using round_time2_32 = time2_roundtrip<uint32_t>;
-    using round_chan_32 = chan_roundtrip<uint32_t>;
-    using versions_time2_32 = time2_versions<uint32_t>;
-    using versions_chan_32 = chan_versions<uint32_t>;
-
-    using round_time_64 = time_roundtrip<uint64_t>;
-    using round_time2_64 = time2_roundtrip<uint64_t>;
-    using round_chan_64 = chan_roundtrip<uint64_t>;
-    using versions_time2_64 = time2_versions<uint64_t>;
-    using versions_chan_64 = chan_versions<uint64_t>;
-
     random_source r;
-    bool ok{ true };
 
-    ok &= check("time round trip, 8 bit", round_time_8{}, make_vectors{ r, uint8_t{} });
-    ok &= check("time2 round trip, 8 bit", round_time2_8{}, make_vectors{ r, uint8_t{} });
-    ok &= check("chan round trip, 8 bit", round_chan_8{}, make_vectors{ r, uint8_t{} });
-    ok &= check("time2 implementations, 8 bit", versions_time2_8{}, make_vectors{ r, uint8_t{} });
-    ok &= check("chan implementations, 8 bit", versions_chan_8{}, make_vectors{ r, uint8_t{} });
+    if (!check("time round trip, 8 bit", time_roundtrip{ uint8_t{} }, make_vectors{ r, uint8_t{} })) {
+        return EXIT_FAILURE;
+    }
 
-    ok &= check("time round trip, 16 bit", round_time_16{}, make_vectors{ r, uint16_t{} });
-    ok &= check("time2 round trip, 16 bit", round_time2_16{}, make_vectors{ r, uint16_t{} });
-    ok &= check("chan round trip, 16 bit", round_chan_16{}, make_vectors{ r, uint16_t{} });
-    ok &= check("time2 implementations, 16 bit", versions_time2_16{}, make_vectors{ r, uint16_t{} });
-    ok &= check("chan implementations, 16 bit", versions_chan_16{}, make_vectors{ r, uint16_t{} });
+    if (!check("time round trip, 16 bit", time_roundtrip{ uint16_t{} }, make_vectors{ r, uint16_t{} })) {
+        return EXIT_FAILURE;
+    }
 
-    ok &= check("time round trip, 32 bit", round_time_32{}, make_vectors{ r, uint32_t{} });
-    ok &= check("time2 round trip, 32 bit", round_time2_32{}, make_vectors{ r, uint32_t{} });
-    ok &= check("chan round trip, 32 bit", round_chan_32{}, make_vectors{ r, uint32_t{} });
-    ok &= check("time2 implementations, 32 bit", versions_time2_32{}, make_vectors{ r, uint32_t{} });
-    ok &= check("chan implementations, 32 bit", versions_chan_32{}, make_vectors{ r, uint32_t{} });
+    if (!check("time round trip, 32 bit", time_roundtrip{ uint32_t{} }, make_vectors{ r, uint32_t{} })) {
+        return EXIT_FAILURE;
+    }
 
-    ok &= check("time round trip, 64 bit", round_time_64{}, make_vectors{ r, uint64_t{} });
-    ok &= check("time2 round trip, 64 bit", round_time2_64{}, make_vectors{ r, uint64_t{} });
-    ok &= check("chan round trip, 64 bit", round_chan_64{}, make_vectors{ r, uint64_t{} });
-    ok &= check("time2 implementations, 64 bit", versions_time2_64{}, make_vectors{ r, uint64_t{} });
-    ok &= check("chan implementations, 64 bit", versions_chan_64{}, make_vectors{ r, uint64_t{} });
+    if (!check("time round trip, 64 bit", time_roundtrip{ uint64_t{} }, make_vectors{ r, uint64_t{} })) {
+        return EXIT_FAILURE;
+    }
 
-    return ok ? EXIT_SUCCESS : EXIT_FAILURE;
+    if (!check("time2 round trip, 8 bit", time2_roundtrip{ uint8_t{} }, make_vectors{ r, uint8_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 round trip, 16 bit", time2_roundtrip{ uint16_t{} }, make_vectors{ r, uint16_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 round trip, 32 bit", time2_roundtrip{ uint32_t{} }, make_vectors{ r, uint32_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 round trip, 64 bit", time2_roundtrip{ uint64_t{} }, make_vectors{ r, uint64_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan round trip, 8 bit", chan_roundtrip{ uint8_t{} }, make_vectors{ r, uint8_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan round trip, 16 bit", chan_roundtrip{ uint16_t{} }, make_vectors{ r, uint16_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan round trip, 32 bit", chan_roundtrip{ uint32_t{} }, make_vectors{ r, uint32_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan round trip, 64 bit", chan_roundtrip{ uint64_t{} }, make_vectors{ r, uint64_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 implementations, 8 bit", time2_versions{ uint8_t{} }, make_vectors{ r, uint8_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 implementations, 16 bit", time2_versions{ uint16_t{} }, make_vectors{ r, uint16_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 implementations, 32 bit", time2_versions{ uint32_t{} }, make_vectors{ r, uint32_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("time2 implementations, 64 bit", time2_versions{ uint64_t{} }, make_vectors{ r, uint64_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan implementations, 8 bit", chan_versions{ uint8_t{} }, make_vectors{ r, uint8_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan implementations, 16 bit", chan_versions{ uint16_t{} }, make_vectors{ r, uint16_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan implementations, 32 bit", chan_versions{ uint32_t{} }, make_vectors{ r, uint32_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    if (!check("chan implementations, 64 bit", chan_versions{ uint64_t{} }, make_vectors{ r, uint64_t{} })) {
+        return EXIT_FAILURE;
+    }
+
+    return EXIT_SUCCESS;
 }
 

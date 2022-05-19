@@ -33,7 +33,7 @@ along with CntToolKit.  If not, see <http://www.gnu.org/licenses/>.
 
 namespace ctk { namespace impl { namespace test {
 
-using bit_group = std::pair<sint, uintmax_t>;
+using bit_group = std::pair<bit_count::value_type, uintmax_t>;
 
 
 template<typename T>
@@ -151,14 +151,16 @@ void test_bit_writer(const std::vector<uint8_t>& expected, const std::vector<bit
 
 
 TEST_CASE("reading and writing of well known data", "[concistency]") {
+    using Int = bit_count::value_type;
+
 	// 8 byte (64 bit sequence) consisting only of alternating ones and zeroes
 	const std::vector<uint8_t> input{ 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA, 0xAA };
-	const sint bit_count{ static_cast<sint>(size_in_bits(begin(input), end(input), unguarded{})) };
+	const auto bits{ static_cast<Int>(size_in_bits(begin(input), end(input), unguarded{})) };
 
 	// reading the sequence in groups of 2 bits:
 	// 32 groups of 2 bits each. each group is expected to contain the value b10.
 	std::vector<bit_group> groups2;
-	for (sint i{ 0 }; i < bit_count / 2; ++i) {
+	for (Int i{ 0 }; i < bits / 2; ++i) {
 		groups2.push_back({ 2, 0x2 });
 	}
     test_bit_reader(input, groups2);
@@ -168,7 +170,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 20 groups of 3 bits each. the groups are expected to contain the alternating values b101 and b010.
 	// remainder: a group of 4 bits containing the value b1010.
 	std::vector<bit_group> groups3;
-	for (sint i{ 0 }; i < bit_count / 6; ++i) {
+	for (Int i{ 0 }; i < bits / 6; ++i) {
 		groups3.push_back({ 3, 0x5 });
 		groups3.push_back({ 3, 0x2 });
 	}
@@ -179,7 +181,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// reading the sequence in groups of 4 bits:
 	// 16 groups of 4 bits each. each group is expected to contain the value b1010.
 	std::vector<bit_group> groups4;
-	for (sint i{ 0 }; i < bit_count / 4; ++i) {
+	for (Int i{ 0 }; i < bits / 4; ++i) {
 		groups4.push_back({ 4, 0xA });
 	}
 	test_bit_reader(input, groups4);
@@ -189,7 +191,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 12 groups of 5 bits each. the groups are expected to contain the alternating values b10101 and b01010.
 	// remainder: a group of 4 bits containing the value b1010.
 	std::vector<bit_group> groups5;
-	for (sint i{ 0 }; i < bit_count / 10; ++i) {
+	for (Int i{ 0 }; i < bits / 10; ++i) {
 		groups5.push_back({ 5, 0x15 });
 		groups5.push_back({ 5, 0xA });
 	}
@@ -201,7 +203,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 10 groups of 6 bits each. each group is expected to contain the value b101010.
 	// remainder: a group of 4 bits containing the value b1010.
 	std::vector<bit_group> groups6;
-	for (sint i{ 0 }; i < bit_count / 6; ++i) {
+	for (Int i{ 0 }; i < bits / 6; ++i) {
 		groups6.push_back({ 6, 0x2A });
 	}
 	groups6.push_back({ 4, 0xA });
@@ -212,7 +214,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 8 groups of 7 bits each. the groups are expected to contain the alternating values b1010101 and b0101010.
 	// remainder: a group of 8 bits containing the value b10101010.
 	std::vector<bit_group> groups7;
-	for (sint i{ 0 }; i < bit_count / 14; ++i) {
+	for (Int i{ 0 }; i < bits / 14; ++i) {
 		groups7.push_back({ 7, 0x55 });
 		groups7.push_back({ 7, 0x2A });
 	}
@@ -223,7 +225,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// reading the sequence in groups of 8 bits:
 	// every byte consitst of 1 groups of 8 bits, every group should have value b10101010
 	std::vector<bit_group> groups8;
-	for (sint i{ 0 }; i < bit_count / 8; ++i) {
+	for (Int i{ 0 }; i < bits / 8; ++i) {
 		groups8.push_back({ 8, 0xAA });
 	}
 	test_bit_reader(input, groups8);
@@ -233,7 +235,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 8 groups of 7 bits each. the groups are expected to contain the alternating values b101010101 and b010101010.
 	// remainder: a group of 8 bits containing the value b10101010 and a group of 2 bits containing the value b10.
 	std::vector<bit_group> groups9;
-	for (sint i{ 0 }; i < bit_count / 18; ++i) {
+	for (Int i{ 0 }; i < bits / 18; ++i) {
 		groups9.push_back({ 9, 0x155 });
 		groups9.push_back({ 9, 0xAA });
 	}
@@ -246,7 +248,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 6 groups of 10 bits each. each group is expected to contain the value b1010101010.
 	// remainder: a group of 4 bits containing the value b1010.
 	std::vector<bit_group> groups10;
-	for (sint i{ 0 }; i < bit_count / 10; ++i) {
+	for (Int i{ 0 }; i < bits / 10; ++i) {
 		groups10.push_back({ 10, 0x2AA });
 	}
 	groups10.push_back({ 4, 0xA });
@@ -257,7 +259,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 5 groups of 11 bits each. the groups are expected to contain the alternating values b10101010101 and b01010101010.
 	// remainder: a group of 9 bits containing the value b010101010.
 	std::vector<bit_group> groups11;
-	for (sint i{ 0 }; i < bit_count / 22; ++i) {
+	for (Int i{ 0 }; i < bits / 22; ++i) {
 		groups11.push_back({ 11, 0x555 });
 		groups11.push_back({ 11, 0x2AA });
 	}
@@ -270,7 +272,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 5 groups of 12 bits each. each group is expected to contain the value b101010101010.
 	// remainder: a group of 4 bits containing the value b1010.
 	std::vector<bit_group> groups12;
-	for (sint i{ 0 }; i < bit_count / 12; ++i) {
+	for (Int i{ 0 }; i < bits / 12; ++i) {
 		groups12.push_back({ 12, 0xAAA });
 	}
 	groups12.push_back({ 4, 0xA });
@@ -281,7 +283,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 4 groups of 13 bits each. the groups are expected to contain the alternating values b1010101010101 and b0101010101010.
 	// remainder: a group of 12 bits containing the value b101010101010.
 	std::vector<bit_group> groups13;
-	for (sint i{ 0 }; i < bit_count / 26; ++i) {
+	for (Int i{ 0 }; i < bits / 26; ++i) {
 		groups13.push_back({ 13, 0x1555 });
 		groups13.push_back({ 13, 0xAAA });
 	}
@@ -293,7 +295,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 4 groups of 14 bits each. each group is expected to contain the value b10101010101010.
 	// remainder: a group of 8 bits containing the value b10101010.
 	std::vector<bit_group> groups14;
-	for (sint i{ 0 }; i < bit_count / 14; ++i) {
+	for (Int i{ 0 }; i < bits / 14; ++i) {
 		groups14.push_back({ 14, 0x2AAA });
 	}
 	groups14.push_back({ 8, 0xAA });
@@ -304,7 +306,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 4 groups of 15 bits each. the groups are expected to contain the alternating values b101010101010101 and b010101010101010.
 	// remainder: a group of 4 bits containing the value b1010.
 	std::vector<bit_group> groups15;
-	for (sint i{ 0 }; i < bit_count / 30; ++i) {
+	for (Int i{ 0 }; i < bits / 30; ++i) {
 		groups15.push_back({ 15, 0x5555 });
 		groups15.push_back({ 15, 0x2AAA });
 	}
@@ -315,7 +317,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// reading the sequence in groups of 16 bits:
 	// 4 groups of 16 bits each. each group is expected to contain the value b1010101010101010.
 	std::vector<bit_group> groups16;
-	for (sint i{ 0 }; i < bit_count / 16; ++i) {
+	for (Int i{ 0 }; i < bits / 16; ++i) {
 		groups16.push_back({ 16, 0xAAAA });
 	}
 	test_bit_reader(input, groups16);
@@ -325,7 +327,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 3 groups of 17 bits each. the groups are expected to contain the alternating values b10101010101010101 and b01010101010101010.
 	// remainder: a group of 13 bits containing the value b0101010101010.
 	std::vector<bit_group> groups17;
-	for (sint i{ 0 }; i < bit_count / 34; ++i) {
+	for (Int i{ 0 }; i < bits / 34; ++i) {
 		groups17.push_back({ 17, 0x15555 });
 		groups17.push_back({ 17, 0xAAAA });
 	}
@@ -338,7 +340,7 @@ TEST_CASE("reading and writing of well known data", "[concistency]") {
 	// 3 groups of 18 bits each. each group is expected to contain the value b101010101010101010.
 	// remainder: a group of 10 bits containing the value b1010101010.
 	std::vector<bit_group> groups18;
-	for (sint i{ 0 }; i < bit_count / 18; ++i) {
+	for (Int i{ 0 }; i < bits / 18; ++i) {
 		groups18.push_back({ 18, 0x2AAAA });
 	}
 	groups18.push_back({ 10, 0x2AA });
@@ -605,8 +607,8 @@ struct decode_encode : arguments<words_bytes<T>>
 
 
 TEST_CASE("qcheck", "[concistency]") {
-    //random_source r{ 1368344820 };
     random_source r;
+    //random_source r{ 1368344820 };
 
     REQUIRE(check("encoding size 8 bit",  property_encoded_size{ uint8_t{} },  make_vectors{ r, uint8_t{} }));
     REQUIRE(check("encoding size 16 bit", property_encoded_size{ uint16_t{} }, make_vectors{ r, uint16_t{} }));
