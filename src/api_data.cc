@@ -151,7 +151,10 @@ namespace ctk { namespace api {
         , Reference{ reference }
         , Unit{ utf8compat_hack(unit) }
         , IScale{ 1 }
-        , RScale{ 1 / default_scaling_factor() } {
+        , RScale{ 1 } {
+            if (Unit == default_unit()) {
+                RScale = 1 / default_scaling_factor();
+            }
         }
 
         Electrode::Electrode(const std::string& active, const std::string& reference, const std::string& unit, double is, double rs)

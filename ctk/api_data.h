@@ -132,9 +132,10 @@ namespace v1 {
         std::string Status;
         std::string Type;
         double IScale; // user customization point: instrument scaling. default 1
-        double RScale; // range scaling. default 1/256 (3.9nV LSB, 16.75V p2p for 32-bit signed integrals)
+        double RScale; // range scaling. default 1/256 for unit uV (3.9nV LSB, 16.75V p2p for 32-bit signed integrals)
+                                              // 1 for all other units other than uV
 
-        static auto default_scaling_factor() -> double { return 256; }
+        static auto default_scaling_factor() -> double { return 256; } // for the default unit uV
         static auto default_unit() -> std::string { return "uV"; }
 
         Electrode(const std::string& label, const std::string& reference);
