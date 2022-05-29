@@ -70,7 +70,6 @@ namespace {
 
     using trigger_v4_tuple = std::tuple<std::string, int64_t, int64_t, std::string, std::string, std::string>;
     using channel_v4_tuple = std::tuple<std::string, std::string, std::string>; // active label, ref label, unit
-    using active_ref_tuple = std::tuple<std::string, std::string>;              // active label, ref label
     using trigger_tuple = std::tuple<int64_t, std::string>;
 
 
@@ -81,26 +80,11 @@ namespace {
     }
 
     static
-    auto ar2elc(const active_ref_tuple& x) -> v1::Electrode {
-        const auto[label, reference]{ x };
-        const v1::Electrode y{ label, reference };
-        ctk::impl::validate(y);
-        return y;
-    }
-
-    static
     auto ch2elc(const channel_v4_tuple& x) -> v1::Electrode {
         const auto[label, reference, unit]{ x };
         const v1::Electrode y{ label, reference, unit };
         ctk::impl::validate(y);
         return y;
-    }
-
-    static
-    auto ar2elcs(const std::vector<active_ref_tuple>& xs) -> std::vector<v1::Electrode> {
-        std::vector<v1::Electrode> ys(xs.size());
-        std::transform(begin(xs), end(xs), begin(ys), ar2elc);
-        return ys;
     }
 
     static
@@ -532,8 +516,7 @@ PYBIND11_MODULE(ctkpy, m) {
      .def("__deepcopy__", [](const v1::Electrode& x, py::dict){ return v1::Electrode(x); })
      .def("__repr__", [](const v1::Electrode& x) { return print(x); });
 
-    m.def("electrodes", &ar2elcs, "Converts [('active', 'reference', 'unit')] to [ctk.electrode]; default: range scale 1/256");
-    m.def("electrodes", &ch2elcs, "Converts [('active', 'reference')] to [ctk.electrode]; unit uV, range scale 1/256");
+    m.def("electrodes", &ch2elcs, "Converts [('active', 'reference', 'unit')] to [ctk.electrode]; if unit is uV, range scale equals 1/256 else 1");
 
     py::class_<v1::TimeSeries> ts(m, "time_series", py::module_local());
     ts.def(py::init<std::chrono::system_clock::time_point, double, const std::vector<v1::Electrode>&, int64_t>())
@@ -785,10 +768,8 @@ PYBIND11_MODULE(ctkpy, m) {
           ctk::impl::validate(x);
           self.ParamEeg.Electrodes.push_back(x);
       })
-      .def("add_electrode", [](v1::WriterReflib& self, const active_ref_tuple& x) -> void {
-          const v1::Electrode y{ ar2elc(x) };
-          ctk::impl::validate(y);
-          self.ParamEeg.Electrodes.push_back(y);
+      .def("add_electrode", [](v1::WriterReflib& self, const channel_v4_tuple& x) -> void {
+          self.ParamEeg.Electrodes.push_back(ch2elc(x));
       })
       .def("row_major", [](v1::WriterReflib& self, const py::array_t<double>& xs) -> void {
           self.cnt_ptr()->RowMajor(from_row_major(xs));
@@ -853,8 +834,8 @@ PYBIND11_MODULE(ctkpy, m) {
             assert(!self.ParamEeg.Electrodes.empty()); // because RangeRowMajor succeeded
 
             const size_t channels{ self.ParamEeg.Electrodes.size() };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             return to_row_major(xs, l, h);
       })
       .def("column_major", [] (v1::ReaderReflib& self, int64_t i, int64_t length) -> py::array_t<double> {
@@ -866,8 +847,8 @@ PYBIND11_MODULE(ctkpy, m) {
             assert(!self.ParamEeg.Electrodes.empty()); // because RangeColumnMajor succeeded
 
             const size_t channels{ self.ParamEeg.Electrodes.size() };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             return to_column_major(xs, l, h);
       })
       .def("epoch_row_major", [] (v1::ReaderReflib& self, int64_t i) -> py::array_t<double> {
@@ -880,8 +861,8 @@ PYBIND11_MODULE(ctkpy, m) {
 
             const size_t channels{ self.ParamEeg.Electrodes.size() };
             const size_t length{ xs.size() / channels };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             return to_row_major(xs, l, h);
       })
       .def("epoch_column_major", [] (v1::ReaderReflib& self, int64_t i) -> py::array_t<double> {
@@ -894,14 +875,83 @@ PYBIND11_MODULE(ctkpy, m) {
 
             const size_t channels{ self.ParamEeg.Electrodes.size() };
             const size_t length{ xs.size() / channels };
-            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
             return to_column_major(xs, l, h);
       })
       .def("epoch_compressed", &v1::ReaderReflib::EpochCompressed)
       .def_readwrite("embedded", &v1::ReaderReflib::Embedded)
       .def("extract_embedded", &v1::ReaderReflib::ExtractEmbedded)
       .def("__repr__", [](const v1::ReaderReflib& x) { return print(x.ParamEeg); });
+
+
+    py::class_<v1::ReaderReflibUnpacked> rru(m, "reader_reflib_unpacked", py::module_local());
+    rru.def(py::init<const std::string&>())
+      .def_readonly("cnt_type", &v1::ReaderReflibUnpacked::Type)
+      .def_readonly("sample_count", &v1::ReaderReflibUnpacked::SampleCount)
+      .def_readonly("epoch_count", &v1::ReaderReflibUnpacked::EpochCount)
+      .def_readonly("param", &v1::ReaderReflibUnpacked::ParamEeg)
+      .def_readonly("triggers", &v1::ReaderReflibUnpacked::Triggers)
+      .def_readonly("impedances", &v1::ReaderReflibUnpacked::Impedances)
+      .def_readonly("videos", &v1::ReaderReflibUnpacked::Videos)
+      .def_readonly("epochs", &v1::ReaderReflibUnpacked::Epochs)
+      .def_readonly("info", &v1::ReaderReflibUnpacked::RecordingInfo)
+      .def("row_major", [] (v1::ReaderReflibUnpacked& self, int64_t i, int64_t length) -> py::array_t<double> {
+            auto xs{ self.RangeRowMajor(i, length) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::row_major] can not load range");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because RangeRowMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(xs, l, h);
+      })
+      .def("column_major", [] (v1::ReaderReflibUnpacked& self, int64_t i, int64_t length) -> py::array_t<double> {
+            auto xs{ self.RangeColumnMajor(i, length) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::column_major] can not load range");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because RangeColumnMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(xs, l, h);
+      })
+      .def("epoch_row_major", [] (v1::ReaderReflibUnpacked& self, int64_t i) -> py::array_t<double> {
+            auto xs{ self.EpochRowMajor(i) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::epoch_row_major] can not load epoch");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because EpochRowMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const size_t length{ xs.size() / channels };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            return to_row_major(xs, l, h);
+      })
+      .def("epoch_column_major", [] (v1::ReaderReflibUnpacked& self, int64_t i) -> py::array_t<double> {
+            auto xs{ self.EpochColumnMajor(i) };
+            if (xs.empty()) {
+                throw std::runtime_error("[reader_reflib::epoch_column_major] can not load epoch");
+            }
+
+            assert(!self.ParamEeg.Electrodes.empty()); // because EpochColumnMajor succeeded
+
+            const size_t channels{ self.ParamEeg.Electrodes.size() };
+            const size_t length{ xs.size() / channels };
+            const ssize_t l{ ctk::impl::cast(length, ssize_t{}, ctk::impl::ok{}) };
+            const ssize_t h{ ctk::impl::cast(channels, ssize_t{}, ctk::impl::ok{}) };
+            return to_column_major(xs, l, h);
+      })
+      .def("epoch_compressed", &v1::ReaderReflibUnpacked::EpochCompressed)
+      .def("__repr__", [](const v1::ReaderReflibUnpacked& x) { return print(x.ParamEeg); });
 
 
     // 2) evt file only

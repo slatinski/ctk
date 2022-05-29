@@ -22,8 +22,7 @@ from datetime import datetime
 
 input_stamp = datetime.utcnow()
 input_rate = 1024.0
-input_electrodes_v4 = [("1", "ref", "uV"), ("2", "ref", "uV"), ("3", "ref", "uV"), ("4", "ref", "uV")]
-input_electrodes = lib.electrodes([("1", "ref"), ("2", "ref"), ("3", "ref"), ("4", "ref")])
+input_electrodes = lib.electrodes([("1", "ref", "uV"), ("2", "ref", "uV"), ("3", "ref", "uV"), ("4", "ref", "uV")])
 input_epoch = 6
 input_hospital = "Institution"
 input_tname = "routine eeg"
@@ -143,39 +142,10 @@ def read(cnt):
     assert comp.row_major(result_row_major * 256) == bs
 
 
-def write_v4(cnt):
-    riff64 = 0
-    writer = lib.write_cnt(cnt, input_rate, input_electrodes_v4, riff64)
-    for sample in result_column_major:
-        writer.add_samples(sample)
-    writer.close()
-
-
-def read_v4(cnt):
-    reader = lib.read_cnt(cnt)
-    assert reader.get_channel_count() == result_row_major.shape[0]
-    for i in range(reader.get_channel_count()):
-        assert reader.get_channel(i) == input_electrodes_v4[i]
-
-    assert reader.get_sample_frequency() == input_rate
-    assert reader.get_sample_count() == result_row_major.shape[1]
-    assert reader.get_trigger_count() == 0
-
-    i = 0
-    for sample in result_column_major:
-        result = reader.get_samples(i, 1)
-        assert (result == sample).all()
-        i += 1
-
-
 def test_write_read_cnt_evt(tmp_path):
     tmp_cnt = tmp_path / "reflib.cnt"
     write(str(tmp_cnt))
     read(str(tmp_cnt))
-
-    tmp_v4 = tmp_path / "v4.cnt"
-    write_v4(str(tmp_v4))
-    read_v4(str(tmp_v4))
 
 
 def write_evt(evt):

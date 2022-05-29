@@ -36,9 +36,9 @@ namespace ctk { namespace api {
             EventWriter events;
             WriterPhase phase;
 
-            impl(const std::filesystem::path& fname, RiffType cnt)
-            : writer{ std::make_unique<CntWriterReflib>(fname, cnt) }
-            , events{ std::filesystem::path{ fname }.replace_extension("evt") }
+            impl(const std::filesystem::path& cnt, RiffType riff)
+            : writer{ std::make_unique<CntWriterReflib>(cnt, riff) }
+            , events{ std::filesystem::path{ cnt }.replace_extension("evt") }
             , phase{ WriterPhase::Setup } {
                 assert(writer);
             }
@@ -56,8 +56,8 @@ namespace ctk { namespace api {
         };
 
 
-        WriterReflib::WriterReflib(const std::filesystem::path& fname, RiffType riff)
-            : p{ new impl{ fname, riff } } {
+        WriterReflib::WriterReflib(const std::filesystem::path& cnt, RiffType riff)
+            : p{ new impl{ cnt, riff } } {
             assert(p);
         }
 
@@ -135,15 +135,15 @@ namespace ctk { namespace api {
             CntReaderReflib reader;
             std::filesystem::path file_name;
 
-            impl(const std::filesystem::path& fname)
-            : reader{ fname }
-            , file_name{ fname } {
+            impl(const std::filesystem::path& cnt)
+            : reader{ cnt }
+            , file_name{ cnt } {
             }
         };
 
 
-        ReaderReflib::ReaderReflib(const std::filesystem::path& fname)
-            : p{ new impl{ fname } } {
+        ReaderReflib::ReaderReflib(const std::filesystem::path& cnt)
+            : p{ new impl{ cnt } } {
             assert(p);
 
             SampleCount = p->reader.SampleCount();
@@ -154,7 +154,7 @@ namespace ctk { namespace api {
             Triggers = p->reader.Triggers();
             Embedded = p->reader.EmbeddedFiles();
 
-            const auto evt_fname{ std::filesystem::path{ fname }.replace_extension("evt") };
+            const auto evt_fname{ std::filesystem::path{ cnt }.replace_extension("evt") };
             if (!std::filesystem::exists(evt_fname)) {
                 return;
             }
@@ -219,7 +219,6 @@ namespace ctk { namespace api {
             return p->reader.RangeRowMajorInt32(i, length);
         }
 
-
         auto ReaderReflib::EpochColumnMajor(int64_t i) -> std::vector<double> {
             assert(p);
             return p->reader.EpochColumnMajor(i);
@@ -238,6 +237,106 @@ namespace ctk { namespace api {
         auto ReaderReflib::ExtractEmbedded(const v1::UserFile& x) -> void {
             assert(p);
             p->reader.ExtractEmbeddedFile(x);
+        }
+
+
+
+        struct ReaderReflibUnpacked::impl
+        {
+            CntReaderReflibUnpacked reader;
+            std::filesystem::path file_name;
+
+            impl(const std::filesystem::path& cnt)
+            : reader{ cnt }
+            , file_name{ cnt } {
+            }
+        };
+
+
+        ReaderReflibUnpacked::ReaderReflibUnpacked(const std::filesystem::path& cnt)
+            : p{ new impl{ cnt } } {
+            assert(p);
+
+            SampleCount = p->reader.SampleCount();
+            EpochCount = p->reader.Epochs();
+            Type = p->reader.CntType();
+            ParamEeg = p->reader.ParamEeg();
+            RecordingInfo = p->reader.RecordingInfo();
+            Triggers = p->reader.Triggers();
+
+            EventReaderUnpacked events{ std::filesystem::path{ cnt }.replace_extension("evt") };
+            Impedances = events.ImpedanceEvents();
+            Videos = events.VideoEvents();
+            Epochs = events.EpochEvents();
+        }
+
+        ReaderReflibUnpacked::ReaderReflibUnpacked(const ReaderReflibUnpacked& x)
+        : p{ new impl{ x.p->file_name } } {
+            assert(p);
+        }
+
+        ReaderReflibUnpacked::ReaderReflibUnpacked(ReaderReflibUnpacked&& x)
+        : p{ std::move(x.p) } {
+            assert(p);
+        }
+
+        auto swap(ReaderReflibUnpacked& x, ReaderReflibUnpacked& y) -> void {
+            std::swap(x.p, y.p);
+        }
+
+        auto ReaderReflibUnpacked::operator=(const ReaderReflibUnpacked& x) -> ReaderReflibUnpacked& {
+            ReaderReflibUnpacked y{ x };
+            swap(*this, y);
+            return *this;
+        }
+
+        auto ReaderReflibUnpacked::operator=(ReaderReflibUnpacked&& x) -> ReaderReflibUnpacked& {
+            p = std::move(x.p);
+            assert(p);
+            return *this;
+        }
+
+        ReaderReflibUnpacked::~ReaderReflibUnpacked() {
+        }
+
+        auto ReaderReflibUnpacked::RangeColumnMajor(int64_t i, int64_t length) -> std::vector<double> {
+            assert(p);
+            return p->reader.RangeColumnMajor(i, length);
+        }
+
+        auto ReaderReflibUnpacked::RangeRowMajor(int64_t i, int64_t length) -> std::vector<double> {
+            assert(p);
+            return p->reader.RangeRowMajor(i, length);
+        }
+
+        auto ReaderReflibUnpacked::RangeV4(int64_t i, int64_t length) -> std::vector<float> {
+            assert(p);
+            return p->reader.RangeV4(i, length);
+        }
+
+        auto ReaderReflibUnpacked::RangeColumnMajorInt32(int64_t i, int64_t length) -> std::vector<int32_t> {
+            assert(p);
+            return p->reader.RangeColumnMajorInt32(i, length);
+        }
+
+        auto ReaderReflibUnpacked::RangeRowMajorInt32(int64_t i, int64_t length) -> std::vector<int32_t> {
+            assert(p);
+            return p->reader.RangeRowMajorInt32(i, length);
+        }
+
+        auto ReaderReflibUnpacked::EpochColumnMajor(int64_t i) -> std::vector<double> {
+            assert(p);
+            return p->reader.EpochColumnMajor(i);
+        }
+
+        auto ReaderReflibUnpacked::EpochRowMajor(int64_t i) -> std::vector<double> {
+            assert(p);
+            return p->reader.EpochRowMajor(i);
+        }
+
+        auto ReaderReflibUnpacked::EpochCompressed(int64_t i) -> std::vector<uint8_t> {
+            assert(p);
+            return p->reader.EpochCompressed(i);
         }
 
     } /* namespace v1 */

@@ -280,6 +280,8 @@ namespace ctk { namespace impl {
     auto video2marker(const api::v1::EventVideo&) -> marker_event;
     auto epochevent2eventepoch(const epoch_event&) -> api::v1::EventEpoch;
     auto eventepoch2epochevent(const api::v1::EventEpoch&) -> epoch_event;
+    auto read_class(FILE*, int32_t& class_tag, std::string&) -> bool;
+    auto load_event(FILE*, event_library&, const std::string&) -> void;
 
     auto write_impedance(FILE*, const marker_event&, int version) -> void;
     auto write_video(FILE*, const marker_event&, int version) -> void;

@@ -349,7 +349,7 @@ namespace ctk { namespace impl {
         friend auto operator!=(const riff_list&, const riff_list&) -> bool = default;
 
         auto push_back(const riff_node& x) -> void;
-        auto back() -> decltype(subnodes.back());
+        auto back() const -> const riff_node&;
     };
 
 
@@ -488,6 +488,7 @@ namespace ctk { namespace impl {
     auto fname_history(std::filesystem::path) -> std::filesystem::path;
     auto fname_time_series_header(std::filesystem::path) -> std::filesystem::path;
     auto fname_flat(std::filesystem::path) -> std::filesystem::path;
+    auto fname_archive_bin(std::filesystem::path) -> std::filesystem::path;
     auto delete_files(const std::vector<std::filesystem::path>&) -> bool;
 
     auto make_eeph_content(const amorph&) -> std::string;

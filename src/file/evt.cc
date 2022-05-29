@@ -616,7 +616,6 @@ namespace ctk { namespace impl {
     }
 
 
-    static
     auto read_class(FILE* f, int32_t& class_tag, std::string& class_name) -> bool {
         class_tag = read(f, int32_t{});
 
@@ -1515,7 +1514,6 @@ namespace ctk { namespace impl {
     }
 
 
-    static
     auto load_event(FILE* f, event_library& lib, const std::string& class_name) -> void {
         if (class_name == dc_names::epoch) {
             lib.epochs.push_back(load_event(f, lib.version, epoch_event{}));

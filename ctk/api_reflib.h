@@ -102,6 +102,74 @@ namespace ctk { namespace api {
         };
 
 
+        struct CntReaderReflibUnpacked
+        {
+            CntReaderReflibUnpacked(const std::filesystem::path& fname);
+            CntReaderReflibUnpacked(const CntReaderReflibUnpacked&);
+            CntReaderReflibUnpacked(CntReaderReflibUnpacked&&);
+            auto operator=(const CntReaderReflibUnpacked&) -> CntReaderReflibUnpacked&;
+            auto operator=(CntReaderReflibUnpacked&&) -> CntReaderReflibUnpacked& = default;
+            ~CntReaderReflibUnpacked();
+
+            auto SampleCount() const -> int64_t;
+
+            /*
+            range interface: returns variable amount of samples
+            the output is in row major format.
+            used internally by libeep and by this library.
+            vector<int32_t> output {
+                11, 12, 13, 14, // sample data at time points 1, 2, 3 and 4 for sensor 1
+                21, 22, 23, 24, // sample data at time points 1, 2, 3 and 4 for sensor 2
+                31, 32, 33, 34  // sample data at time points 1, 2, 3 and 4 for sensor 3
+            } */
+            auto RangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+
+            /*
+            the output is in column major format.
+            used by the libeep interface.
+            vector<int32_t> output {
+                11, 21, 31, // measurement at time point 1: sample data for sensors 1, 2 and 3
+                12, 22, 32, // measurement at time point 2: sample data for sensors 1, 2 and 3
+                13, 23, 33, // measurement at time point 3: sample data for sensors 1, 2 and 3
+                14, 24, 34  // measurement at time point 4: sample data for sensors 1, 2 and 3
+            } */
+            auto RangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+
+            // libeep v4 interface: column major, float
+            auto RangeV4(int64_t i, int64_t samples) -> std::vector<float>;
+
+            /*
+            epoch interface:
+            omits the intermediate buffer used to collect samples into the variable sized output
+            requested by the user (as range) out of "epoch length" sized epochs.
+            this interface delivers data in the following fashion:
+                - all output epochs but the last contain epoch length measurements
+                - the last epoch might be shorter
+            */
+            auto Epochs() const -> int64_t;
+            auto EpochRowMajor(int64_t i) -> std::vector<double>;
+            auto EpochColumnMajor(int64_t i) -> std::vector<double>;
+            auto EpochRowMajorInt32(int64_t i) -> std::vector<int32_t>;
+            auto EpochColumnMajorInt32(int64_t i) -> std::vector<int32_t>;
+            auto EpochCompressed(int64_t i) -> std::vector<uint8_t>;
+
+            auto ParamEeg() const -> TimeSeries;
+            auto CntType() const -> RiffType;
+            auto History() const -> std::string;
+
+            auto Triggers() const -> std::vector<Trigger>;
+            auto RecordingInfo() const -> Info;
+            auto CntFileVersion() const -> FileVersion;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+            friend auto swap(CntReaderReflibUnpacked&, CntReaderReflibUnpacked&) -> void;
+        };
+
+
         enum class WriterPhase{ Setup, Writing, Closed };
         auto operator<<(std::ostream&, WriterPhase) -> std::ostream&;
         auto validate_writer_phase(WriterPhase x, WriterPhase expected, const std::string& func) -> void;
@@ -205,6 +273,34 @@ namespace ctk { namespace api {
             struct impl;
             std::unique_ptr<impl> p;
             friend auto swap(EventReader&, EventReader&) -> void;
+        };
+
+
+        struct EventReaderUnpacked
+        {
+            explicit EventReaderUnpacked(const std::filesystem::path&);
+            EventReaderUnpacked(const EventReaderUnpacked&);
+            EventReaderUnpacked(EventReaderUnpacked&&);
+            auto operator=(const EventReaderUnpacked&) -> EventReaderUnpacked&;
+            auto operator=(EventReaderUnpacked&&) -> EventReaderUnpacked&;
+            ~EventReaderUnpacked();
+
+            auto ImpedanceCount() const -> size_t;
+            auto VideoCount() const -> size_t;
+            auto EpochCount() const -> size_t;
+
+            auto ImpedanceEvent(size_t) -> EventImpedance;
+            auto VideoEvent(size_t) -> EventVideo;
+            auto EpochEvent(size_t) -> EventEpoch;
+
+            auto ImpedanceEvents() -> std::vector<EventImpedance>;
+            auto VideoEvents() -> std::vector<EventVideo>;
+            auto EpochEvents() -> std::vector<EventEpoch>;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+            friend auto swap(EventReaderUnpacked&, EventReaderUnpacked&) -> void;
         };
 
 

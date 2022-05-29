@@ -37,13 +37,13 @@ namespace ctk { namespace api {
             cnt_reader_reflib_riff reader;
 
             explicit
-            impl(const std::filesystem::path& fname)
-            : reader{ fname } {
+            impl(const std::filesystem::path& cnt)
+            : reader{ cnt } {
             }
         };
 
-        CntReaderReflib::CntReaderReflib(const std::filesystem::path& fname)
-            : p{ new impl{ fname } } {
+        CntReaderReflib::CntReaderReflib(const std::filesystem::path& cnt)
+            : p{ new impl{ cnt } } {
             assert(p);
         }
 
@@ -178,6 +178,141 @@ namespace ctk { namespace api {
         }
 
 
+
+        struct CntReaderReflibUnpacked::impl
+        {
+            cnt_reader_reflib_flat reader;
+
+            explicit
+            impl(const std::filesystem::path& cnt)
+            : reader{ cnt } {
+            }
+        };
+
+        CntReaderReflibUnpacked::CntReaderReflibUnpacked(const std::filesystem::path& cnt)
+            : p{ new impl{ cnt } } {
+            assert(p);
+        }
+
+        CntReaderReflibUnpacked::~CntReaderReflibUnpacked() {
+        }
+
+        CntReaderReflibUnpacked::CntReaderReflibUnpacked(const CntReaderReflibUnpacked& x)
+            : p{ new impl{ *x.p } } {
+            assert(x.p);
+            assert(p);
+        }
+
+        CntReaderReflibUnpacked::CntReaderReflibUnpacked(CntReaderReflibUnpacked&& x)
+        : p{ std::move(x.p) } {
+            assert(p);
+        }
+
+        auto swap(CntReaderReflibUnpacked& x, CntReaderReflibUnpacked& y) -> void {
+            using namespace std;
+            swap(x.p, y.p);
+        }
+
+        auto CntReaderReflibUnpacked::operator=(const CntReaderReflibUnpacked& x) -> CntReaderReflibUnpacked& {
+            CntReaderReflibUnpacked y{ x };
+            swap(*this, y);
+            return *this;
+        }
+
+        auto CntReaderReflibUnpacked::SampleCount() const -> int64_t {
+            assert(p);
+            const measurement_count::value_type result{ p->reader.sample_count() };
+            return result;
+        }
+
+        auto CntReaderReflibUnpacked::RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+            assert(p);
+            return p->reader.range_row_major(measurement_count{ i }, measurement_count{ samples });
+        }
+
+        auto CntReaderReflibUnpacked::RangeRowMajor(int64_t i, int64_t samples) -> std::vector<double> {
+            assert(p);
+            return p->reader.range_row_major_scaled(measurement_count{ i }, measurement_count{ samples });
+        }
+
+        auto CntReaderReflibUnpacked::RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t> {
+            assert(p);
+            return p->reader.range_column_major(measurement_count{ i }, measurement_count{ samples });
+        }
+
+        auto CntReaderReflibUnpacked::RangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double> {
+            assert(p);
+            return p->reader.range_column_major_scaled(measurement_count{ i }, measurement_count{ samples });
+        }
+
+        auto CntReaderReflibUnpacked::RangeV4(int64_t i, int64_t samples) -> std::vector<float> {
+            assert(p);
+            return p->reader.range_libeep_v4(measurement_count{ i }, measurement_count{ samples });
+        }
+
+        auto CntReaderReflibUnpacked::Epochs() const -> int64_t {
+            assert(p);
+            const epoch_count::value_type result{ p->reader.epochs() };
+            return result;
+        }
+
+        auto CntReaderReflibUnpacked::EpochRowMajorInt32(int64_t i) -> std::vector<int32_t> {
+            assert(p);
+            return p->reader.epoch_row_major(epoch_count{ i });
+        }
+
+        auto CntReaderReflibUnpacked::EpochRowMajor(int64_t i) -> std::vector<double> {
+            assert(p);
+            return p->reader.epoch_row_major_scaled(epoch_count{ i });
+        }
+
+        auto CntReaderReflibUnpacked::EpochColumnMajorInt32(int64_t i) -> std::vector<int32_t> {
+            assert(p);
+            return p->reader.epoch_column_major(epoch_count{ i });
+        }
+
+        auto CntReaderReflibUnpacked::EpochColumnMajor(int64_t i) -> std::vector<double> {
+            assert(p);
+            return p->reader.epoch_column_major_scaled(epoch_count{ i });
+        }
+
+        auto CntReaderReflibUnpacked::EpochCompressed(int64_t i) -> std::vector<uint8_t> {
+            assert(p);
+            return p->reader.epoch_compressed(epoch_count{ i });
+        }
+
+        auto CntReaderReflibUnpacked::ParamEeg() const -> TimeSeries {
+            assert(p);
+            return p->reader.param_eeg();
+        }
+
+        auto CntReaderReflibUnpacked::CntType() const -> RiffType {
+            assert(p);
+            return p->reader.cnt_type();
+        }
+
+        auto CntReaderReflibUnpacked::History() const -> std::string {
+            assert(p);
+            return p->reader.history();
+        }
+
+        auto CntReaderReflibUnpacked::Triggers() const -> std::vector<Trigger> {
+            assert(p);
+            return p->reader.triggers();
+        }
+
+        auto CntReaderReflibUnpacked::RecordingInfo() const -> Info {
+            assert(p);
+            return p->reader.information();
+        }
+
+        auto CntReaderReflibUnpacked::CntFileVersion() const -> FileVersion {
+            assert(p);
+            return p->reader.file_version();
+        }
+
+
+
         auto validate_writer_phase(WriterPhase x, WriterPhase expected, const std::string& func) -> void {
             if (x == expected) {
                 return;
@@ -196,13 +331,13 @@ namespace ctk { namespace api {
             cnt_writer_reflib_flat *raw3;
             WriterPhase phase;
 
-            impl(const std::filesystem::path& fname, RiffType riff)
-            : writer{ fname, riff }
+            impl(const std::filesystem::path& cnt, RiffType riff)
+            : writer{ cnt, riff }
             , raw3{ nullptr }
             , phase{ WriterPhase::Setup } {
-                if (fname.empty() || !fname.has_filename()) {
+                if (cnt.empty() || !cnt.has_filename()) {
                     std::ostringstream oss;
-                    oss << "[CntWriterReflib, api_reflib] no filename '" << fname.string() << "'";
+                    oss << "[CntWriterReflib, api_reflib] no filename '" << cnt.string() << "'";
                     const auto e{ oss.str() };
                     ctk_log_error(e);
                     throw CtkData{ e };
@@ -210,8 +345,8 @@ namespace ctk { namespace api {
             }
         };
 
-        CntWriterReflib::CntWriterReflib(const std::filesystem::path& fname, RiffType riff)
-            : p{ new impl{ fname, riff } } {
+        CntWriterReflib::CntWriterReflib(const std::filesystem::path& cnt, RiffType riff)
+        : p{ new impl{ cnt, riff } } {
             assert(p);
         }
 
@@ -458,8 +593,8 @@ namespace ctk { namespace api {
         {
             event_library lib;
 
-            impl(const std::filesystem::path& file_name)
-            : lib{ ctk::impl::read_archive(open_r(file_name).get()) } {
+            impl(const std::filesystem::path& evt)
+            : lib{ ctk::impl::read_archive(open_r(evt).get()) } {
             }
 
             impl(const event_library& x)
@@ -473,8 +608,8 @@ namespace ctk { namespace api {
             swap(x.p, y.p);
         }
 
-        EventReader::EventReader(const std::filesystem::path& file_name)
-        : p{ new impl{ file_name } } {
+        EventReader::EventReader(const std::filesystem::path& evt)
+        : p{ new impl{ evt } } {
             assert(p);
         }
 
@@ -587,14 +722,152 @@ namespace ctk { namespace api {
         }
 
 
+        struct EventReaderUnpacked::impl
+        {
+            event_library lib;
 
-        static
-        auto fname_archive_bin(std::filesystem::path x) -> std::filesystem::path {
-            auto name{ x.filename() };
-            name += "_archive.bin";
-            x.replace_filename(name);
-            return x;
+            impl(const std::filesystem::path& evt) {
+                const auto temp_fname{ fname_archive_bin(evt) };
+                file_ptr f{ fopen(temp_fname.string().c_str(), "rb") };
+                if (!f) {
+                    return;
+                }
+                read_part_header(f.get(), file_tag::satellite_evt, as_label("sevt"), true);
+
+                int32_t class_tag;
+                std::string class_name;
+                while (ctk::impl::read_class(f.get(), class_tag, class_name)) {
+                    if (class_tag == 0) {
+                        continue;
+                    }
+                    ctk::impl::load_event(f.get(), lib, class_name);
+                }
+            }
+
+            impl(const event_library& x)
+            : lib{ x } {
+            }
+        };
+
+
+        auto swap(EventReaderUnpacked& x, EventReaderUnpacked& y) -> void {
+            using namespace std;
+            swap(x.p, y.p);
         }
+
+        EventReaderUnpacked::EventReaderUnpacked(const std::filesystem::path& evt)
+        : p{ new impl{ evt } } {
+            assert(p);
+        }
+
+        EventReaderUnpacked::EventReaderUnpacked(const EventReaderUnpacked& x) {
+            assert(x.p);
+            p.reset(new impl{ x.p->lib });
+            assert(p);
+        }
+
+        EventReaderUnpacked::EventReaderUnpacked(EventReaderUnpacked&& x)
+        : p{ std::move(x.p) }
+        {
+            assert(p);
+        }
+
+        EventReaderUnpacked::~EventReaderUnpacked() {
+        }
+
+        auto EventReaderUnpacked::operator=(const EventReaderUnpacked& x) -> EventReaderUnpacked& {
+            EventReaderUnpacked y{ x };
+            swap(*this, y);
+            return *this;
+        }
+
+        auto EventReaderUnpacked::operator=(EventReaderUnpacked&& x) -> EventReaderUnpacked& {
+            p = std::move(x.p);
+            assert(p);
+            return *this;
+        }
+
+        auto EventReaderUnpacked::ImpedanceCount() const -> size_t {
+            assert(p);
+            return p->lib.impedances.size();
+        }
+
+        auto EventReaderUnpacked::VideoCount() const -> size_t {
+            assert(p);
+            return p->lib.videos.size();
+        }
+
+        auto EventReaderUnpacked::EpochCount() const -> size_t {
+            assert(p);
+            return p->lib.epochs.size();
+        }
+
+        auto EventReaderUnpacked::ImpedanceEvent(size_t i) -> EventImpedance {
+            assert(p);
+            if (p->lib.impedances.size() <= i) {
+                std::ostringstream oss;
+                oss << "[EventReaderUnpacked::ImpedanceEvent, api_reflib] " << (i + 1) << "/" << p->lib.impedances.size();
+                const auto e{ oss.str() };
+                ctk_log_error(e);
+                throw CtkLimit{ e };
+            }
+
+            return marker2impedance(p->lib.impedances[i]);
+        }
+
+        auto EventReaderUnpacked::VideoEvent(size_t i) -> EventVideo {
+            assert(p);
+            if (p->lib.videos.size() <= i) {
+                std::ostringstream oss;
+                oss << "[EventReaderUnpacked::VideoEvent, api_reflib] " << (i + 1) << "/" << p->lib.videos.size();
+                const auto e{ oss.str() };
+                ctk_log_error(e);
+                throw CtkLimit{ e };
+            }
+
+            return marker2video(p->lib.videos[i]);
+        }
+
+        auto EventReaderUnpacked::EpochEvent(size_t i) -> EventEpoch {
+            assert(p);
+            if (p->lib.epochs.size() <= i) {
+                std::ostringstream oss;
+                oss << "[EventReaderUnpacked::EpochEvent, api_reflib] " << (i + 1) << "/" << p->lib.epochs.size();
+                const auto e{ oss.str() };
+                ctk_log_error(e);
+                throw CtkLimit{ e };
+            }
+
+            return epochevent2eventepoch(p->lib.epochs[i]);
+        }
+
+        auto EventReaderUnpacked::ImpedanceEvents() -> std::vector<EventImpedance> {
+            assert(p);
+
+            const auto& events{ p->lib.impedances };
+            std::vector<EventImpedance> xs(events.size());
+            std::transform(begin(events), end(events), begin(xs), marker2impedance);
+            return xs;
+        }
+
+        auto EventReaderUnpacked::VideoEvents() -> std::vector<EventVideo> {
+            assert(p);
+
+            const auto& events{ p->lib.videos };
+            std::vector<EventVideo> xs(events.size());
+            std::transform(begin(events), end(events), begin(xs), marker2video);
+            return xs;
+        }
+
+        auto EventReaderUnpacked::EpochEvents() -> std::vector<EventEpoch> {
+            assert(p);
+
+            const auto& events{ p->lib.epochs };
+            std::vector<EventEpoch> xs(events.size());
+            std::transform(begin(events), end(events), begin(xs), epochevent2eventepoch);
+            return xs;
+        }
+
 
 
         struct EventWriter::impl

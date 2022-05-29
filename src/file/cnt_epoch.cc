@@ -2209,6 +2209,10 @@ namespace ctk { namespace impl {
         return append_to_filename(x, "_flat");
     }
 
+    auto fname_archive_bin(std::filesystem::path x) -> std::filesystem::path {
+        return append_to_filename(x, "_archive.bin");
+    }
+
 
     auto delete_files(const std::vector<std::filesystem::path>& xs) -> bool {
         const auto del = [](bool acc, const std::filesystem::path& x) -> bool { return acc && std::filesystem::remove(x); };
@@ -2392,7 +2396,7 @@ namespace ctk { namespace impl {
         subnodes.push_back(x);
     }
 
-    auto riff_list::back() -> decltype(subnodes.back()) {
+    auto riff_list::back() const -> const riff_node& {
         return subnodes.back();
     }
 

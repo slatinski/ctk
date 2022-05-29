@@ -83,33 +83,29 @@ def test_electrode():
     assert x.iscale == 1 
     assert x.rscale == 1/256 
 
-    ys = lib.electrodes([("fp1", "ref"), ("fp1", "ref")])
+    ys = lib.electrodes([("fp1", "ref", "uV"), ("fp1", "ref", "uV")])
     assert ys[0] == x
     assert ys[1] == x
 
-    zs = lib.electrodes([("fp1", "ref", "uV"), ("fp1", "ref", "uV")])
-    assert zs[0] == x
-    assert zs[1] == x
+    ys[0].label = "fp2"
+    assert ys[0] != x
 
-    zs[0].label = "fp2"
-    assert zs[0] != x
+    ys[0] = copy(x)
+    assert ys[0] == x
+    ys[0].reference = "other"
+    assert ys[0] != x
 
-    zs[0] = copy(x)
-    assert zs[0] == x
-    zs[0].reference = "other"
-    assert zs[0] != x
+    ys[0] = copy(x)
+    ys[0].unit = "other"
+    assert ys[0] != x
 
-    zs[0] = copy(x)
-    zs[0].unit = "other"
-    assert zs[0] != x
+    ys[0] = copy(x)
+    ys[0].iscale = 3
+    assert ys[0] != x
 
-    zs[0] = copy(x)
-    zs[0].iscale = 3
-    assert zs[0] != x
-
-    zs[0] = copy(x)
-    zs[0].rscale = 3
-    assert zs[0] != x
+    ys[0] = copy(x)
+    ys[0].rscale = 3
+    assert ys[0] != x
 
     with pytest.raises(RuntimeError):
         x.label = ""
@@ -162,7 +158,7 @@ def test_electrode():
 
 def test_time_series():
     stamp = datetime.utcnow()
-    elc = lib.electrodes([("fp1", "ref"), ("fp2", "ref")])
+    elc = lib.electrodes([("fp1", "ref", "uV"), ("fp2", "ref", "uV")])
 
     x = lib.time_series(stamp, 2048, elc, 4096)
     assert x.start_time == stamp 

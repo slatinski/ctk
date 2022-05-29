@@ -88,6 +88,40 @@ namespace ctk { namespace api {
         };
 
 
+        struct ReaderReflibUnpacked
+        {
+            int64_t SampleCount;
+            int64_t EpochCount;
+            v1::RiffType Type;
+            v1::TimeSeries ParamEeg;
+            v1::Info RecordingInfo;
+            std::vector<Trigger> Triggers;
+            std::vector<EventImpedance> Impedances;
+            std::vector<EventVideo> Videos;
+            std::vector<EventEpoch> Epochs;
+
+            explicit ReaderReflibUnpacked(const std::filesystem::path&);
+            ReaderReflibUnpacked(const ReaderReflibUnpacked&);
+            ReaderReflibUnpacked(ReaderReflibUnpacked&&);
+            auto operator=(const ReaderReflibUnpacked&) -> ReaderReflibUnpacked&;
+            auto operator=(ReaderReflibUnpacked&&) -> ReaderReflibUnpacked&;
+            ~ReaderReflibUnpacked();
+
+            auto RangeColumnMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto RangeRowMajor(int64_t i, int64_t samples) -> std::vector<double>;
+            auto RangeV4(int64_t i, int64_t samples) -> std::vector<float>;
+            auto RangeColumnMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+            auto RangeRowMajorInt32(int64_t i, int64_t samples) -> std::vector<int32_t>;
+
+            auto EpochColumnMajor(int64_t) -> std::vector<double>;
+            auto EpochRowMajor(int64_t) -> std::vector<double>;
+            auto EpochCompressed(int64_t) -> std::vector<uint8_t>;
+
+        private:
+            struct impl;
+            std::unique_ptr<impl> p;
+            friend auto swap(ReaderReflibUnpacked&, ReaderReflibUnpacked&) -> void;
+        };
 
     } /* namespace v1 */
 } /* namespace api */ } /* namespace ctk */
