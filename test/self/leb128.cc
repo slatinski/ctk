@@ -185,9 +185,16 @@ namespace ctk { namespace impl { namespace test {
     auto representable_as_t(IByte first, IByte last, T) -> bool {
         static_assert(sizeof(T) < sizeof(int64_t));
 
-        const auto[x, u0]{ decode_leb128(first, last, T{}) };
-        const auto[y, u1]{ decode_leb128(first, last, int64_t{}) };
-        return x == y;
+        if (std::is_signed<T>::value) {
+            const auto[x, u0]{ decode_leb128(first, last, T{}) };
+            const auto[y, u1]{ decode_leb128(first, last, int64_t{}) };
+            return x == y;
+        }
+        else {
+            const auto[x, u0]{ decode_leb128(first, last, T{}) };
+            const auto[y, u1]{ decode_leb128(first, last, uint64_t{}) };
+            return x == y;
+        }
     }
 
     // the following one and two byte wide words encode the same value:
